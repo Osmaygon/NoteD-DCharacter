@@ -119,12 +119,25 @@ export function Dashboard() {
       setStatus("Escribe email y password para registrarte");
       return;
     }
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
       setStatus(error.message);
       return;
     }
-    setStatus("Cuenta creada correctamente.");
+
+    if (data.session) {
+      setStatus("Cuenta creada correctamente.");
+      await bootstrap();
+      return;
+    }
+
+    const signInResult = await supabase.auth.signInWithPassword({ email, password });
+    if (signInResult.error) {
+      setStatus("Cuenta creada, pero no se pudo iniciar sesion automaticamente. Prueba con Iniciar sesion.");
+      return;
+    }
+
+    setStatus("Cuenta creada e inicio de sesion correcto.");
     await bootstrap();
   }
 
