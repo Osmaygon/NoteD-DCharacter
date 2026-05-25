@@ -5,7 +5,7 @@ Aplicacion web (PWA-ready) para gestionar personajes de D&D 5e (2014) con sincro
 ## Stack
 
 - Next.js + TypeScript
-- Supabase (Auth Google, Postgres, Realtime, RLS)
+- Supabase (Auth Email/Password, Postgres, Realtime, RLS)
 - Vercel para despliegue
 
 ## Setup rapido
@@ -25,9 +25,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 
 3) En Supabase > SQL Editor ejecuta `supabase/schema.sql`.
 
-4) Auth Google en Supabase:
-- Redirect URI en Google Cloud: `https://tu-proyecto.supabase.co/auth/v1/callback`
-- En Supabase `Authentication > Providers > Google` pega Client ID/Secret.
+4) Auth en Supabase (sin Google):
+- En `Authentication > Providers`, habilita `Email`.
 - En `Authentication > URL Configuration` agrega:
   - `Site URL`: `http://localhost:3000`
   - `Allowed Redirect URLs`: `http://localhost:3000/**`
@@ -40,7 +39,7 @@ npm run dev
 
 ## Funcionalidad MVP incluida
 
-- Login Google
+- Login email/password
 - Campanas y personajes
 - Vida, escudo temporal, nivel, velocidad
 - Ajuste de velocidad por estados (ejemplo via `effect_json.speed_multiplier`)

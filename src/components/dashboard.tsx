@@ -40,6 +40,8 @@ const CLASS_OPTIONS = [
 
 export function Dashboard() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignId, setCampaignId] = useState<string>("");
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -75,9 +77,32 @@ export function Dashboard() {
     await loadCampaigns();
   }
 
-  async function signIn() {
+  async function signInWithEmail() {
     if (!supabase) return;
-    await supabase.auth.signInWithOAuth({ provider: "google" });
+    if (!email || !password) {
+      setStatus("Escribe email y password para iniciar sesion");
+      return;
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    await bootstrap();
+  }
+
+  async function signUpWithEmail() {
+    if (!supabase) return;
+    if (!email || !password) {
+      setStatus("Escribe email y password para registrarte");
+      return;
+    }
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    setStatus("Cuenta creada. Si tienes confirmacion por email, revisa tu correo.");
   }
 
   async function signOut() {
@@ -213,9 +238,28 @@ export function Dashboard() {
       <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col justify-center gap-5 px-6">
         <h1 className="text-4xl font-semibold">NoteD&DCharacter</h1>
         <p className="text-zinc-700">Gestiona personajes, estados, inventario y dados en tiempo real para D&D 5e (2014).</p>
-        <button className="w-fit rounded-lg bg-zinc-900 px-4 py-2 text-white" onClick={signIn}>
-          Entrar con Google
-        </button>
+        <input
+          className="w-full max-w-md rounded border px-3 py-2"
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          className="w-full max-w-md rounded border px-3 py-2"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <button className="w-fit rounded-lg bg-zinc-900 px-4 py-2 text-white" onClick={() => void signInWithEmail()}>
+            Iniciar sesion
+          </button>
+          <button className="w-fit rounded-lg border px-4 py-2" onClick={() => void signUpWithEmail()}>
+            Crear cuenta
+          </button>
+        </div>
         <button className="w-fit rounded-lg border px-4 py-2" onClick={() => void bootstrap()}>
           Ya inicie sesion, cargar datos
         </button>
