@@ -101,11 +101,13 @@ export function Dashboard() {
 
   async function signInWithEmail() {
     if (!supabase) return;
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    if (!cleanEmail || !cleanPassword) {
       setStatus("Escribe email y password para iniciar sesion");
       return;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
     if (error) {
       setStatus(error.message);
       return;
@@ -115,11 +117,13 @@ export function Dashboard() {
 
   async function signUpWithEmail() {
     if (!supabase) return;
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    if (!cleanEmail || !cleanPassword) {
       setStatus("Escribe email y password para registrarte");
       return;
     }
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password: cleanPassword });
     if (error) {
       setStatus(error.message);
       return;
@@ -131,7 +135,7 @@ export function Dashboard() {
       return;
     }
 
-    const signInResult = await supabase.auth.signInWithPassword({ email, password });
+    const signInResult = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
     if (signInResult.error) {
       setStatus("Cuenta creada, pero no se pudo iniciar sesion automaticamente. Prueba con Iniciar sesion.");
       return;
@@ -139,6 +143,23 @@ export function Dashboard() {
 
     setStatus("Cuenta creada e inicio de sesion correcto.");
     await bootstrap();
+  }
+
+  async function sendResetEmail() {
+    if (!supabase) return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setStatus("Escribe tu email para recuperar password");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+      redirectTo: window.location.origin,
+    });
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+    setStatus("Te enviamos un correo para restablecer la password.");
   }
 
   async function signOut() {
@@ -391,6 +412,9 @@ export function Dashboard() {
           </button>
           <button className="w-fit rounded-lg border px-4 py-2" onClick={() => void signUpWithEmail()}>
             Crear cuenta
+          </button>
+          <button className="w-fit rounded-lg border px-4 py-2" onClick={() => void sendResetEmail()}>
+            Recuperar acceso
           </button>
         </div>
         <button className="w-fit rounded-lg border px-4 py-2" onClick={() => void bootstrap()}>
