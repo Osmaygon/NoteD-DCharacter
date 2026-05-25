@@ -101,7 +101,56 @@ create table if not exists public.spells (
   level int not null,
   classes text[] not null default '{}',
   description text,
-  source text not null default 'dnd5eapi'
+  source text not null default 'dnd5eapi',
+  sourcebook_code text,
+  system text not null default 'dnd5e-2014'
+);
+
+alter table public.spells add column if not exists sourcebook_code text;
+alter table public.spells add column if not exists system text not null default 'dnd5e-2014';
+
+create table if not exists public.sourcebooks (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name text not null,
+  system text not null default 'dnd5e-2014',
+  kind text not null default 'official' check (kind in ('official', 'homebrew')),
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.campaign_sourcebooks (
+  campaign_id uuid not null references public.campaigns(id) on delete cascade,
+  sourcebook_id uuid not null references public.sourcebooks(id) on delete cascade,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  primary key (campaign_id, sourcebook_id)
+);
+
+create table if not exists public.character_sourcebooks (
+  character_id uuid not null references public.characters(id) on delete cascade,
+  sourcebook_id uuid not null references public.sourcebooks(id) on delete cascade,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  primary key (character_id, sourcebook_id)
+);
+
+create table if not exists public.character_profiles (
+  character_id uuid primary key references public.characters(id) on delete cascade,
+  race_species text,
+  background text,
+  alignment text,
+  age text,
+  height text,
+  weight text,
+  appearance text,
+  personality text,
+  ideals text,
+  bonds text,
+  flaws text,
+  backstory text,
+  notes text,
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.dice_rolls (
@@ -153,6 +202,10 @@ alter table public.condition_definitions enable row level security;
 alter table public.character_conditions enable row level security;
 alter table public.character_actions enable row level security;
 alter table public.spells enable row level security;
+alter table public.sourcebooks enable row level security;
+alter table public.campaign_sourcebooks enable row level security;
+alter table public.character_sourcebooks enable row level security;
+alter table public.character_profiles enable row level security;
 alter table public.dice_rolls enable row level security;
 alter table public.session_logs enable row level security;
 
@@ -211,6 +264,112 @@ for all using (
 drop policy if exists "members read spells" on public.spells;
 create policy "members read spells" on public.spells
 for select using (auth.uid() is not null);
+
+drop policy if exists "members read condition defs" on public.condition_definitions;
+create policy "members read condition defs" on public.condition_definitions
+for select using (auth.uid() is not null);
+
+drop policy if exists "dm manage condition defs" on public.condition_definitions;
+create policy "dm manage condition defs" on public.condition_definitions
+for all using (false) with check (false);
+
+drop policy if exists "members read character conditions" on public.character_conditions;
+create policy "members read character conditions" on public.character_conditions
+for select using (public.is_campaign_member(campaign_id));
+
+drop policy if exists "owner dm manage character conditions" on public.character_conditions;
+create policy "owner dm manage character conditions" on public.character_conditions
+for all using (
+  public.is_campaign_dm(campaign_id) or exists (
+    select 1 from public.characters c where c.id = character_id and c.owner_user_id = auth.uid()
+  )
+) with check (
+  public.is_campaign_dm(campaign_id) or exists (
+    select 1 from public.characters c where c.id = character_id and c.owner_user_id = auth.uid()
+  )
+);
+
+drop policy if exists "members read character actions" on public.character_actions;
+create policy "members read character actions" on public.character_actions
+for select using (public.is_campaign_member(campaign_id));
+
+drop policy if exists "owner dm manage character actions" on public.character_actions;
+create policy "owner dm manage character actions" on public.character_actions
+for all using (
+  public.is_campaign_dm(campaign_id) or exists (
+    select 1 from public.characters c where c.id = character_id and c.owner_user_id = auth.uid()
+  )
+) with check (
+  public.is_campaign_dm(campaign_id) or exists (
+    select 1 from public.characters c where c.id = character_id and c.owner_user_id = auth.uid()
+  )
+);
+
+drop policy if exists "members read sourcebooks" on public.sourcebooks;
+create policy "members read sourcebooks" on public.sourcebooks
+for select using (auth.uid() is not null);
+
+drop policy if exists "members create sourcebooks" on public.sourcebooks;
+create policy "members create sourcebooks" on public.sourcebooks
+for insert with check (created_by = auth.uid() or created_by is null);
+
+drop policy if exists "creator manage sourcebooks" on public.sourcebooks;
+create policy "creator manage sourcebooks" on public.sourcebooks
+for update using (created_by = auth.uid());
+
+drop policy if exists "members read campaign sourcebooks" on public.campaign_sourcebooks;
+create policy "members read campaign sourcebooks" on public.campaign_sourcebooks
+for select using (public.is_campaign_member(campaign_id));
+
+drop policy if exists "dm manage campaign sourcebooks" on public.campaign_sourcebooks;
+create policy "dm manage campaign sourcebooks" on public.campaign_sourcebooks
+for all using (public.is_campaign_dm(campaign_id)) with check (public.is_campaign_dm(campaign_id));
+
+drop policy if exists "members read character sourcebooks" on public.character_sourcebooks;
+create policy "members read character sourcebooks" on public.character_sourcebooks
+for select using (
+  exists (
+    select 1 from public.characters c
+    where c.id = character_id and public.is_campaign_member(c.campaign_id)
+  )
+);
+
+drop policy if exists "owner dm manage character sourcebooks" on public.character_sourcebooks;
+create policy "owner dm manage character sourcebooks" on public.character_sourcebooks
+for all using (
+  exists (
+    select 1 from public.characters c
+    where c.id = character_id and (public.is_campaign_dm(c.campaign_id) or c.owner_user_id = auth.uid())
+  )
+) with check (
+  exists (
+    select 1 from public.characters c
+    where c.id = character_id and (public.is_campaign_dm(c.campaign_id) or c.owner_user_id = auth.uid())
+  )
+);
+
+drop policy if exists "members read character profiles" on public.character_profiles;
+create policy "members read character profiles" on public.character_profiles
+for select using (
+  exists (
+    select 1 from public.characters c
+    where c.id = character_id and public.is_campaign_member(c.campaign_id)
+  )
+);
+
+drop policy if exists "owner dm manage character profiles" on public.character_profiles;
+create policy "owner dm manage character profiles" on public.character_profiles
+for all using (
+  exists (
+    select 1 from public.characters c
+    where c.id = character_id and (public.is_campaign_dm(c.campaign_id) or c.owner_user_id = auth.uid())
+  )
+) with check (
+  exists (
+    select 1 from public.characters c
+    where c.id = character_id and (public.is_campaign_dm(c.campaign_id) or c.owner_user_id = auth.uid())
+  )
+);
 
 drop policy if exists "members read dice" on public.dice_rolls;
 create policy "members read dice" on public.dice_rolls

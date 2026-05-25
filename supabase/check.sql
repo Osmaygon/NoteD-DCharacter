@@ -18,6 +18,14 @@ select 'character_actions', count(*) from public.character_actions
 union all
 select 'spells', count(*) from public.spells
 union all
+select 'sourcebooks', count(*) from public.sourcebooks
+union all
+select 'campaign_sourcebooks', count(*) from public.campaign_sourcebooks
+union all
+select 'character_sourcebooks', count(*) from public.character_sourcebooks
+union all
+select 'character_profiles', count(*) from public.character_profiles
+union all
 select 'dice_rolls', count(*) from public.dice_rolls
 union all
 select 'session_logs', count(*) from public.session_logs;

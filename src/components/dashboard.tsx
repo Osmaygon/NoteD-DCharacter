@@ -22,6 +22,15 @@ type Character = {
 
 type Condition = { id: string; custom_name: string | null; condition_definitions: { name: string; effect_json: { speed_multiplier?: number } } | null };
 type Roll = { id: string; formula: string; total: number; dice: number[]; created_at: string };
+type Sourcebook = { id: string; code: string; name: string; enabled?: boolean };
+type CharacterProfile = {
+  race_species: string;
+  background: string;
+  alignment: string;
+  personality: string;
+  backstory: string;
+  notes: string;
+};
 
 const CLASS_OPTIONS = [
   "barbarian",
@@ -49,6 +58,19 @@ export function Dashboard() {
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [rolls, setRolls] = useState<Roll[]>([]);
   const [spells, setSpells] = useState<{ id: string; name: string; level: number }[]>([]);
+  const [sourcebooks, setSourcebooks] = useState<Sourcebook[]>([]);
+  const [campaignBooks, setCampaignBooks] = useState<Sourcebook[]>([]);
+  const [characterBooks, setCharacterBooks] = useState<Sourcebook[]>([]);
+  const [newBookCode, setNewBookCode] = useState("");
+  const [newBookName, setNewBookName] = useState("");
+  const [profile, setProfile] = useState<CharacterProfile>({
+    race_species: "",
+    background: "",
+    alignment: "",
+    personality: "",
+    backstory: "",
+    notes: "",
+  });
   const [logs, setLogs] = useState<{ id: string; title: string | null; body: string; event_date: string }[]>([]);
   const [status, setStatus] = useState<string>("Listo");
   const [newCampaignName, setNewCampaignName] = useState("");
@@ -102,7 +124,8 @@ export function Dashboard() {
       setStatus(error.message);
       return;
     }
-    setStatus("Cuenta creada. Si tienes confirmacion por email, revisa tu correo.");
+    setStatus("Cuenta creada correctamente.");
+    await bootstrap();
   }
 
   async function signOut() {
@@ -155,6 +178,7 @@ export function Dashboard() {
     setCharacters((charRes.data ?? []) as Character[]);
     setRolls((rollRes.data ?? []) as Roll[]);
     setLogs((logRes.data ?? []) as { id: string; title: string | null; body: string; event_date: string }[]);
+    await loadSourcebooks(id);
     const first = charRes.data?.[0] as Character | undefined;
     if (first) {
       setSelectedCharacter(first.id);
@@ -164,13 +188,18 @@ export function Dashboard() {
 
   async function loadCharacterExtras(characterId: string, className: string) {
     if (!supabase) return;
-    const [condRes, spellRes] = await Promise.all([
+    const [condRes, spellRes, charBookRes, profileRes] = await Promise.all([
       supabase
         .from("character_conditions")
         .select("id,custom_name,condition_definitions(name,effect_json)")
         .eq("character_id", characterId)
         .eq("is_active", true),
-      supabase.from("spells").select("id,name,level").contains("classes", [className]).order("level", { ascending: true }).limit(80),
+      supabase.from("spells").select("id,name,level,sourcebook_code").contains("classes", [className]).order("level", { ascending: true }).limit(120),
+      supabase
+        .from("character_sourcebooks")
+        .select("sourcebook_id, enabled, sourcebooks(id,code,name)")
+        .eq("character_id", characterId),
+      supabase.from("character_profiles").select("race_species,background,alignment,personality,backstory,notes").eq("character_id", characterId).maybeSingle(),
     ]);
     const normalizedConditions: Condition[] = ((condRes.data ?? []) as Array<{
       id: string;
@@ -182,7 +211,98 @@ export function Dashboard() {
       condition_definitions: row.condition_definitions?.[0] ?? null,
     }));
     setConditions(normalizedConditions);
-    setSpells((spellRes.data ?? []) as { id: string; name: string; level: number }[]);
+    const enabledCampaignCodes = new Set(campaignBooks.filter((b) => b.enabled).map((b) => b.code));
+    const normalizedCharacterBooks: Sourcebook[] = ((charBookRes.data ?? []) as Array<{
+      enabled: boolean;
+      sourcebooks: { id: string; code: string; name: string }[] | null;
+    }>)
+      .map((row) => ({
+        id: row.sourcebooks?.[0]?.id ?? "",
+        code: row.sourcebooks?.[0]?.code ?? "",
+        name: row.sourcebooks?.[0]?.name ?? "",
+        enabled: row.enabled,
+      }))
+      .filter((row) => row.id);
+    setCharacterBooks(normalizedCharacterBooks);
+
+    const enabledCharacterCodes = new Set(normalizedCharacterBooks.filter((b) => b.enabled).map((b) => b.code));
+    const rows = (spellRes.data ?? []) as Array<{ id: string; name: string; level: number; sourcebook_code: string | null }>;
+    setSpells(
+      rows
+        .filter((s) => !s.sourcebook_code || enabledCampaignCodes.has(s.sourcebook_code) || enabledCharacterCodes.has(s.sourcebook_code))
+        .map((s) => ({ id: s.id, name: s.name, level: s.level })),
+    );
+    setProfile({
+      race_species: profileRes.data?.race_species ?? "",
+      background: profileRes.data?.background ?? "",
+      alignment: profileRes.data?.alignment ?? "",
+      personality: profileRes.data?.personality ?? "",
+      backstory: profileRes.data?.backstory ?? "",
+      notes: profileRes.data?.notes ?? "",
+    });
+  }
+
+  async function loadSourcebooks(id: string) {
+    if (!supabase) return;
+    const [booksRes, campaignRes] = await Promise.all([
+      supabase.from("sourcebooks").select("id,code,name").order("name", { ascending: true }),
+      supabase.from("campaign_sourcebooks").select("enabled, sourcebooks(id,code,name)").eq("campaign_id", id),
+    ]);
+    setSourcebooks((booksRes.data ?? []) as Sourcebook[]);
+    const normalizedCampaignBooks: Sourcebook[] = ((campaignRes.data ?? []) as Array<{
+      enabled: boolean;
+      sourcebooks: { id: string; code: string; name: string }[] | null;
+    }>)
+      .map((row) => ({
+        id: row.sourcebooks?.[0]?.id ?? "",
+        code: row.sourcebooks?.[0]?.code ?? "",
+        name: row.sourcebooks?.[0]?.name ?? "",
+        enabled: row.enabled,
+      }))
+      .filter((row) => row.id);
+    setCampaignBooks(normalizedCampaignBooks);
+  }
+
+  async function createSourcebook() {
+    if (!supabase || !newBookCode.trim() || !newBookName.trim() || !userId) return;
+    const { error } = await supabase.from("sourcebooks").insert({
+      code: newBookCode.trim().toLowerCase(),
+      name: newBookName.trim(),
+      kind: "homebrew",
+      system: "custom",
+      created_by: userId,
+    });
+    if (error) setStatus(error.message);
+    setNewBookCode("");
+    setNewBookName("");
+    await loadSourcebooks(campaignId);
+  }
+
+  async function toggleCampaignBook(sourcebookId: string, enabled: boolean) {
+    if (!supabase || !campaignId) return;
+    const { error } = await supabase
+      .from("campaign_sourcebooks")
+      .upsert({ campaign_id: campaignId, sourcebook_id: sourcebookId, enabled });
+    if (error) setStatus(error.message);
+    await loadSourcebooks(campaignId);
+  }
+
+  async function toggleCharacterBook(sourcebookId: string, enabled: boolean) {
+    if (!supabase || !selectedCharacter) return;
+    const { error } = await supabase
+      .from("character_sourcebooks")
+      .upsert({ character_id: selectedCharacter, sourcebook_id: sourcebookId, enabled });
+    if (error) setStatus(error.message);
+    if (currentCharacter) await loadCharacterExtras(selectedCharacter, currentCharacter.class_name);
+  }
+
+  async function saveProfile() {
+    if (!supabase || !selectedCharacter) return;
+    const { error } = await supabase
+      .from("character_profiles")
+      .upsert({ character_id: selectedCharacter, ...profile });
+    if (error) setStatus(error.message);
+    else setStatus("Perfil personal actualizado.");
   }
 
   async function createCharacter() {
@@ -325,7 +445,38 @@ export function Dashboard() {
 
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border bg-white p-4">
+          <h3 className="mb-2 text-lg font-semibold">Libros y fuentes</h3>
+          <div className="mb-3 grid gap-2 md:grid-cols-2">
+            <input className="rounded border px-2 py-1" placeholder="codigo (ej: hb-01)" value={newBookCode} onChange={(e) => setNewBookCode(e.target.value)} />
+            <input className="rounded border px-2 py-1" placeholder="nombre del libro" value={newBookName} onChange={(e) => setNewBookName(e.target.value)} />
+          </div>
+          <button className="mb-3 rounded bg-zinc-900 px-3 py-1 text-white" onClick={createSourcebook}>Crear libro homebrew</button>
+          <div className="max-h-40 overflow-auto text-sm">
+            {sourcebooks.map((book) => {
+              const enabled = campaignBooks.find((c) => c.id === book.id)?.enabled ?? false;
+              return (
+                <label key={book.id} className="flex items-center justify-between border-b py-1">
+                  <span>{book.name} ({book.code})</span>
+                  <input type="checkbox" checked={enabled} onChange={(e) => void toggleCampaignBook(book.id, e.target.checked)} />
+                </label>
+              );
+            })}
+          </div>
+        </div>
+        <div className="rounded-2xl border bg-white p-4">
           <h3 className="mb-2 text-lg font-semibold">Conjuros por clase</h3>
+          <p className="mb-2 text-xs text-zinc-600">Filtrados por clase y por libros activos de campana/personaje.</p>
+          <div className="mb-2 max-h-24 overflow-auto text-xs">
+            {sourcebooks.map((book) => {
+              const enabled = characterBooks.find((c) => c.id === book.id)?.enabled ?? false;
+              return (
+                <label key={`char-${book.id}`} className="mr-3 inline-flex items-center gap-1">
+                  <input type="checkbox" checked={enabled} onChange={(e) => void toggleCharacterBook(book.id, e.target.checked)} />
+                  {book.code}
+                </label>
+              );
+            })}
+          </div>
           <div className="max-h-56 overflow-auto text-sm">
             {spells.map((s) => (
               <div key={s.id} className="border-b py-1">Nv {s.level} - {s.name}</div>
@@ -346,6 +497,19 @@ export function Dashboard() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-2xl border bg-white p-4">
+        <h3 className="mb-2 text-lg font-semibold">Informacion personal del personaje</h3>
+        <div className="grid gap-2 md:grid-cols-3">
+          <input className="rounded border px-2 py-1" placeholder="Raza / Especie" value={profile.race_species} onChange={(e) => setProfile({ ...profile, race_species: e.target.value })} />
+          <input className="rounded border px-2 py-1" placeholder="Trasfondo" value={profile.background} onChange={(e) => setProfile({ ...profile, background: e.target.value })} />
+          <input className="rounded border px-2 py-1" placeholder="Alineamiento" value={profile.alignment} onChange={(e) => setProfile({ ...profile, alignment: e.target.value })} />
+          <textarea className="rounded border p-2 md:col-span-3" placeholder="Personalidad" value={profile.personality} onChange={(e) => setProfile({ ...profile, personality: e.target.value })} />
+          <textarea className="rounded border p-2 md:col-span-3" placeholder="Historia" value={profile.backstory} onChange={(e) => setProfile({ ...profile, backstory: e.target.value })} />
+          <textarea className="rounded border p-2 md:col-span-3" placeholder="Notas privadas" value={profile.notes} onChange={(e) => setProfile({ ...profile, notes: e.target.value })} />
+        </div>
+        <button className="mt-2 rounded bg-zinc-900 px-3 py-1 text-white" onClick={saveProfile}>Guardar perfil</button>
       </section>
 
       <section className="rounded-2xl border bg-white p-4">

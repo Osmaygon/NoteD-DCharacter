@@ -24,6 +24,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 ```
 
 3) En Supabase > SQL Editor ejecuta `supabase/schema.sql`.
+   Luego ejecuta:
+   - `supabase/seed_conditions.sql`
+   - `supabase/seed_sourcebooks_and_spells.sql`
 
 4) Auth en Supabase (sin Google):
 - En `Authentication > Providers`, habilita `Email`.
@@ -46,6 +49,8 @@ npm run dev
 - Tiradas de dados con notacion `XdY+Z` en `d4/d6/d8/d10/d12/d20/d100`
 - Log de dados compartido por partida
 - Bitacora DM de sucesos
+- Libros externos por campana y personaje
+- Informacion personal del personaje
 - Lista de conjuros filtrada por clase (`spells.classes`)
 
 ## Publicar en tu GitHub
