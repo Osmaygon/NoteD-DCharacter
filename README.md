@@ -6,11 +6,10 @@ Base inicial de autenticacion para la app web.
 
 - Pantalla inicial con prioridad en `Iniciar sesion`.
 - `Crear cuenta` como opcion secundaria.
-- `Olvide mi password` con envio de correo.
-- Pagina dedicada `reset-password` para crear nueva password.
+- Autenticacion propia en tu BD (`app_users` + `app_sessions`).
+- Password hasheada en BD con `pgcrypto` (bcrypt via `crypt`).
 - Tema visual oscuro con acentos dorados y layout comodo.
 - Reglas globales de producto en `docs/PRODUCT_RULES.md`.
-- Password gestionada por Supabase Auth (hash seguro del lado servidor).
 
 ## Configuracion
 
@@ -22,7 +21,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anon_publica_de_supabase
 ```
 
-3. Activa Email/Password en Supabase Auth.
+3. Ejecuta en Supabase SQL Editor el archivo `supabase/custom_auth.sql`.
 4. En `Authentication > URL Configuration` agrega:
    - `http://localhost:3000/**`
    - `https://note-d-d-character.vercel.app/**`

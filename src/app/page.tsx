@@ -2,7 +2,12 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import {
+  getCurrentAppUser,
+  signInAppUser,
+  signOutAppUser,
+  signUpAppUser,
+} from "@/lib/custom-auth";
 
 export default function Home() {
   const router = useRouter();
@@ -13,34 +18,18 @@ export default function Home() {
   const [status, setStatus] = useState("Inicia sesion para entrar a NoteD&DCharacter.");
 
   useEffect(() => {
-    if (!supabase) return;
-
     void (async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-      if (session) {
-        setLoggedInEmail(session.user.email ?? null);
+      const user = await getCurrentAppUser();
+      if (user) {
+        setLoggedInEmail(user.email);
         setStatus("Sesion activa.");
         router.push("/dashboard");
       }
     })();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setLoggedInEmail(session?.user.email ?? null);
-    });
-
-    return () => subscription.unsubscribe();
   }, [router]);
 
   async function submitAuth(event: FormEvent) {
     event.preventDefault();
-    if (!supabase) {
-      setStatus("Faltan variables de entorno de Supabase.");
-      return;
-    }
-
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
     if (!cleanEmail || !cleanPassword) {
@@ -49,12 +38,10 @@ export default function Home() {
     }
 
     if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
-      if (error) {
-        setStatus(error.message);
+      try {
+        await signInAppUser(cleanEmail, cleanPassword);
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : "No se pudo iniciar sesion");
         return;
       }
       setLoggedInEmail(cleanEmail);
@@ -63,55 +50,23 @@ export default function Home() {
       return;
     }
 
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password: cleanPassword,
-      options: {
-        emailRedirectTo: `${window.location.origin}/reset-password`,
-      },
-    });
-
-    if (error) {
-      setStatus(error.message);
+    try {
+      await signUpAppUser(cleanEmail, cleanPassword);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudo crear cuenta");
       return;
     }
-
-    if (data.session) {
-      setLoggedInEmail(cleanEmail);
-      setStatus("Cuenta creada e inicio correcto.");
-      router.push("/dashboard");
-      return;
-    }
-
-    setStatus("Cuenta creada. Ya puedes iniciar sesion.");
-    setMode("login");
+    setLoggedInEmail(cleanEmail);
+    setStatus("Cuenta creada e inicio correcto.");
+    router.push("/dashboard");
   }
 
   async function sendRecovery() {
-    if (!supabase) {
-      setStatus("Faltan variables de entorno de Supabase.");
-      return;
-    }
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      setStatus("Escribe tu email para recuperar password.");
-      return;
-    }
-
-    const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-
-    setStatus(
-      error
-        ? error.message
-        : "Correo enviado. Abre el enlace para crear una password nueva en una ventana dedicada.",
-    );
+    setStatus("Recuperacion por correo pendiente de implementar en tu proveedor de email.");
   }
 
   async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    await signOutAppUser();
     setLoggedInEmail(null);
     setStatus("Sesion cerrada.");
   }

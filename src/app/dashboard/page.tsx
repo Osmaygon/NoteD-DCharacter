@@ -2,27 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { getCurrentAppUser, signOutAppUser } from "@/lib/custom-auth";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
 
   useEffect(() => {
-    if (!supabase) return;
     void (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
+      const user = await getCurrentAppUser();
+      if (!user) {
         router.push("/");
         return;
       }
-      setEmail(data.session.user.email ?? "");
+      setEmail(user.email ?? "");
     })();
   }, [router]);
 
   async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    await signOutAppUser();
     router.push("/");
   }
 
