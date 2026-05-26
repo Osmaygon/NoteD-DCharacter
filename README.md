@@ -1,72 +1,34 @@
 # NoteD&DCharacter
 
-Aplicacion web (PWA-ready) para gestionar personajes de D&D 5e (2014) con sincronizacion por cuenta, campanas compartidas, rol DM/co-DM, tiradas en vivo y bitacora de sesion.
+Base inicial de autenticacion para la app web.
 
-## Stack
+## Incluye ahora
 
-- Next.js + TypeScript
-- Supabase (Auth Email/Password, Postgres, Realtime, RLS)
-- Vercel para despliegue
+- Pantalla inicial con prioridad en `Iniciar sesion`.
+- `Crear cuenta` como opcion secundaria.
+- `Olvide mi password` con envio de correo.
+- Pagina dedicada `reset-password` para crear nueva password.
+- Tema visual oscuro con acentos dorados y layout comodo.
+- Reglas globales de producto en `docs/PRODUCT_RULES.md`.
 
-## Setup rapido
+## Configuracion
 
-1) Instala dependencias:
-
-```bash
-npm install
-```
-
-2) Crea `.env.local` copiando `.env.example`:
+1. Copia `.env.example` a `.env.local`.
+2. Rellena tus variables de Supabase:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anon_publica_de_supabase
 ```
 
-3) En Supabase > SQL Editor ejecuta `supabase/schema.sql`.
-   Luego ejecuta:
-   - `supabase/seed_conditions.sql`
-   - `supabase/seed_sourcebooks_and_spells.sql`
-
-4) Auth en Supabase (sin Google):
-- En `Authentication > Providers`, habilita `Email`.
-- En `Authentication > URL Configuration` agrega:
-  - `Site URL`: `http://localhost:3000`
-  - `Allowed Redirect URLs`: `http://localhost:3000/**`
-
-5) Arranca local:
+3. Activa Email/Password en Supabase Auth.
+4. En `Authentication > URL Configuration` agrega:
+   - `http://localhost:3000/**`
+   - `https://note-d-d-character.vercel.app/**`
+   - `Site URL`: `https://note-d-d-character.vercel.app`
+5. Ejecuta la app:
 
 ```bash
+npm install
 npm run dev
 ```
-
-## Funcionalidad MVP incluida
-
-- Login email/password
-- Campanas y personajes
-- Vida, escudo temporal, nivel, velocidad
-- Ajuste de velocidad por estados (ejemplo via `effect_json.speed_multiplier`)
-- Tiradas de dados con notacion `XdY+Z` en `d4/d6/d8/d10/d12/d20/d100`
-- Log de dados compartido por partida
-- Bitacora DM de sucesos
-- Libros externos por campana y personaje
-- Informacion personal del personaje
-- Lista de conjuros filtrada por clase (`spells.classes`)
-
-## Publicar en tu GitHub
-
-Repositorio objetivo: `https://github.com/Osmaygon/NoteD-DCharacter.git`
-
-```bash
-git init
-git add .
-git commit -m "feat: initial NoteD&DCharacter MVP"
-git branch -M main
-git remote add origin https://github.com/Osmaygon/NoteD-DCharacter.git
-git push -u origin main
-```
-
-## Notas
-
-- Nunca pongas `secret key` o `service_role` en el frontend.
-- Usa solo `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (publishable key).

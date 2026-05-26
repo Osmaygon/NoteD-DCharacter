@@ -1,10 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9f4eb;
-  --foreground: #1a1712;
-  --surface: #fffdf8;
-  --brand: #7a2e1f;
+  --background: #08090d;
+  --background-soft: #13161e;
+  --card: #161a24;
+  --foreground: #f8f4e8;
+  --muted: #b9ae8d;
+  --gold: #d3a84a;
+  --gold-soft: #8f6a2a;
 }
 
 @theme inline {
@@ -15,15 +18,49 @@
 
 body {
   background:
-    radial-gradient(circle at 20% 0%, #f0ddbe 0%, transparent 32%),
-    radial-gradient(circle at 100% 100%, #e3c29f 0%, transparent 28%),
+    radial-gradient(circle at 10% 0%, rgba(211, 168, 74, 0.2), transparent 35%),
+    radial-gradient(circle at 100% 100%, rgba(143, 106, 42, 0.28), transparent 40%),
     var(--background);
   color: var(--foreground);
-  font-family: var(--font-body), serif;
+  font-family: var(--font-body), sans-serif;
 }
 
 h1,
 h2,
 h3 {
   font-family: var(--font-heading), serif;
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(22, 26, 36, 0.96), rgba(13, 15, 22, 0.96));
+  border: 1px solid rgba(211, 168, 74, 0.4);
+  border-radius: 16px;
+}
+
+.field {
+  width: 100%;
+  border: 1px solid rgba(211, 168, 74, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  padding: 0.65rem 0.8rem;
+}
+
+.field::placeholder {
+  color: var(--muted);
+}
+
+.btn-primary {
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  background: linear-gradient(180deg, #d3a84a, #9a702c);
+  color: #111;
+  font-weight: 700;
+}
+
+.btn-secondary {
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  border: 1px solid rgba(211, 168, 74, 0.5);
+  color: var(--foreground);
 }

@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Cinzel, Source_Sans_3 } from "next/font/google";
+import { Cinzel, Inter } from "next/font/google";
 import "./globals.css";
 
-const body = Source_Sans_3({
+const bodyFont = Inter({
   variable: "--font-body",
   subsets: ["latin"],
 });
 
-const heading = Cinzel({
+const headingFont = Cinzel({
   variable: "--font-heading",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
   title: "NoteD&DCharacter",
-  description: "Gestor de personajes para D&D 5e 2014",
+  description: "Character and campaign control for DnD sessions",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${body.variable} ${heading.variable} h-full antialiased`}
+      className={`${bodyFont.variable} ${headingFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
