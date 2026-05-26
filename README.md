@@ -10,6 +10,7 @@ Base inicial de autenticacion para la app web.
 - Pagina dedicada `reset-password` para crear nueva password.
 - Tema visual oscuro con acentos dorados y layout comodo.
 - Reglas globales de producto en `docs/PRODUCT_RULES.md`.
+- Password gestionada por Supabase Auth (hash seguro del lado servidor).
 
 ## Configuracion
 
