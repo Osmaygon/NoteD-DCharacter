@@ -24,7 +24,7 @@ export function AppHeader() {
 
         {open ? (
           <nav className="panel absolute right-0 top-12 z-10 min-w-44 p-2">
-            <Link href="/dashboard" className="block rounded px-3 py-2 hover:bg-[#ffffff12]" onClick={() => setOpen(false)}>
+            <Link href="/user" className="block rounded px-3 py-2 hover:bg-[#ffffff12]" onClick={() => setOpen(false)}>
               Usuario
             </Link>
             <Link href="/characters" className="block rounded px-3 py-2 hover:bg-[#ffffff12]" onClick={() => setOpen(false)}>

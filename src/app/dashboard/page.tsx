@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/app-header";
-import { getCurrentAppUser, signOutAppUser } from "@/lib/custom-auth";
+import { getCurrentAppUser } from "@/lib/custom-auth";
 import { HomeEntity, listCampaigns, listCharacters } from "@/lib/home-entities";
 
 export default function DashboardPage() {
-  const [email, setEmail] = useState("");
   const [campaigns, setCampaigns] = useState<HomeEntity[]>([]);
   const [characters, setCharacters] = useState<HomeEntity[]>([]);
   const [status, setStatus] = useState("Cargando...");
@@ -20,7 +19,6 @@ export default function DashboardPage() {
           window.location.href = "/";
           return;
         }
-        setEmail(user.email);
         const [campaignRows, characterRows] = await Promise.all([
           listCampaigns(user.user_id),
           listCharacters(user.user_id),
@@ -34,21 +32,9 @@ export default function DashboardPage() {
     })();
   }, []);
 
-  async function signOut() {
-    await signOutAppUser();
-    window.location.href = "/";
-  }
-
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
       <AppHeader />
-
-      <section className="panel mb-4 p-4">
-        <p className="text-sm text-[#b9ae8d]">Usuario: {email || "..."}</p>
-        <button className="btn-secondary mt-2" onClick={() => void signOut()} type="button">
-          Cerrar sesion
-        </button>
-      </section>
 
       <section className="panel mb-4 p-4">
         <div className="mb-3 flex items-center justify-between">
