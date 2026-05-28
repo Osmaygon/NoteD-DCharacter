@@ -42,10 +42,10 @@ begin
   end if;
 
   insert into public.app_users(email, password_hash)
-  values (clean_email, crypt(p_password, gen_salt('bf')))
+  values (clean_email, extensions.crypt(p_password, extensions.gen_salt('bf')))
   returning id into user_uuid;
 
-  plain_token := encode(gen_random_bytes(32), 'hex');
+  plain_token := encode(extensions.gen_random_bytes(32), 'hex');
   insert into public.app_sessions(user_id, token_hash, expires_at)
   values (
     user_uuid,
@@ -81,11 +81,11 @@ begin
     raise exception 'Invalid login credentials';
   end if;
 
-  if user_row.password_hash <> crypt(p_password, user_row.password_hash) then
+  if user_row.password_hash <> extensions.crypt(p_password, user_row.password_hash) then
     raise exception 'Invalid login credentials';
   end if;
 
-  plain_token := encode(gen_random_bytes(32), 'hex');
+  plain_token := encode(extensions.gen_random_bytes(32), 'hex');
   insert into public.app_sessions(user_id, token_hash, expires_at)
   values (
     user_row.id,

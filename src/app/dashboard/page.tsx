@@ -1,39 +1,92 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import { getCurrentAppUser, signOutAppUser } from "@/lib/custom-auth";
+import { HomeEntity, listCampaigns, listCharacters } from "@/lib/home-entities";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState<string>("");
+  const [email, setEmail] = useState("");
+  const [campaigns, setCampaigns] = useState<HomeEntity[]>([]);
+  const [characters, setCharacters] = useState<HomeEntity[]>([]);
+  const [status, setStatus] = useState("Cargando...");
 
   useEffect(() => {
     void (async () => {
-      const user = await getCurrentAppUser();
-      if (!user) {
-        router.push("/");
-        return;
+      try {
+        const user = await getCurrentAppUser();
+        if (!user) {
+          window.location.href = "/";
+          return;
+        }
+        setEmail(user.email);
+        const [campaignRows, characterRows] = await Promise.all([
+          listCampaigns(user.user_id),
+          listCharacters(user.user_id),
+        ]);
+        setCampaigns(campaignRows.slice(0, 5));
+        setCharacters(characterRows.slice(0, 5));
+        setStatus("Listo");
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : "Error cargando datos");
       }
-      setEmail(user.email ?? "");
     })();
-  }, [router]);
+  }, []);
 
   async function signOut() {
     await signOutAppUser();
-    router.push("/");
+    window.location.href = "/";
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl items-center px-4 py-10">
-      <section className="panel w-full p-6 md:p-8">
-        <p className="text-sm uppercase tracking-[0.2em] text-[#d3a84a]">Dashboard</p>
-        <h1 className="mt-2 text-3xl">Sesion iniciada correctamente</h1>
-        <p className="mt-2 text-[#b9ae8d]">Usuario: {email || "Cargando..."}</p>
-        <button className="btn-secondary mt-4" onClick={() => void signOut()} type="button">
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
+      <AppHeader />
+
+      <section className="panel mb-4 p-4">
+        <p className="text-sm text-[#b9ae8d]">Usuario: {email || "..."}</p>
+        <button className="btn-secondary mt-2" onClick={() => void signOut()} type="button">
           Cerrar sesion
         </button>
       </section>
+
+      <section className="panel mb-4 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-2xl">Ultimas campanas</h2>
+          <Link href="/campaigns" className="btn-secondary">
+            Ver todas
+          </Link>
+        </div>
+        <div className="grid gap-2">
+          {campaigns.map((c) => (
+            <Link key={c.id} href="/campaigns" className="rounded border border-[#d3a84a44] p-3 hover:bg-[#ffffff08]">
+              <p className="font-semibold">{c.name}</p>
+              <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+            </Link>
+          ))}
+          {!campaigns.length ? <p className="text-sm text-[#b9ae8d]">No tienes campanas aun.</p> : null}
+        </div>
+      </section>
+
+      <section className="panel p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-2xl">Personajes</h2>
+          <Link href="/characters" className="btn-secondary">
+            Ver todos
+          </Link>
+        </div>
+        <div className="grid gap-2">
+          {characters.map((c) => (
+            <Link key={c.id} href="/characters" className="rounded border border-[#d3a84a44] p-3 hover:bg-[#ffffff08]">
+              <p className="font-semibold">{c.name}</p>
+              <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+            </Link>
+          ))}
+          {!characters.length ? <p className="text-sm text-[#b9ae8d]">No tienes personajes aun.</p> : null}
+        </div>
+      </section>
+
+      <p className="mt-4 text-sm text-[#b9ae8d]">{status}</p>
     </main>
   );
 }

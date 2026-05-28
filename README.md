@@ -22,11 +22,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anon_publica_de_supabase
 ```
 
 3. Ejecuta en Supabase SQL Editor el archivo `supabase/custom_auth.sql`.
-4. En `Authentication > URL Configuration` agrega:
+4. Ejecuta en Supabase SQL Editor el archivo `supabase/home_entities.sql`.
+5. En `Authentication > URL Configuration` agrega:
    - `http://localhost:3000/**`
    - `https://note-d-d-character.vercel.app/**`
    - `Site URL`: `https://note-d-d-character.vercel.app`
-5. Ejecuta la app:
+6. Ejecuta la app:
 
 ```bash
 npm install
