@@ -10,7 +10,6 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<HomeEntity[]>([]);
   const [newName, setNewName] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [status, setStatus] = useState("Cargando...");
 
   async function refresh(uid: string) {
     const rows = await listCampaigns(uid);
@@ -27,9 +26,8 @@ export default function CampaignsPage() {
         }
         setUserId(user.user_id);
         await refresh(user.user_id);
-        setStatus("Listo");
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Error cargando campanas");
+        console.error(error);
       }
     })();
   }, []);
@@ -40,9 +38,8 @@ export default function CampaignsPage() {
       await createCampaign(userId, newName.trim());
       setNewName("");
       await refresh(userId);
-      setStatus("Campana creada");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo crear");
+      console.error(error);
     }
   }
 
@@ -52,9 +49,8 @@ export default function CampaignsPage() {
       await joinCampaign(userId, joinCode.trim());
       setJoinCode("");
       await refresh(userId);
-      setStatus("Te uniste a la campana");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo unir");
+      console.error(error);
     }
   }
 
@@ -63,9 +59,9 @@ export default function CampaignsPage() {
       <AppHeader />
 
       <section className="panel mb-4 p-4">
-        <h1 className="mb-3 text-2xl">Campanas</h1>
+        <h1 className="mb-3 text-2xl">Campañas</h1>
         <div className="mb-3 grid gap-2 md:grid-cols-[1fr_auto]">
-          <input className="field" placeholder="Nombre nueva campana" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          <input className="field" placeholder="Nombre nueva campaña" value={newName} onChange={(e) => setNewName(e.target.value)} />
           <button className="btn-primary" onClick={() => void onCreate()} type="button">Crear</button>
         </div>
         <div className="grid gap-2 md:grid-cols-[1fr_auto]">
@@ -84,8 +80,6 @@ export default function CampaignsPage() {
           ))}
         </div>
       </section>
-
-      <p className="mt-4 text-sm text-[#b9ae8d]">{status}</p>
     </main>
   );
 }

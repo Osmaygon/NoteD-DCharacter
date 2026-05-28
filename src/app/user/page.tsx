@@ -6,7 +6,6 @@ import { getCurrentAppUser, signOutAppUser } from "@/lib/custom-auth";
 
 export default function UserPage() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState("Cargando...");
 
   useEffect(() => {
     void (async () => {
@@ -16,7 +15,6 @@ export default function UserPage() {
         return;
       }
       setEmail(user.email);
-      setStatus("Sesion iniciada");
     })();
   }, []);
 
@@ -36,8 +34,6 @@ export default function UserPage() {
           Cerrar sesion
         </button>
       </section>
-
-      <p className="mt-4 text-sm text-[#b9ae8d]">{status}</p>
     </main>
   );
 }

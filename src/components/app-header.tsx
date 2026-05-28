@@ -31,7 +31,7 @@ export function AppHeader() {
               Personajes
             </Link>
             <Link href="/campaigns" className="block rounded px-3 py-2 hover:bg-[#ffffff12]" onClick={() => setOpen(false)}>
-              Campanas
+              Campañas
             </Link>
           </nav>
         ) : null}

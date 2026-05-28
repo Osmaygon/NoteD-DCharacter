@@ -10,7 +10,6 @@ export default function CharactersPage() {
   const [characters, setCharacters] = useState<HomeEntity[]>([]);
   const [newName, setNewName] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [status, setStatus] = useState("Cargando...");
 
   async function refresh(uid: string) {
     const rows = await listCharacters(uid);
@@ -27,9 +26,8 @@ export default function CharactersPage() {
         }
         setUserId(user.user_id);
         await refresh(user.user_id);
-        setStatus("Listo");
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Error cargando personajes");
+        console.error(error);
       }
     })();
   }, []);
@@ -40,9 +38,8 @@ export default function CharactersPage() {
       await createCharacter(userId, newName.trim());
       setNewName("");
       await refresh(userId);
-      setStatus("Personaje creado");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo crear");
+      console.error(error);
     }
   }
 
@@ -52,9 +49,8 @@ export default function CharactersPage() {
       await joinCharacter(userId, joinCode.trim());
       setJoinCode("");
       await refresh(userId);
-      setStatus("Te uniste al personaje");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "No se pudo unir");
+      console.error(error);
     }
   }
 
@@ -84,8 +80,6 @@ export default function CharactersPage() {
           ))}
         </div>
       </section>
-
-      <p className="mt-4 text-sm text-[#b9ae8d]">{status}</p>
     </main>
   );
 }

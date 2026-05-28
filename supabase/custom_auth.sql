@@ -3,9 +3,12 @@ create extension if not exists "pgcrypto";
 create table if not exists public.app_users (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
+  nickname text,
   password_hash text not null,
   created_at timestamptz not null default now()
 );
+
+alter table public.app_users add column if not exists nickname text;
 
 create table if not exists public.app_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -98,18 +101,93 @@ end;
 $$;
 
 create or replace function public.get_user_by_session(p_token text)
-returns table(user_id uuid, email text)
+returns table(user_id uuid, email text, nickname text)
 language sql
 security definer
 set search_path = public
 as $$
-  select u.id, u.email
+  select u.id, u.email, u.nickname
   from public.app_sessions s
   join public.app_users u on u.id = s.user_id
   where s.token_hash = md5(p_token)
     and s.revoked_at is null
     and s.expires_at > now()
   limit 1;
+$$;
+
+create or replace function public.update_app_user_nickname(p_token text, p_nickname text)
+returns table(user_id uuid, email text, nickname text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  clean_nickname text;
+begin
+  clean_nickname := nullif(trim(p_nickname), '');
+
+  select s.user_id into v_user_id
+  from public.app_sessions s
+  where s.token_hash = md5(p_token)
+    and s.revoked_at is null
+    and s.expires_at > now()
+  limit 1;
+
+  if v_user_id is null then
+    raise exception 'Sesion invalida';
+  end if;
+
+  update public.app_users
+  set nickname = clean_nickname
+  where id = v_user_id;
+
+  return query
+  select u.id, u.email, u.nickname
+  from public.app_users u
+  where u.id = v_user_id;
+end;
+$$;
+
+create or replace function public.change_app_user_password(p_token text, p_current_password text, p_new_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user public.app_users%rowtype;
+begin
+  if length(trim(p_new_password)) < 6 then
+    raise exception 'La nueva password debe tener al menos 6 caracteres';
+  end if;
+
+  select u.* into v_user
+  from public.app_sessions s
+  join public.app_users u on u.id = s.user_id
+  where s.token_hash = md5(p_token)
+    and s.revoked_at is null
+    and s.expires_at > now()
+  limit 1;
+
+  if v_user.id is null then
+    raise exception 'Sesion invalida';
+  end if;
+
+  if v_user.password_hash <> extensions.crypt(p_current_password, v_user.password_hash) then
+    raise exception 'Password actual incorrecta';
+  end if;
+
+  update public.app_users
+  set password_hash = extensions.crypt(p_new_password, extensions.gen_salt('bf'))
+  where id = v_user.id;
+
+  update public.app_sessions
+  set revoked_at = now()
+  where user_id = v_user.id
+    and token_hash <> md5(p_token)
+    and revoked_at is null;
+end;
 $$;
 
 create or replace function public.logout_app_session(p_token text)
@@ -128,3 +206,5 @@ grant execute on function public.create_app_user(text, text) to anon, authentica
 grant execute on function public.login_app_user(text, text) to anon, authenticated;
 grant execute on function public.get_user_by_session(text) to anon, authenticated;
 grant execute on function public.logout_app_session(text) to anon, authenticated;
+grant execute on function public.update_app_user_nickname(text, text) to anon, authenticated;
+grant execute on function public.change_app_user_password(text, text, text) to anon, authenticated;
