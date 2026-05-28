@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/app-header";
 import { getCurrentAppUser } from "@/lib/custom-auth";
 import { parseImportedCharacter } from "@/lib/character-import";
+import { extractTextFromPdf } from "@/lib/pdf-import";
 import {
   createCharacter,
   HomeEntity,
@@ -69,7 +70,8 @@ export default function CharactersPage() {
     if (!userId) return;
     try {
       setErrorText("");
-      const rawText = await file.text();
+      const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
+      const rawText = isPdf ? await extractTextFromPdf(file) : await file.text();
       const parsed = parseImportedCharacter(rawText);
       await importCharacterFromPayload(userId, parsed);
       await refresh(userId);
@@ -93,11 +95,11 @@ export default function CharactersPage() {
           <button className="btn-secondary" onClick={() => void onJoin()} type="button">Unirme</button>
         </div>
         <div className="mt-3">
-          <label className="mb-1 block text-sm text-[#b9ae8d]">Importar personaje desde archivo (.txt / texto parseado)</label>
+          <label className="mb-1 block text-sm text-[#b9ae8d]">Importar personaje desde archivo (.pdf, .txt o .json)</label>
           <input
             className="field"
             type="file"
-            accept=".txt,.json"
+            accept=".pdf,.txt,.json"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) {
