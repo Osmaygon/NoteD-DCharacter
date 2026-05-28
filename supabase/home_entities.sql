@@ -29,20 +29,37 @@ create table if not exists public.app_character_members (
   primary key (character_id, user_id)
 );
 
+create table if not exists public.app_character_profiles (
+  character_id uuid primary key references public.app_characters(id) on delete cascade,
+  class_name text,
+  level int,
+  race text,
+  background text,
+  hp int,
+  ac int,
+  speed int,
+  notes text,
+  source_payload jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 alter table public.app_campaigns enable row level security;
 alter table public.app_campaign_members enable row level security;
 alter table public.app_characters enable row level security;
 alter table public.app_character_members enable row level security;
+alter table public.app_character_profiles enable row level security;
 
 drop policy if exists "no direct app_campaigns" on public.app_campaigns;
 drop policy if exists "no direct app_campaign_members" on public.app_campaign_members;
 drop policy if exists "no direct app_characters" on public.app_characters;
 drop policy if exists "no direct app_character_members" on public.app_character_members;
+drop policy if exists "no direct app_character_profiles" on public.app_character_profiles;
 
 create policy "no direct app_campaigns" on public.app_campaigns for all using (false) with check (false);
 create policy "no direct app_campaign_members" on public.app_campaign_members for all using (false) with check (false);
 create policy "no direct app_characters" on public.app_characters for all using (false) with check (false);
 create policy "no direct app_character_members" on public.app_character_members for all using (false) with check (false);
+create policy "no direct app_character_profiles" on public.app_character_profiles for all using (false) with check (false);
 
 create or replace function public.create_campaign_for_user(p_user_id uuid, p_name text)
 returns table(id uuid, name text, join_code text)
@@ -129,8 +146,168 @@ begin
   insert into public.app_character_members(character_id, user_id)
   values (ch_id, p_user_id);
 
+  insert into public.app_character_profiles(character_id)
+  values (ch_id)
+  on conflict (character_id) do nothing;
+
   return query
   select c.id, c.name, c.join_code from public.app_characters c where c.id = ch_id;
+end;
+$$;
+
+create or replace function public.import_character_from_payload(p_user_id uuid, p_payload jsonb)
+returns table(id uuid, name text, join_code text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_code text;
+  ch_id uuid;
+  parsed_name text;
+begin
+  parsed_name := coalesce(
+    nullif(trim(p_payload->>'name'), ''),
+    nullif(trim(p_payload->>'character_name'), ''),
+    nullif(trim(p_payload->>'nombre'), ''),
+    'Personaje importado'
+  );
+
+  new_code := upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 8));
+
+  insert into public.app_characters(name, join_code, created_by)
+  values (parsed_name, new_code, p_user_id)
+  returning app_characters.id into ch_id;
+
+  insert into public.app_character_members(character_id, user_id)
+  values (ch_id, p_user_id)
+  on conflict (character_id, user_id) do nothing;
+
+  insert into public.app_character_profiles(
+    character_id,
+    class_name,
+    level,
+    race,
+    background,
+    hp,
+    ac,
+    speed,
+    notes,
+    source_payload
+  )
+  values (
+    ch_id,
+    nullif(trim(coalesce(p_payload->>'class_name', p_payload->>'class', p_payload->>'clase')), ''),
+    nullif(p_payload->>'level', '')::int,
+    nullif(trim(coalesce(p_payload->>'race', p_payload->>'species', p_payload->>'raza')), ''),
+    nullif(trim(coalesce(p_payload->>'background', p_payload->>'trasfondo')), ''),
+    nullif(p_payload->>'hp', '')::int,
+    nullif(p_payload->>'ac', '')::int,
+    nullif(p_payload->>'speed', '')::int,
+    nullif(trim(coalesce(p_payload->>'notes', p_payload->>'notas')), ''),
+    coalesce(p_payload, '{}'::jsonb)
+  )
+  on conflict (character_id) do update set
+    class_name = excluded.class_name,
+    level = excluded.level,
+    race = excluded.race,
+    background = excluded.background,
+    hp = excluded.hp,
+    ac = excluded.ac,
+    speed = excluded.speed,
+    notes = excluded.notes,
+    source_payload = excluded.source_payload,
+    updated_at = now();
+
+  return query
+  select c.id, c.name, c.join_code from public.app_characters c where c.id = ch_id;
+end;
+$$;
+
+create or replace function public.get_character_detail_for_user(p_user_id uuid, p_character_id uuid)
+returns table(
+  id uuid,
+  name text,
+  join_code text,
+  class_name text,
+  level int,
+  race text,
+  background text,
+  hp int,
+  ac int,
+  speed int,
+  notes text,
+  source_payload jsonb
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.join_code, p.class_name, p.level, p.race, p.background, p.hp, p.ac, p.speed, p.notes, p.source_payload
+  from public.app_characters c
+  join public.app_character_members m on m.character_id = c.id and m.user_id = p_user_id
+  left join public.app_character_profiles p on p.character_id = c.id
+  where c.id = p_character_id
+  limit 1;
+$$;
+
+create or replace function public.update_character_detail_for_user(
+  p_user_id uuid,
+  p_character_id uuid,
+  p_name text,
+  p_class_name text,
+  p_level int,
+  p_race text,
+  p_background text,
+  p_hp int,
+  p_ac int,
+  p_speed int,
+  p_notes text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_character_members m
+    where m.character_id = p_character_id and m.user_id = p_user_id
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  update public.app_characters
+  set name = coalesce(nullif(trim(p_name), ''), name)
+  where id = p_character_id;
+
+  insert into public.app_character_profiles(character_id, class_name, level, race, background, hp, ac, speed, notes, source_payload)
+  values (
+    p_character_id,
+    nullif(trim(p_class_name), ''),
+    p_level,
+    nullif(trim(p_race), ''),
+    nullif(trim(p_background), ''),
+    p_hp,
+    p_ac,
+    p_speed,
+    nullif(trim(p_notes), ''),
+    '{}'::jsonb
+  )
+  on conflict (character_id) do update set
+    class_name = excluded.class_name,
+    level = excluded.level,
+    race = excluded.race,
+    background = excluded.background,
+    hp = excluded.hp,
+    ac = excluded.ac,
+    speed = excluded.speed,
+    notes = excluded.notes,
+    updated_at = now();
 end;
 $$;
 
@@ -176,3 +353,6 @@ grant execute on function public.list_campaigns_for_user(uuid) to anon, authenti
 grant execute on function public.create_character_for_user(uuid, text) to anon, authenticated;
 grant execute on function public.join_character_by_code(uuid, text) to anon, authenticated;
 grant execute on function public.list_characters_for_user(uuid) to anon, authenticated;
+grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
+grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
+grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, text) to anon, authenticated;

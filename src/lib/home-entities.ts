@@ -7,6 +7,21 @@ export type HomeEntity = {
   created_at?: string;
 };
 
+export type CharacterDetail = {
+  id: string;
+  name: string;
+  join_code: string;
+  class_name: string | null;
+  level: number | null;
+  race: string | null;
+  background: string | null;
+  hp: number | null;
+  ac: number | null;
+  speed: number | null;
+  notes: string | null;
+  source_payload: Record<string, unknown>;
+};
+
 export async function listCampaigns(userId: string): Promise<HomeEntity[]> {
   if (!supabase) throw new Error("Supabase no configurado");
   const { data, error } = await supabase.rpc("list_campaigns_for_user", { p_user_id: userId });
@@ -53,6 +68,57 @@ export async function joinCharacter(userId: string, code: string): Promise<void>
   const { error } = await supabase.rpc("join_character_by_code", {
     p_user_id: userId,
     p_code: code,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function importCharacterFromPayload(userId: string, payload: Record<string, unknown>): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("import_character_from_payload", {
+    p_user_id: userId,
+    p_payload: payload,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function getCharacterDetail(userId: string, characterId: string): Promise<CharacterDetail | null> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("get_character_detail_for_user", {
+    p_user_id: userId,
+    p_character_id: characterId,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as CharacterDetail[])[0] ?? null;
+}
+
+export async function updateCharacterDetail(
+  userId: string,
+  characterId: string,
+  input: {
+    name: string;
+    class_name: string;
+    level: number | null;
+    race: string;
+    background: string;
+    hp: number | null;
+    ac: number | null;
+    speed: number | null;
+    notes: string;
+  },
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("update_character_detail_for_user", {
+    p_user_id: userId,
+    p_character_id: characterId,
+    p_name: input.name,
+    p_class_name: input.class_name,
+    p_level: input.level,
+    p_race: input.race,
+    p_background: input.background,
+    p_hp: input.hp,
+    p_ac: input.ac,
+    p_speed: input.speed,
+    p_notes: input.notes,
   });
   if (error) throw new Error(error.message);
 }
