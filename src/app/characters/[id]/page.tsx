@@ -22,6 +22,8 @@ export default function CharacterDetailPage() {
   const params = useParams<{ id: string }>();
   const [userId, setUserId] = useState("");
   const [rawPayload, setRawPayload] = useState("{}");
+  const [allSections, setAllSections] = useState<Record<string, string>>({});
+  const [spellsDetected, setSpellsDetected] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -63,7 +65,13 @@ export default function CharacterDetailPage() {
         return;
       }
       hydrate(detail);
+      const payload = (detail.source_payload ?? {}) as {
+        sections?: Record<string, string>;
+        spells_detected?: string[];
+      };
       setRawPayload(JSON.stringify(detail.source_payload ?? {}, null, 2));
+      setAllSections(payload.sections ?? {});
+      setSpellsDetected(payload.spells_detected ?? []);
     })();
   }, [params.id]);
 
@@ -123,6 +131,24 @@ export default function CharacterDetailPage() {
       </section>
 
       <section className="panel p-4">
+        <h2 className="mb-2 text-xl">Informacion extraida del PDF</h2>
+        <div className="grid gap-2 md:grid-cols-2">
+          {Object.entries(allSections).map(([key, value]) => (
+            <div key={key} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+              <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">{key.replaceAll("_", " ")}</p>
+              <p className="text-sm whitespace-pre-wrap">{value || "-"}</p>
+            </div>
+          ))}
+        </div>
+        {spellsDetected.length ? (
+          <div className="mt-3 rounded border border-[#d3a84a44] bg-black/20 p-3">
+            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Conjuros detectados</p>
+            <p className="text-sm">{spellsDetected.join(", ")}</p>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="panel mt-4 p-4">
         <h2 className="mb-2 text-xl">Datos importados</h2>
         <pre className="overflow-auto rounded border border-[#d3a84a44] bg-black/30 p-3 text-xs text-[#d9c89e]">{rawPayload}</pre>
       </section>
