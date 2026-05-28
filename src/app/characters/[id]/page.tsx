@@ -24,6 +24,7 @@ export default function CharacterDetailPage() {
   const [rawPayload, setRawPayload] = useState("{}");
   const [allSections, setAllSections] = useState<Record<string, string>>({});
   const [spellsDetected, setSpellsDetected] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"resumen" | "rasgos" | "conjuros" | "historia" | "json">("resumen");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -131,26 +132,72 @@ export default function CharacterDetailPage() {
       </section>
 
       <section className="panel p-4">
-        <h2 className="mb-2 text-xl">Informacion extraida del PDF</h2>
-        <div className="grid gap-2 md:grid-cols-2">
-          {Object.entries(allSections).map(([key, value]) => (
-            <div key={key} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
-              <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">{key.replaceAll("_", " ")}</p>
-              <p className="text-sm whitespace-pre-wrap">{value || "-"}</p>
-            </div>
-          ))}
+        <h2 className="mb-3 text-xl">Informacion extraida del PDF</h2>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button className={activeTab === "resumen" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("resumen")}>Resumen</button>
+          <button className={activeTab === "rasgos" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("rasgos")}>Rasgos</button>
+          <button className={activeTab === "conjuros" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("conjuros")}>Conjuros</button>
+          <button className={activeTab === "historia" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("historia")}>Historia</button>
+          <button className={activeTab === "json" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("json")}>JSON</button>
         </div>
-        {spellsDetected.length ? (
-          <div className="mt-3 rounded border border-[#d3a84a44] bg-black/20 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Conjuros detectados</p>
-            <p className="text-sm">{spellsDetected.join(", ")}</p>
+
+        {activeTab === "resumen" ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {[
+              ["competencies", allSections.competencies],
+              ["attacks", allSections.attacks],
+              ["appearance", allSections.appearance],
+              ["additional notes", allSections.additional_notes],
+            ].map(([key, value]) => (
+              <div key={key} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+                <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">{key}</p>
+                <p className="text-sm whitespace-pre-wrap">{value || "-"}</p>
+              </div>
+            ))}
           </div>
         ) : null}
-      </section>
 
-      <section className="panel mt-4 p-4">
-        <h2 className="mb-2 text-xl">Datos importados</h2>
-        <pre className="overflow-auto rounded border border-[#d3a84a44] bg-black/30 p-3 text-xs text-[#d9c89e]">{rawPayload}</pre>
+        {activeTab === "rasgos" ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {[
+              ["traits", allSections.traits],
+              ["personality", allSections.personality],
+              ["ideals", allSections.ideals],
+              ["bonds", allSections.bonds],
+              ["defects", allSections.defects],
+            ].map(([key, value]) => (
+              <div key={key} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+                <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">{key}</p>
+                <p className="text-sm whitespace-pre-wrap">{value || "-"}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {activeTab === "conjuros" ? (
+          <div className="space-y-3">
+            <div className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+              <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Conjuros detectados</p>
+              <p className="text-sm whitespace-pre-wrap">{spellsDetected.length ? spellsDetected.join(", ") : "-"}</p>
+            </div>
+            <div className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+              <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Bloque completo de conjuros</p>
+              <p className="text-sm whitespace-pre-wrap">{allSections.spell_chunk || "-"}</p>
+            </div>
+          </div>
+        ) : null}
+
+        {activeTab === "historia" ? (
+          <div className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Historia del personaje</p>
+            <p className="text-sm whitespace-pre-wrap">{allSections.story || "-"}</p>
+          </div>
+        ) : null}
+
+        {activeTab === "json" ? (
+          <pre className="overflow-auto rounded border border-[#d3a84a44] bg-black/30 p-3 text-xs text-[#d9c89e]">{rawPayload}</pre>
+        ) : null}
       </section>
     </main>
   );
