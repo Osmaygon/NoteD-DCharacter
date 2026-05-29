@@ -1,4 +1,9 @@
-export async function extractTextFromPdf(file: File): Promise<string> {
+export type PdfExtractResult = {
+  fullText: string;
+  pages: string[];
+};
+
+export async function extractTextFromPdf(file: File): Promise<PdfExtractResult> {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -16,5 +21,8 @@ export async function extractTextFromPdf(file: File): Promise<string> {
     pages.push(pageText);
   }
 
-  return pages.join("\n\n");
+  return {
+    fullText: pages.join("\n\n"),
+    pages,
+  };
 }

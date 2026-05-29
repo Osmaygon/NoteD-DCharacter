@@ -25,7 +25,8 @@ export default function CharacterDetailPage() {
   const [allSections, setAllSections] = useState<Record<string, string>>({});
   const [spellsDetected, setSpellsDetected] = useState<string[]>([]);
   const [summary, setSummary] = useState<Record<string, unknown>>({});
-  const [activeTab, setActiveTab] = useState<"resumen" | "estadisticas" | "rasgos" | "conjuros" | "historia" | "todo" | "json">("resumen");
+  const [pdfPages, setPdfPages] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"resumen" | "estadisticas" | "rasgos" | "conjuros" | "historia" | "paginas" | "todo" | "json">("resumen");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState<FormState>({
     name: "",
@@ -71,11 +72,13 @@ export default function CharacterDetailPage() {
         summary?: Record<string, unknown>;
         sections?: Record<string, string>;
         spells_detected?: string[];
+        pages?: string[];
       };
       setRawPayload(JSON.stringify(detail.source_payload ?? {}, null, 2));
       setSummary(payload.summary ?? {});
       setAllSections(payload.sections ?? {});
       setSpellsDetected(payload.spells_detected ?? []);
+      setPdfPages(payload.pages ?? []);
     })();
   }, [params.id]);
 
@@ -167,6 +170,7 @@ export default function CharacterDetailPage() {
           <button className={activeTab === "rasgos" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("rasgos")}>Rasgos</button>
           <button className={activeTab === "conjuros" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("conjuros")}>Conjuros</button>
           <button className={activeTab === "historia" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("historia")}>Historia</button>
+          <button className={activeTab === "paginas" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("paginas")}>Páginas PDF</button>
           <button className={activeTab === "todo" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("todo")}>Todo</button>
           <button className={activeTab === "json" ? "btn-primary" : "btn-secondary"} type="button" onClick={() => setActiveTab("json")}>JSON</button>
         </div>
@@ -242,6 +246,21 @@ export default function CharacterDetailPage() {
               <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Apariencia</p>
               <p className="text-sm whitespace-pre-wrap">{allSections.appearance || "-"}</p>
             </div>
+          </div>
+        ) : null}
+
+        {activeTab === "paginas" ? (
+          <div className="space-y-3">
+            {pdfPages.length ? (
+              pdfPages.map((pageText, index) => (
+                <div key={`page-${index + 1}`} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
+                  <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Página {index + 1}</p>
+                  <p className="text-sm whitespace-pre-wrap">{pageText || "-"}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-[#b9ae8d]">No hay páginas guardadas para este personaje.</p>
+            )}
           </div>
         ) : null}
 

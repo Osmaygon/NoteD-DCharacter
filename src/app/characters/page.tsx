@@ -71,8 +71,12 @@ export default function CharactersPage() {
     try {
       setErrorText("");
       const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
-      const rawText = isPdf ? await extractTextFromPdf(file) : await file.text();
+      const pdfData = isPdf ? await extractTextFromPdf(file) : null;
+      const rawText = pdfData ? pdfData.fullText : await file.text();
       const parsed = parseImportedCharacter(rawText);
+      if (pdfData) {
+        parsed.source_payload.pages = pdfData.pages;
+      }
       await importCharacterFromPayload(userId, parsed);
       await refresh(userId);
     } catch (error) {
