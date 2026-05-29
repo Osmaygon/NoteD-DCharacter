@@ -11,6 +11,11 @@ type ParsedCharacter = {
   source_payload: Record<string, unknown>;
 };
 
+type AbilityBlock = {
+  score: number | null;
+  modifier: number | null;
+};
+
 function normalizeWhitespace(value: string): string {
   return value.replace(/\r/g, "").replace(/\t/g, " ").replace(/ +/g, " ").trim();
 }
@@ -33,6 +38,27 @@ function listSpells(text: string): string[] {
   const matches = chunk.match(/\b[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ' ]{2,}\b/g) ?? [];
   const unique = Array.from(new Set(matches.map((m) => m.trim())));
   return unique.slice(0, 120);
+}
+
+function parseAbility(text: string, label: string): AbilityBlock {
+  const upper = text.toUpperCase();
+  const idx = upper.indexOf(label.toUpperCase());
+  if (idx === -1) return { score: null, modifier: null };
+  const slice = text.slice(idx, idx + 80);
+  const nums = slice.match(/[-+]?\d+/g) ?? [];
+  if (!nums.length) return { score: null, modifier: null };
+  const modifier = Number(nums[0]);
+  const score = nums.length > 1 ? Number(nums[1]) : null;
+  return {
+    score: Number.isFinite(score as number) ? (score as number) : null,
+    modifier: Number.isFinite(modifier) ? modifier : null,
+  };
+}
+
+function sectionAfter(text: string, startLabel: string): string {
+  const start = text.toUpperCase().indexOf(startLabel.toUpperCase());
+  if (start === -1) return "";
+  return text.slice(start + startLabel.length).trim();
 }
 
 function toInt(value: string): number | null {
@@ -66,6 +92,19 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const additionalNotes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE");
   const story = sectionBetween(text, "HISTORIA DEL PERSONAJE", "RASGOS ©");
   const spellChunk = sectionBetween(text, "ESPACIOS DE CONJURO", "©");
+  const fullTraits = sectionAfter(text, "RASGOS");
+
+  const abilities = {
+    fuerza: parseAbility(text, "FUERZA"),
+    destreza: parseAbility(text, "DESTREZA"),
+    constitucion: parseAbility(text, "CONSTITUCIÓN"),
+    inteligencia: parseAbility(text, "INTELIGENCIA"),
+    sabiduria: parseAbility(text, "SABIDURÍA"),
+    carisma: parseAbility(text, "CARISMA"),
+  };
+
+  const savingThrowsChunk = sectionBetween(text, "TIRADAS DE SALVACIÓN", "HABILIDADES");
+  const skillsChunk = sectionBetween(text, "HABILIDADES", "SABIDURÍA (PERCEPCIÓN) PASIVA");
 
   const classMatch = classAndLevel.match(/^(.*?)(\d+)$/);
   const className = classMatch?.[1]?.trim() ?? "";
@@ -88,8 +127,11 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         alignment,
         proficiency_bonus: toInt(proficiency),
         passive_perception: toInt(passivePerception),
+        abilities,
       },
       sections: {
+        saving_throws: savingThrowsChunk,
+        skills: skillsChunk,
         competencies,
         attacks,
         traits,
@@ -100,6 +142,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         appearance,
         additional_notes: additionalNotes,
         story,
+        full_traits: fullTraits,
         spell_chunk: spellChunk,
       },
       spells_detected: listSpells(text),
