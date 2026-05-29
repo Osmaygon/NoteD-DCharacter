@@ -61,7 +61,15 @@ function formatPageBlocks(pageText: string): Array<{ title: string; body: string
     },
   ];
 
-  return blocks.filter((block) => block.body.length > 0);
+  const filtered = blocks.filter((block) => block.body.length > 0);
+  if (filtered.length > 0) return filtered;
+
+  return [
+    {
+      title: "Contenido",
+      body: pageText.trim(),
+    },
+  ];
 }
 
 export default function CharacterDetailPage() {
