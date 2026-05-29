@@ -311,6 +311,30 @@ begin
 end;
 $$;
 
+create or replace function public.delete_character_for_user(p_user_id uuid, p_character_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  can_delete boolean;
+begin
+  select exists(
+    select 1
+    from public.app_characters c
+    where c.id = p_character_id and c.created_by = p_user_id
+  ) into can_delete;
+
+  if not can_delete then
+    raise exception 'Solo el creador puede borrar este personaje';
+  end if;
+
+  delete from public.app_characters
+  where id = p_character_id;
+end;
+$$;
+
 create or replace function public.join_character_by_code(p_user_id uuid, p_code text)
 returns table(id uuid, name text, join_code text)
 language plpgsql
@@ -356,3 +380,4 @@ grant execute on function public.list_characters_for_user(uuid) to anon, authent
 grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, text) to anon, authenticated;
+grant execute on function public.delete_character_for_user(uuid, uuid) to anon, authenticated;

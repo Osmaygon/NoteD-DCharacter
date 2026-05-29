@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
 import { getCurrentAppUser } from "@/lib/custom-auth";
-import { CharacterDetail, getCharacterDetail, updateCharacterDetail } from "@/lib/home-entities";
+import {
+  CharacterDetail,
+  deleteCharacter,
+  getCharacterDetail,
+  updateCharacterDetail,
+} from "@/lib/home-entities";
 
 type FormState = {
   name: string;
@@ -168,6 +173,19 @@ export default function CharacterDetailPage() {
     }
   }
 
+  async function onDelete() {
+    if (!userId) return;
+    const ok = window.confirm("Esto borrara el personaje definitivamente. Quieres continuar?");
+    if (!ok) return;
+
+    try {
+      await deleteCharacter(userId, params.id);
+      window.location.href = "/characters";
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo borrar el personaje");
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
       <AppHeader />
@@ -209,9 +227,14 @@ export default function CharacterDetailPage() {
           </label>
         </div>
         <textarea className="field mt-2 min-h-24" placeholder="Notas" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        <button className="btn-primary mt-3" type="button" onClick={() => void onSave()}>
-          Guardar cambios
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className="btn-primary" type="button" onClick={() => void onSave()}>
+            Guardar cambios
+          </button>
+          <button className="rounded-md border border-red-400 px-4 py-2 text-red-300" type="button" onClick={() => void onDelete()}>
+            Borrar personaje
+          </button>
+        </div>
         {message ? <p className="mt-2 text-sm text-[#b9ae8d]">{message}</p> : null}
       </section>
 
