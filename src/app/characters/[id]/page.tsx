@@ -18,6 +18,52 @@ type FormState = {
   notes: string;
 };
 
+function extractBlock(pageText: string, startLabel: string, endLabel?: string): string {
+  const upper = pageText.toUpperCase();
+  const start = upper.indexOf(startLabel.toUpperCase());
+  if (start === -1) return "";
+  const from = start + startLabel.length;
+  if (!endLabel) return pageText.slice(from).trim();
+  const end = upper.indexOf(endLabel.toUpperCase(), from);
+  if (end === -1) return pageText.slice(from).trim();
+  return pageText.slice(from, end).trim();
+}
+
+function formatPageBlocks(pageText: string): Array<{ title: string; body: string }> {
+  const blocks = [
+    {
+      title: "Cabecera",
+      body: extractBlock(pageText, "NOMBRE DEL PERSONAJE", "TIRADAS DE SALVACIÓN"),
+    },
+    {
+      title: "Tiradas y habilidades",
+      body: extractBlock(pageText, "TIRADAS DE SALVACIÓN", "OTRAS COMPETENCIAS E IDIOMAS"),
+    },
+    {
+      title: "Competencias e idiomas",
+      body: extractBlock(pageText, "OTRAS COMPETENCIAS E IDIOMAS", "ATAQUES Y LANZAMIENTO DE CONJUROS"),
+    },
+    {
+      title: "Ataques y lanzamiento",
+      body: extractBlock(pageText, "ATAQUES Y LANZAMIENTO DE CONJUROS", "RASGOS Y ATRIBUTOS"),
+    },
+    {
+      title: "Rasgos",
+      body: extractBlock(pageText, "RASGOS Y ATRIBUTOS"),
+    },
+    {
+      title: "Historia",
+      body: extractBlock(pageText, "HISTORIA DEL PERSONAJE"),
+    },
+    {
+      title: "Conjuros",
+      body: extractBlock(pageText, "PREP NIVEL NOMBRE"),
+    },
+  ];
+
+  return blocks.filter((block) => block.body.length > 0);
+}
+
 export default function CharacterDetailPage() {
   const params = useParams<{ id: string }>();
   const [userId, setUserId] = useState("");
@@ -255,7 +301,18 @@ export default function CharacterDetailPage() {
               pdfPages.map((pageText, index) => (
                 <div key={`page-${index + 1}`} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
                   <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Página {index + 1}</p>
-                  <p className="text-sm whitespace-pre-wrap">{pageText || "-"}</p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {formatPageBlocks(pageText).map((block) => (
+                      <div key={`${index}-${block.title}`} className="rounded border border-[#d3a84a33] bg-black/30 p-2">
+                        <p className="mb-1 text-[11px] uppercase tracking-wide text-[#b9ae8d]">{block.title}</p>
+                        <p className="text-sm whitespace-pre-wrap">{block.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-[#b9ae8d]">Ver texto completo de la página</summary>
+                    <p className="mt-2 text-sm whitespace-pre-wrap">{pageText || "-"}</p>
+                  </details>
                 </div>
               ))
             ) : (
