@@ -41,6 +41,7 @@ export default function CharacterDetailPage() {
   const [userId, setUserId] = useState("");
   const [message, setMessage] = useState("");
   const [rawPayload, setRawPayload] = useState<Record<string, unknown>>({});
+  const [activeTab, setActiveTab] = useState<"informacion" | "combate">("informacion");
   const [form, setForm] = useState<FormState>({
     name: "",
     class_name: "",
@@ -57,6 +58,7 @@ export default function CharacterDetailPage() {
   });
 
   const summary = (rawPayload.summary as Record<string, unknown> | undefined) ?? {};
+  const sections = (rawPayload.sections as Record<string, string> | undefined) ?? {};
   const abilities = (summary.abilities as Record<string, { score?: number; modifier?: number }> | undefined) ?? {};
 
   function hydrate(detail: CharacterDetail) {
@@ -88,6 +90,7 @@ export default function CharacterDetailPage() {
       source_payload?: {
         raw_text?: string;
         summary?: Record<string, unknown>;
+        sections?: Record<string, string>;
       };
       [key: string]: unknown;
     };
@@ -97,6 +100,7 @@ export default function CharacterDetailPage() {
           ...payload,
           raw_text: payload.raw_text ?? payload.source_payload.raw_text,
           summary: payload.summary ?? payload.source_payload.summary,
+          sections: payload.sections ?? payload.source_payload.sections,
         }
       : payload;
 
@@ -222,29 +226,93 @@ export default function CharacterDetailPage() {
 
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
 
-        <div className="mt-5 grid gap-4">
-          <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
-            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Caracteristicas</p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-              {abilityOrder.map((ability) => {
-                const row = abilities[ability.key] ?? {};
-                const score = row.score ?? "-";
-                const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
-                return (
-                  <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
-                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
-                    <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
-                    <p className="text-sm text-[#d9c89e]">{score}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            className={activeTab === "informacion" ? "btn-primary" : "btn-secondary"}
+            type="button"
+            onClick={() => setActiveTab("informacion")}
+          >
+            Información
+          </button>
+          <button
+            className={activeTab === "combate" ? "btn-primary" : "btn-secondary"}
+            type="button"
+            onClick={() => setActiveTab("combate")}
+          >
+            Combate
+          </button>
+        </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
+        {activeTab === "informacion" ? (
+          <div className="mt-4 grid gap-4">
+            <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Info útil</p>
+              <div className="mt-3 grid gap-4 xl:grid-cols-[1fr_340px]">
+                <div>
+                  <p className="mb-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Caracteristicas</p>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                    {abilityOrder.map((ability) => {
+                      const row = abilities[ability.key] ?? {};
+                      const score = row.score ?? "-";
+                      const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
+                      return (
+                        <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
+                          <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
+                          <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
+                          <p className="text-sm text-[#d9c89e]">{score}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Personaje</p>
+                  <div className="mt-3 space-y-2 text-sm text-[#d9c89e]">
+                    <p><span className="text-[#b9ae8d]">Clase:</span> {form.class_name || "-"}</p>
+                    <p><span className="text-[#b9ae8d]">Nivel:</span> {form.level || "-"}</p>
+                    <p><span className="text-[#b9ae8d]">Especie:</span> {form.race || "-"}</p>
+                    <p><span className="text-[#b9ae8d]">Trasfondo:</span> {form.background || "-"}</p>
+                    <p><span className="text-[#b9ae8d]">Percepción pasiva:</span> {String(summary.passive_perception ?? "-")}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Tiradas de salvación</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.saving_throws || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.skills || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Competencias e idiomas</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.competencies || "-"}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Historia</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Trasfondo narrativo</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.background || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin notas"}</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-4">
+            <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
-              <p className="mt-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Valores fijos</p>
+              <p className="mt-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Referencia rápida</p>
               <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">CA</p>
@@ -293,25 +361,20 @@ export default function CharacterDetailPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Informacion</p>
-              <div className="mt-3 space-y-2 text-sm text-[#d9c89e]">
-                <p><span className="text-[#b9ae8d]">Clase:</span> {form.class_name || "-"}</p>
-                <p><span className="text-[#b9ae8d]">Nivel:</span> {form.level || "-"}</p>
-                <p><span className="text-[#b9ae8d]">Especie:</span> {form.race || "-"}</p>
-                <p><span className="text-[#b9ae8d]">Trasfondo:</span> {form.background || "-"}</p>
+            <section className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Acciones y ataques</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.attacks || "Sin acciones importadas todavía."}</p>
               </div>
-            </div>
-
-            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Notas (temporal)</p>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin notas"}</p>
-              <p className="mt-2 text-xs text-[#9f9578]">Texto temporal: este bloque lo retocaremos luego.</p>
-            </div>
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos, conjuros y trucos</p>
+                <p className="mt-3 text-sm text-[#d9c89e]">Pendiente de conectar con el parser y futuras APIs.</p>
+              </div>
+            </section>
           </div>
-        </div>
+        )}
       </section>
     </main>
   );
