@@ -85,6 +85,7 @@ export default function CharacterDetailPage() {
   const [spellsDetected, setSpellsDetected] = useState<string[]>([]);
   const [summary, setSummary] = useState<Record<string, unknown>>({});
   const [pdfPages, setPdfPages] = useState<string[]>([]);
+  const [pdfViewMode, setPdfViewMode] = useState<"completo" | "bloques">("completo");
   const [activeTab, setActiveTab] = useState<"resumen" | "estadisticas" | "rasgos" | "conjuros" | "historia" | "paginas" | "todo" | "json">("resumen");
   const [message, setMessage] = useState("");
   const [form, setForm] = useState<FormState>({
@@ -328,22 +329,39 @@ export default function CharacterDetailPage() {
 
         {activeTab === "paginas" ? (
           <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                className={pdfViewMode === "completo" ? "btn-primary" : "btn-secondary"}
+                type="button"
+                onClick={() => setPdfViewMode("completo")}
+              >
+                Texto completo
+              </button>
+              <button
+                className={pdfViewMode === "bloques" ? "btn-primary" : "btn-secondary"}
+                type="button"
+                onClick={() => setPdfViewMode("bloques")}
+              >
+                Texto por bloques
+              </button>
+            </div>
+
             {pdfPages.length ? (
               pdfPages.map((pageText, index) => (
                 <div key={`page-${index + 1}`} className="rounded border border-[#d3a84a44] bg-black/20 p-3">
                   <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Página {index + 1}</p>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {formatPageBlocks(pageText).map((block) => (
-                      <div key={`${index}-${block.title}`} className="rounded border border-[#d3a84a33] bg-black/30 p-2">
-                        <p className="mb-1 text-[11px] uppercase tracking-wide text-[#b9ae8d]">{block.title}</p>
-                        <p className="text-sm whitespace-pre-wrap">{block.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs text-[#b9ae8d]">Ver texto completo de la página</summary>
-                    <p className="mt-2 text-sm whitespace-pre-wrap">{pageText || "-"}</p>
-                  </details>
+                  {pdfViewMode === "bloques" ? (
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {formatPageBlocks(pageText).map((block) => (
+                        <div key={`${index}-${block.title}`} className="rounded border border-[#d3a84a33] bg-black/30 p-2">
+                          <p className="mb-1 text-[11px] uppercase tracking-wide text-[#b9ae8d]">{block.title}</p>
+                          <p className="text-sm whitespace-pre-wrap">{block.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{pageText || "-"}</p>
+                  )}
                 </div>
               ))
             ) : (
