@@ -201,48 +201,6 @@ export default function CharacterDetailPage() {
       <section className="panel mb-4 p-5">
         <h1 className="mb-4 text-2xl">Ficha de personaje</h1>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3 md:col-span-2">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Nombre</p>
-            <input className="field" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Nivel</p>
-            <input className="field" value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} />
-          </div>
-
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Clase</p>
-            <input className="field" value={form.class_name} onChange={(e) => setForm({ ...form, class_name: e.target.value })} />
-          </div>
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Especie</p>
-            <input className="field" value={form.race} onChange={(e) => setForm({ ...form, race: e.target.value })} />
-          </div>
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Trasfondo</p>
-            <input className="field" value={form.background} onChange={(e) => setForm({ ...form, background: e.target.value })} />
-          </div>
-
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">HP</p>
-            <input className="field" value={form.hp} onChange={(e) => setForm({ ...form, hp: e.target.value })} />
-          </div>
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">CA</p>
-            <input className="field" value={form.ac} onChange={(e) => setForm({ ...form, ac: e.target.value })} />
-          </div>
-          <div className="rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-            <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Velocidad</p>
-            <input className="field" value={form.speed} onChange={(e) => setForm({ ...form, speed: e.target.value })} />
-          </div>
-        </div>
-
-        <div className="mt-3 rounded-xl border border-[#d3a84a55] bg-black/25 p-3">
-          <p className="mb-1 text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
-          <textarea className="field min-h-28" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        </div>
-
         <div className="mt-3 flex flex-wrap gap-2">
           <button className="btn-primary" type="button" onClick={() => void onSave()}>Guardar cambios</button>
           <button className="rounded-md border border-red-400 px-4 py-2 text-red-300" type="button" onClick={() => void onDelete()}>Borrar personaje</button>
