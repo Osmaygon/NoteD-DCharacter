@@ -91,17 +91,38 @@ function listSpells(text: string): string[] {
 }
 
 function parseAbility(text: string, label: string): AbilityBlock {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const beforeAfter = new RegExp(`(\\d{1,2})\\s+${escaped}\\s*([+-]?\\d{1,2})`, "i");
+  const m1 = text.match(beforeAfter);
+  if (m1) {
+    return {
+      score: Number(m1[1]),
+      modifier: Number(m1[2]),
+    };
+  }
+
+  const afterBefore = new RegExp(`${escaped}\\s*([+-]?\\d{1,2})\\s*(\\d{1,2})`, "i");
+  const m2 = text.match(afterBefore);
+  if (m2) {
+    return {
+      score: Number(m2[2]),
+      modifier: Number(m2[1]),
+    };
+  }
+
   const upper = text.toUpperCase();
   const idx = upper.indexOf(label.toUpperCase());
   if (idx === -1) return { score: null, modifier: null };
-  const slice = text.slice(idx, idx + 80);
-  const nums = slice.match(/[-+]?\d+/g) ?? [];
+  const slice = text.slice(Math.max(0, idx - 20), idx + 60);
+  const nums = slice.match(/[+-]?\d{1,2}/g) ?? [];
   if (!nums.length) return { score: null, modifier: null };
-  const modifier = Number(nums[0]);
-  const score = nums.length > 1 ? Number(nums[1]) : null;
+
+  const maybeScore = nums.find((n) => !n.startsWith("+") && !n.startsWith("-") && Number(n) > 2);
+  const maybeMod = nums.find((n) => n.startsWith("+") || n.startsWith("-"));
   return {
-    score: Number.isFinite(score as number) ? (score as number) : null,
-    modifier: Number.isFinite(modifier) ? modifier : null,
+    score: maybeScore ? Number(maybeScore) : null,
+    modifier: maybeMod ? Number(maybeMod) : null,
   };
 }
 
