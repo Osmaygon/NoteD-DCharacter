@@ -30,6 +30,12 @@ function firstMatch(text: string, pattern: RegExp): string {
   return match?.[1]?.trim() ?? "";
 }
 
+function firstMatchGroups(text: string, pattern: RegExp): string[] {
+  const match = text.match(pattern);
+  if (!match) return [];
+  return match.slice(1).map((v) => v.trim());
+}
+
 function sectionBetween(text: string, startLabel: string, endLabel: string): string {
   const start = text.toUpperCase().indexOf(startLabel.toUpperCase());
   const end = text.toUpperCase().indexOf(endLabel.toUpperCase());
@@ -95,10 +101,13 @@ function toInt(value: string): number | null {
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const text = normalizeWhitespace(rawText);
 
-  const name = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]+)\s+NOMBRE DEL PERSONAJE/i);
-  const classAndLevel = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]+\s+\d+)\s+CLASE Y NIVEL/i);
-  const background = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ()'\- ]+)\s+TRASFONDO/i);
-  const race = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]+)\s+ESPECIE/i);
+  const name = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,80})\s+NOMBRE DEL PERSONAJE/i);
+  const classParts = firstMatchGroups(
+    text,
+    /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+(\d{1,2})\s+CLASE Y NIVEL/i,
+  );
+  const background = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ()'\- ]{2,80})\s+TRASFONDO/i);
+  const race = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+ESPECIE/i);
   const hpText = firstMatch(text, /Puntos de Golpe M[aá]ximos\s*(\d+)/i);
   const acText = firstMatch(text, /\bCA\s*[-+]?\d*\s*(\d{1,3})/i);
   const speedText = firstMatch(text, /INICIATIVA\s*\d+\s*VELOCIDAD\s*\(PIES\)\s*(\d+)/i);
@@ -132,15 +141,14 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const savingThrowsChunk = sectionBetween(text, "TIRADAS DE SALVACIÓN", "HABILIDADES");
   const skillsChunk = sectionBetween(text, "HABILIDADES", "SABIDURÍA (PERCEPCIÓN) PASIVA");
 
-  const classMatch = classAndLevel.match(/^(.*?)(\d+)$/);
-  const className = classMatch?.[1]?.trim() ?? "";
-  const level = toInt(classMatch?.[2] ?? "");
+  const className = classParts[0] ?? "";
+  const level = toInt(classParts[1] ?? "");
 
   return {
     name: name || "Personaje importado",
-    class_name: className,
+    class_name: className.replace(/\b\d+\b/g, "").trim(),
     level,
-    race,
+    race: race.replace(/\b\d+\b/g, "").trim(),
     background,
     hp: toInt(hpText),
     ac: toInt(acText),
