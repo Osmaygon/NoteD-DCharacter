@@ -98,6 +98,22 @@ function toInt(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function extractSpeed(text: string): number | null {
+  const afterLabel = firstMatch(text, /VELOCIDAD\s*\(PIES\)\s*(\d{1,3})/i);
+  if (afterLabel) return toInt(afterLabel);
+
+  const beforeLabel = firstMatch(text, /(\d{1,3})\s+VELOCIDAD\s*\(PIES\)/i);
+  if (beforeLabel) return toInt(beforeLabel);
+
+  const aroundInitiative = firstMatchGroups(
+    text,
+    /INICIATIVA\s*(\d{1,3})\s+VELOCIDAD\s*\(PIES\)\s*(\d{1,3})?/i,
+  );
+  if (aroundInitiative[1]) return toInt(aroundInitiative[1]);
+
+  return null;
+}
+
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const text = normalizeWhitespace(rawText);
 
@@ -110,7 +126,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const race = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+ESPECIE/i);
   const hpText = firstMatch(text, /Puntos de Golpe M[aá]ximos\s*(\d+)/i);
   const acText = firstMatch(text, /\bCA\s*[-+]?\d*\s*(\d{1,3})/i);
-  const speedText = firstMatch(text, /INICIATIVA\s*\d+\s*VELOCIDAD\s*\(PIES\)\s*(\d+)/i);
+  const speedValue = extractSpeed(text);
   const player = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_\- ]+)\s+JUGADOR/i) || captureAfterLabel(text, "JUGADOR");
   const alignment = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+)\s+ALINEAMIENTO/i) || captureAfterLabel(text, "ALINEAMIENTO");
   const proficiency = firstMatch(text, /\+(\d+)\s+BONIFICADOR DE COMPETENCIA/i);
@@ -152,7 +168,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
     background,
     hp: toInt(hpText),
     ac: toInt(acText),
-    speed: toInt(speedText),
+    speed: speedValue,
     notes: additionalNotes || "Importado desde PDF",
     source_payload: {
       raw_text: rawText,
