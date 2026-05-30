@@ -16,6 +16,35 @@ type AbilityBlock = {
   modifier: number | null;
 };
 
+type ParsedCheck = {
+  name: string;
+  bonus: string;
+  proficient: boolean;
+};
+
+const savingThrowNames = ["Fuerza", "Destreza", "Constitución", "Inteligencia", "Sabiduría", "Carisma"];
+
+const skillNames = [
+  "Acrobacias",
+  "Arcanos",
+  "Atletismo",
+  "Engañar",
+  "Historia",
+  "Interpretación",
+  "Intimidar",
+  "Investigación",
+  "Juego de Manos",
+  "Medicina",
+  "Naturaleza",
+  "Percepción",
+  "Perspicacia",
+  "Persuasión",
+  "Religión",
+  "Sigilo",
+  "Supervivencia",
+  "Trato con Animales",
+];
+
 function normalizeWhitespace(value: string): string {
   return value
     .replace(/\r/g, "")
@@ -74,6 +103,10 @@ function valueBeforeLabel(lines: string[], label: string): string {
 function firstMatch(text: string, pattern: RegExp): string {
   const match = text.match(pattern);
   return match?.[1]?.trim() ?? "";
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
 }
 
 function stripLabelNoise(value: string): string {
@@ -220,6 +253,24 @@ function sectionBetween(text: string, startLabel: string, endLabel: string): str
   return text.slice(start + startLabel.length, end).trim();
 }
 
+function parseCheckEntries(text: string, names: string[]): ParsedCheck[] {
+  return names.flatMap((name) => {
+    const regex = new RegExp(`(?:^|\\s)([x\\s]{0,8})${escapeRegExp(name)}\\s+([+-]?\\d{1,2}|0)\\b`, "i");
+    const match = text.match(regex);
+    if (!match || !match[1].includes("")) return [];
+
+    return [{
+      name,
+      bonus: match[2],
+      proficient: /x/i.test(match[1]),
+    }];
+  });
+}
+
+function formatCheckEntries(entries: ParsedCheck[]): string {
+  return entries.map((entry) => `${entry.proficient ? "x " : ""}${entry.name} ${entry.bonus}`).join("\n");
+}
+
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const text = normalizeWhitespace(rawText);
   const lines = splitLines(rawText);
@@ -245,6 +296,9 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
 
   const savingThrowsChunk = sectionBetween(text, "TIRADAS DE SALVACIÓN", "HABILIDADES");
   const skillsChunk = sectionBetween(text, "HABILIDADES", "SABIDURÍA (PERCEPCIÓN) PASIVA");
+  const checksChunk = skillsChunk || sectionBetween(text, "TIRADAS DE SALVACIÓN", "SABIDURÍA (PERCEPCIÓN) PASIVA");
+  const parsedSavingThrows = parseCheckEntries(`${savingThrowsChunk}\n${checksChunk}`, savingThrowNames);
+  const parsedSkills = parseCheckEntries(checksChunk, skillNames);
   const competencies = sectionBetween(text, "OTRAS COMPETENCIAS E IDIOMAS", "ATAQUES Y LANZAMIENTO DE CONJUROS");
   const attacks = sectionBetween(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO");
   const notes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE") || "Importado desde PDF";
@@ -267,10 +321,12 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         proficiency_bonus: toInt(proficiency),
         passive_perception: toInt(passivePerception),
         abilities,
+        saving_throws: parsedSavingThrows,
+        skills: parsedSkills,
       },
       sections: {
-        saving_throws: dedupeLineBreaks(savingThrowsChunk),
-        skills: dedupeLineBreaks(skillsChunk),
+        saving_throws: formatCheckEntries(parsedSavingThrows) || dedupeLineBreaks(savingThrowsChunk),
+        skills: formatCheckEntries(parsedSkills) || dedupeLineBreaks(skillsChunk),
         competencies: dedupeLineBreaks(competencies),
         attacks: dedupeLineBreaks(attacks),
       },

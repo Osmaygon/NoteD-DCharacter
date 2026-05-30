@@ -27,6 +27,12 @@ type FormState = {
   notes: string;
 };
 
+type CheckEntry = {
+  name: string;
+  bonus: string;
+  proficient: boolean;
+};
+
 const abilityOrder = [
   { key: "fuerza", label: "FUE" },
   { key: "destreza", label: "DES" },
@@ -60,6 +66,8 @@ export default function CharacterDetailPage() {
   const summary = (rawPayload.summary as Record<string, unknown> | undefined) ?? {};
   const sections = (rawPayload.sections as Record<string, string> | undefined) ?? {};
   const abilities = (summary.abilities as Record<string, { score?: number; modifier?: number }> | undefined) ?? {};
+  const savingThrows = Array.isArray(summary.saving_throws) ? summary.saving_throws as CheckEntry[] : [];
+  const skills = Array.isArray(summary.skills) ? summary.skills as CheckEntry[] : [];
 
   function hydrate(detail: CharacterDetail) {
     setForm({
@@ -205,6 +213,28 @@ export default function CharacterDetailPage() {
 
   const hpMax = Number(form.hp || 0);
 
+  function renderCheckCards(entries: CheckEntry[], fallback: string) {
+    if (!entries.length) {
+      return <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "-"}</p>;
+    }
+
+    return (
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {entries.map((entry) => (
+          <div key={entry.name} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-[#d9c89e]">{entry.name}</p>
+              <p className="text-lg font-semibold text-[#f3dfac]">{entry.bonus}</p>
+            </div>
+            <p className={entry.proficient ? "mt-1 text-xs text-[#f3dfac]" : "mt-1 text-xs text-[#8d846c]"}>
+              {entry.proficient ? "Competente" : "Sin competencia"}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
       <AppHeader />
@@ -281,11 +311,11 @@ export default function CharacterDetailPage() {
               <div className="mt-4 grid gap-3 lg:grid-cols-3">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Tiradas de salvación</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.saving_throws || "-"}</p>
+                  {renderCheckCards(savingThrows, sections.saving_throws)}
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.skills || "-"}</p>
+                  {renderCheckCards(skills, sections.skills)}
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Competencias e idiomas</p>
