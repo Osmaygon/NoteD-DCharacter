@@ -25,119 +25,27 @@ function normalizeWhitespace(value: string): string {
     .trim();
 }
 
-function dedupeLineBreaks(value: string): string {
-  const chunks = value
-    .split(/\n+/)
-    .map((v) => v.trim())
-    .filter(Boolean);
-  return Array.from(new Set(chunks)).join("\n");
-}
-
-function firstMatch(text: string, pattern: RegExp): string {
-  const match = text.match(pattern);
-  return match?.[1]?.trim() ?? "";
-}
-
-function firstMatchGroups(text: string, pattern: RegExp): string[] {
-  const match = text.match(pattern);
-  if (!match) return [];
-  return match.slice(1).map((v) => v.trim());
-}
-
-function sectionBetween(text: string, startLabel: string, endLabel: string): string {
-  const start = text.toUpperCase().indexOf(startLabel.toUpperCase());
-  const end = text.toUpperCase().indexOf(endLabel.toUpperCase());
-  if (start === -1 || end === -1 || end <= start) return "";
-  return text.slice(start + startLabel.length, end).trim();
-}
-
-function sectionByLabels(text: string, startLabel: string, endLabels: string[]): string {
-  const upper = text.toUpperCase();
-  const start = upper.indexOf(startLabel.toUpperCase());
-  if (start === -1) return "";
-  const from = start + startLabel.length;
-
-  let minEnd = text.length;
-  for (const label of endLabels) {
-    const idx = upper.indexOf(label.toUpperCase(), from);
-    if (idx !== -1 && idx < minEnd) minEnd = idx;
-  }
-
-  return text.slice(from, minEnd).trim();
-}
-
-function captureAfterLabel(text: string, label: string): string {
-  const regex = new RegExp(`${label}\\s*[:\\-]?\\s*([^\\n]+)`, "i");
-  const match = text.match(regex);
-  return match?.[1]?.trim() ?? "";
-}
-
-function extractBeforeLabel(text: string, label: string): string {
-  const regex = new RegExp(`([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_()'\\- ]{2,80})\\s+${label}`, "i");
-  const match = text.match(regex);
-  return match?.[1]?.trim() ?? "";
+function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
 }
 
 function cleanText(value: string): string {
-  return value.replace(/\s+/g, " ").replace(/\b\d+\b$/g, "").trim();
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/[|]+/g, " ")
+    .replace(/^[\-:;,./\s]+|[\-:;,./\s]+$/g, "")
+    .trim();
 }
 
-function listSpells(text: string): string[] {
-  const chunk = sectionBetween(text, "PREP NIVEL NOMBRE", "©");
-  if (!chunk) return [];
-  const matches = chunk.match(/\b[A-ZÁÉÍÓÚÜÑ][A-Za-zÁÉÍÓÚÜÑáéíóúüñ' ]{2,}\b/g) ?? [];
-  const unique = Array.from(new Set(matches.map((m) => m.trim())));
-  return unique.slice(0, 120);
-}
-
-function parseAbility(text: string, label: string): AbilityBlock {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-  const beforeAfter = new RegExp(`(\\d{1,2})\\s+${escaped}\\s*([+-]?\\d{1,2})`, "i");
-  const m1 = text.match(beforeAfter);
-  if (m1) {
-    return {
-      score: Number(m1[1]),
-      modifier: Number(m1[2]),
-    };
-  }
-
-  const afterBefore = new RegExp(`${escaped}\\s*([+-]?\\d{1,2})\\s*(\\d{1,2})`, "i");
-  const m2 = text.match(afterBefore);
-  if (m2) {
-    return {
-      score: Number(m2[2]),
-      modifier: Number(m2[1]),
-    };
-  }
-
-  const upper = text.toUpperCase();
-  const idx = upper.indexOf(label.toUpperCase());
-  if (idx === -1) return { score: null, modifier: null };
-  const slice = text.slice(Math.max(0, idx - 20), idx + 60);
-  const nums = slice.match(/[+-]?\d{1,2}/g) ?? [];
-  if (!nums.length) return { score: null, modifier: null };
-
-  const maybeScore = nums.find((n) => !n.startsWith("+") && !n.startsWith("-") && Number(n) > 2);
-  const maybeMod = nums.find((n) => n.startsWith("+") || n.startsWith("-"));
-  return {
-    score: maybeScore ? Number(maybeScore) : null,
-    modifier: maybeMod ? Number(maybeMod) : null,
-  };
-}
-
-function parseAbilityMulti(text: string, labels: string[]): AbilityBlock {
-  for (const label of labels) {
-    const parsed = parseAbility(text, label);
-    if (parsed.score !== null || parsed.modifier !== null) return parsed;
-  }
-  return { score: null, modifier: null };
-}
-
-function sectionAfter(text: string, startLabel: string): string {
-  const start = text.toUpperCase().indexOf(startLabel.toUpperCase());
-  if (start === -1) return "";
-  return text.slice(start + startLabel.length).trim();
+function dedupeLineBreaks(value: string): string {
+  const chunks = value
+    .split(/\n+/)
+    .map((line) => cleanText(line))
+    .filter(Boolean);
+  return Array.from(new Set(chunks)).join("\n");
 }
 
 function toInt(value: string): number | null {
@@ -145,137 +53,212 @@ function toInt(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function extractSpeed(text: string): number | null {
-  const afterLabel = firstMatch(text, /VELOCIDAD\s*\(PIES\)\s*(\d{1,3})/i);
-  if (afterLabel) return toInt(afterLabel);
-
-  const beforeLabel = firstMatch(text, /(\d{1,3})\s+VELOCIDAD\s*\(PIES\)/i);
-  if (beforeLabel) return toInt(beforeLabel);
-
-  const noisy = firstMatch(text, /VELOCIDAD[^\d]{0,20}(\d{1,3})/i);
-  if (noisy) return toInt(noisy);
-
-  const aroundInitiative = firstMatchGroups(
-    text,
-    /INICIATIVA\s*(\d{1,3})\s+VELOCIDAD\s*\(PIES\)\s*(\d{1,3})?/i,
-  );
-  if (aroundInitiative[1]) return toInt(aroundInitiative[1]);
-
-  return null;
+function splitLines(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((line) => cleanText(line))
+    .filter(Boolean);
 }
 
-function extractAc(text: string): number | null {
-  const direct = firstMatch(text, /\bCA\s*(\d{1,3})\b/i);
-  if (direct) return toInt(direct);
-  const before = firstMatch(text, /(\d{1,3})\s+CA\b/i);
-  if (before) return toInt(before);
-  const around = firstMatchGroups(text, /CA\s*[-+]?\d*\s*(\d{1,3})/i);
-  if (around[0]) return toInt(around[0]);
-  const noisy = firstMatch(text, /CA[^\d]{0,20}(\d{1,3})/i);
-  if (noisy) return toInt(noisy);
-  return null;
+function findLineIndex(lines: string[], label: string): number {
+  const target = normalizeSearch(label);
+  return lines.findIndex((line) => normalizeSearch(line) === target);
 }
 
-function extractHp(text: string): number | null {
-  const direct = firstMatch(text, /Puntos de Golpe M[aá]ximos\s*(\d{1,3})/i);
-  if (direct) return toInt(direct);
-  const before = firstMatch(text, /(\d{1,3})\s+Puntos de Golpe M[aá]ximos/i);
-  if (before) return toInt(before);
-  const current = firstMatch(text, /PUNTOS DE GOLPE ACTUALES[^\d]{0,20}(\d{1,3})/i);
-  if (current) return toInt(current);
-  const fallback = firstMatch(text, /\bHP\s*(\d{1,3})/i);
-  if (fallback) return toInt(fallback);
-  const noisy = firstMatch(text, /HP[^\d]{0,20}(\d{1,3})/i);
-  if (noisy) return toInt(noisy);
-  return toInt(fallback);
+function valueBeforeLabel(lines: string[], label: string): string {
+  const idx = findLineIndex(lines, label);
+  if (idx <= 0) return "";
+  return cleanText(lines[idx - 1] ?? "");
 }
 
-function extractClassAndLevel(text: string): { className: string; level: number | null } {
-  const groups = firstMatchGroups(
-    text,
-    /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+(\d{1,2})\s+CLASE Y NIVEL/i,
-  );
-  if (groups.length >= 2) {
-    return {
-      className: cleanText(groups[0]),
-      level: toInt(groups[1]),
-    };
+function firstMatch(text: string, pattern: RegExp): string {
+  const match = text.match(pattern);
+  return match?.[1]?.trim() ?? "";
+}
+
+function stripLabelNoise(value: string): string {
+  let cleaned = cleanText(value);
+  const separators = [
+    "NOMBRE DEL PERSONAJE",
+    "CLASE Y NIVEL",
+    "TRASFONDO",
+    "ESPECIE",
+    "JUGADOR",
+    "ALINEAMIENTO",
+    "PUNTOS DE EXPERIENCIA",
+  ];
+
+  for (const label of separators) {
+    const parts = cleaned.split(new RegExp(label, "i"));
+    cleaned = cleanText(parts[parts.length - 1] ?? cleaned);
   }
 
-  const near = firstMatch(text, /NOMBRE DEL PERSONAJE\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]+\s+\d{1,2})/i);
-  if (near) {
-    const m = near.match(/^(.*?)(\d{1,2})$/);
+  return cleaned;
+}
+
+function parseClassAndLevel(lines: string[], text: string): { className: string; level: number | null } {
+  const fromLine = valueBeforeLabel(lines, "CLASE Y NIVEL");
+  if (fromLine) {
+    const match = fromLine.match(/^(.*?)(\d{1,2})$/);
+    if (match) {
+      return {
+        className: stripLabelNoise(match[1]).replace(/\s+\d{1,2}$/, "").trim(),
+        level: toInt(match[2]),
+      };
+    }
+  }
+
+  const inline = text.match(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+(\d{1,2})\s+CLASE Y NIVEL/i);
+  if (inline) {
+    const cleanedClass = stripLabelNoise(inline[1]).replace(/\s+\d{1,2}$/, "").trim();
     return {
-      className: cleanText(m?.[1] ?? ""),
-      level: toInt(m?.[2] ?? ""),
+      className: cleanedClass,
+      level: toInt(inline[2]),
     };
   }
 
   return { className: "", level: null };
 }
 
-function extractSpecies(text: string): string {
-  const before = extractBeforeLabel(text, "ESPECIE");
-  if (before) return cleanText(before);
-  return cleanText(captureAfterLabel(text, "ESPECIE"));
+function parseBackground(lines: string[], text: string): string {
+  const fromLine = valueBeforeLabel(lines, "TRASFONDO");
+  if (fromLine && !/CLASE Y NIVEL|ESPECIE|JUGADOR/i.test(fromLine)) return fromLine;
+
+  const strictBefore = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_'()\- ]{2,80})\s+TRASFONDO/i);
+  if (strictBefore) {
+    return stripLabelNoise(strictBefore);
+  }
+
+  const fallback = firstMatch(text, /TRASFONDO\s*[:\-]?\s*([^\n]+?)(?:\s+ESPECIE|\s+ALINEAMIENTO|\s+JUGADOR|$)/i);
+  return stripLabelNoise(fallback);
 }
 
-function extractBackground(text: string): string {
-  const before = extractBeforeLabel(text, "TRASFONDO");
-  if (before) return cleanText(before);
-  return cleanText(captureAfterLabel(text, "TRASFONDO"));
+function parseRace(lines: string[], text: string): string {
+  const fromLine = valueBeforeLabel(lines, "ESPECIE");
+  if (fromLine && !/CLASE Y NIVEL|TRASFONDO|JUGADOR|NOMBRE DEL PERSONAJE/i.test(fromLine)) return fromLine;
+
+  const fromPlayerBlock = firstMatch(text, /JUGADOR\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,40})\s+ESPECIE/i);
+  if (fromPlayerBlock) return stripLabelNoise(fromPlayerBlock);
+
+  const strictBefore = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_'()\- ]{2,80})\s+ESPECIE/i);
+  if (strictBefore) {
+    const fromJugador = strictBefore.split(/JUGADOR/i).pop() ?? strictBefore;
+    return stripLabelNoise(fromJugador);
+  }
+
+  const fallback = firstMatch(text, /ESPECIE\s*[:\-]?\s*([^\n]+?)(?:\s+ALINEAMIENTO|\s+TRASFONDO|\s+JUGADOR|$)/i);
+  return stripLabelNoise(fallback);
+}
+
+function parseAbility(lines: string[], text: string, label: string): AbilityBlock {
+  const idx = findLineIndex(lines, label);
+  if (idx !== -1) {
+    const labelLine = lines[idx] ?? "";
+    const mod = labelLine.match(/([+-]\d{1,2})/);
+    const nextLine = lines[idx + 1] ?? "";
+    const score = nextLine.match(/\b(\d{1,2})\b/);
+    if (score || mod) {
+      return {
+        score: score ? Number(score[1]) : null,
+        modifier: mod ? Number(mod[1]) : null,
+      };
+    }
+  }
+
+  const inText = new RegExp(`${label}\\s*([+-]?\\d{1,2})\\s*(\\d{1,2})`, "i");
+  const match = text.match(inText);
+  if (match) {
+    return {
+      score: Number(match[2]),
+      modifier: Number(match[1]),
+    };
+  }
+
+  return { score: null, modifier: null };
+}
+
+function parseAbilityMulti(lines: string[], text: string, labels: string[]): AbilityBlock {
+  for (const label of labels) {
+    const parsed = parseAbility(lines, text, label);
+    if (parsed.score !== null || parsed.modifier !== null) return parsed;
+  }
+  return { score: null, modifier: null };
+}
+
+function parseAc(text: string): number | null {
+  const blockMatch = text.match(/(\d{1,3})\s+CA\s*[+-]?\d{0,2}\s+INICIATIVA/i);
+  if (blockMatch) return toInt(blockMatch[1]);
+  const direct = text.match(/\bCA\s*(\d{1,3})\b/i);
+  if (direct) return toInt(direct[1]);
+  const before = text.match(/(\d{1,3})\s+CA\b/i);
+  if (before) return toInt(before[1]);
+  return null;
+}
+
+function parseHp(text: string): number | null {
+  const max = text.match(/Puntos de Golpe M[aá]ximos\s*(\d{1,3})/i);
+  if (max) return toInt(max[1]);
+  const fallback = text.match(/\bHP\s*(\d{1,3})\b/i);
+  return fallback ? toInt(fallback[1]) : null;
+}
+
+function parseSpeed(text: string): number | null {
+  const around = text.match(/INICIATIVA\s*(\d{1,3})\s+VELOCIDAD\s*\(PIES\)\s*(\d{1,3})?/i);
+  if (around?.[2]) return toInt(around[2]);
+  const direct = text.match(/VELOCIDAD\s*\(PIES\)\s*(\d{1,3})/i);
+  if (direct) return toInt(direct[1]);
+  const before = text.match(/(\d{1,3})\s+VELOCIDAD\s*\(PIES\)/i);
+  if (before) return toInt(before[1]);
+  return null;
+}
+
+function sectionBetween(text: string, startLabel: string, endLabel: string): string {
+  const upper = normalizeSearch(text);
+  const start = upper.indexOf(normalizeSearch(startLabel));
+  const end = upper.indexOf(normalizeSearch(endLabel));
+  if (start === -1 || end === -1 || end <= start) return "";
+  return text.slice(start + startLabel.length, end).trim();
 }
 
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const text = normalizeWhitespace(rawText);
+  const lines = splitLines(rawText);
 
-  const name = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,80})\s+NOMBRE DEL PERSONAJE/i);
-  const { className, level } = extractClassAndLevel(text);
-  const background = extractBackground(text);
-  const race = extractSpecies(text);
-  const hpValue = extractHp(text);
-  const acValue = extractAc(text);
-  const speedValue = extractSpeed(text);
-  const player = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_\- ]+)\s+JUGADOR/i) || captureAfterLabel(text, "JUGADOR");
-  const alignment = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+)\s+ALINEAMIENTO/i) || captureAfterLabel(text, "ALINEAMIENTO");
+  const { className, level } = parseClassAndLevel(lines, text);
+  const race = parseRace(lines, text);
+  const background = parseBackground(lines, text);
+
+  const name = cleanText(firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,80})\s+NOMBRE DEL PERSONAJE/i)) || "Personaje importado";
+  const player = cleanText(firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_\- ]+)\s+JUGADOR/i));
+  const alignment = cleanText(firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+)\s+ALINEAMIENTO/i));
   const proficiency = firstMatch(text, /\+(\d+)\s+BONIFICADOR DE COMPETENCIA/i);
   const passivePerception = firstMatch(text, /(\d+)\s+SABIDUR[ÍI]A \(PERCEPCI[ÓO]N\) PASIVA/i);
 
-  const competencies = sectionByLabels(text, "OTRAS COMPETENCIAS E IDIOMAS", ["ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO", "INSPIRACIÓN"]);
-  const attacks = sectionByLabels(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", ["RASGOS Y ATRIBUTOS", "EQUIPO", "RASGOS DE PERSONALIDAD"]);
-  const traits = sectionByLabels(text, "RASGOS Y ATRIBUTOS", ["RASGOS DE PERSONALIDAD", "APARIENCIA", "RASGOS "]);
-  const personality = sectionByLabels(text, "RASGOS DE PERSONALIDAD", ["IDEALES", "VÍNCULOS", "DEFECTOS"]);
-  const ideals = sectionByLabels(text, "IDEALES", ["VÍNCULOS", "DEFECTOS", "APARIENCIA"]);
-  const bonds = sectionByLabels(text, "VÍNCULOS", ["DEFECTOS", "APARIENCIA", "NOTAS ADICIONALES"]);
-  const defects = sectionByLabels(text, "DEFECTOS", ["APARIENCIA", "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE"]);
-  const appearance = sectionByLabels(text, "APARIENCIA", ["NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE", "RASGOS"]);
-  const additionalNotes = sectionByLabels(text, "NOTAS ADICIONALES", ["HISTORIA DEL PERSONAJE", "RASGOS", "ESPACIOS DE CONJURO"]);
-  const story = sectionByLabels(text, "HISTORIA DEL PERSONAJE", ["RASGOS", "ESPACIOS DE CONJURO", "©"]);
-  const spellChunk = sectionByLabels(text, "ESPACIOS DE CONJURO", ["©", "NIVEL20", "Tu plataforma"]);
-  const fullTraits = sectionAfter(text, "RASGOS");
-
   const abilities = {
-    fuerza: parseAbilityMulti(text, ["FUERZA"]),
-    destreza: parseAbilityMulti(text, ["DESTREZA"]),
-    constitucion: parseAbilityMulti(text, ["CONSTITUCIÓN", "CONSTITUCION"]),
-    inteligencia: parseAbilityMulti(text, ["INTELIGENCIA"]),
-    sabiduria: parseAbilityMulti(text, ["SABIDURÍA", "SABIDURIA"]),
-    carisma: parseAbilityMulti(text, ["CARISMA"]),
+    fuerza: parseAbilityMulti(lines, text, ["FUERZA"]),
+    destreza: parseAbilityMulti(lines, text, ["DESTREZA"]),
+    constitucion: parseAbilityMulti(lines, text, ["CONSTITUCIÓN", "CONSTITUCION"]),
+    inteligencia: parseAbilityMulti(lines, text, ["INTELIGENCIA"]),
+    sabiduria: parseAbilityMulti(lines, text, ["SABIDURÍA", "SABIDURIA"]),
+    carisma: parseAbilityMulti(lines, text, ["CARISMA"]),
   };
 
   const savingThrowsChunk = sectionBetween(text, "TIRADAS DE SALVACIÓN", "HABILIDADES");
   const skillsChunk = sectionBetween(text, "HABILIDADES", "SABIDURÍA (PERCEPCIÓN) PASIVA");
+  const competencies = sectionBetween(text, "OTRAS COMPETENCIAS E IDIOMAS", "ATAQUES Y LANZAMIENTO DE CONJUROS");
+  const attacks = sectionBetween(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO");
+  const notes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE") || "Importado desde PDF";
 
   return {
-    name: name || "Personaje importado",
+    name,
     class_name: className,
     level,
     race,
     background,
-    hp: hpValue,
-    ac: acValue,
-    speed: speedValue,
-    notes: additionalNotes || "Importado desde PDF",
+    hp: parseHp(text),
+    ac: parseAc(text),
+    speed: parseSpeed(text),
+    notes: cleanText(notes),
     source_payload: {
       raw_text: rawText,
       summary: {
@@ -290,18 +273,8 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         skills: dedupeLineBreaks(skillsChunk),
         competencies: dedupeLineBreaks(competencies),
         attacks: dedupeLineBreaks(attacks),
-        traits: dedupeLineBreaks(traits),
-        personality: dedupeLineBreaks(personality),
-        ideals: dedupeLineBreaks(ideals),
-        bonds: dedupeLineBreaks(bonds),
-        defects: dedupeLineBreaks(defects),
-        appearance: dedupeLineBreaks(appearance),
-        additional_notes: dedupeLineBreaks(additionalNotes),
-        story: dedupeLineBreaks(story),
-        full_traits: dedupeLineBreaks(fullTraits),
-        spell_chunk: dedupeLineBreaks(spellChunk),
       },
-      spells_detected: Array.from(new Set(listSpells(text))),
+      spells_detected: [],
     },
   };
 }
