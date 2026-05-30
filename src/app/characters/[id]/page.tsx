@@ -89,25 +89,43 @@ export default function CharacterDetailPage() {
 
     const payload = (detail.source_payload ?? {}) as {
       raw_text?: string;
+      source_payload?: {
+        raw_text?: string;
+        summary?: Record<string, unknown>;
+        sections?: Record<string, string>;
+        spells_detected?: string[];
+        pages?: string[];
+      };
       [key: string]: unknown;
     };
 
-    const hasStructuredData =
-      Object.prototype.hasOwnProperty.call(payload, "summary") ||
-      Object.prototype.hasOwnProperty.call(payload, "sections") ||
-      Object.prototype.hasOwnProperty.call(payload, "spells_detected") ||
-      Object.prototype.hasOwnProperty.call(payload, "pages");
-
-    const reparsed = payload.raw_text ? parseImportedCharacter(payload.raw_text) : null;
-    const rebuilt = reparsed?.source_payload
+    const normalizedPayload = payload.source_payload
       ? {
           ...payload,
+          raw_text: payload.raw_text ?? payload.source_payload.raw_text,
+          summary: payload.summary ?? payload.source_payload.summary,
+          sections: payload.sections ?? payload.source_payload.sections,
+          spells_detected: payload.spells_detected ?? payload.source_payload.spells_detected,
+          pages: payload.pages ?? payload.source_payload.pages,
+        }
+      : payload;
+
+    const hasStructuredData =
+      Object.prototype.hasOwnProperty.call(normalizedPayload, "summary") ||
+      Object.prototype.hasOwnProperty.call(normalizedPayload, "sections") ||
+      Object.prototype.hasOwnProperty.call(normalizedPayload, "spells_detected") ||
+      Object.prototype.hasOwnProperty.call(normalizedPayload, "pages");
+
+    const reparsed = normalizedPayload.raw_text ? parseImportedCharacter(normalizedPayload.raw_text) : null;
+    const rebuilt = reparsed?.source_payload
+      ? {
+          ...normalizedPayload,
           ...reparsed.source_payload,
-          pages: Array.isArray(payload.pages) && payload.pages.length
-            ? payload.pages
+          pages: Array.isArray(normalizedPayload.pages) && normalizedPayload.pages.length
+            ? normalizedPayload.pages
             : reparsed.source_payload.pages,
         }
-      : (!hasStructuredData && payload.raw_text ? payload : payload);
+      : (!hasStructuredData && normalizedPayload.raw_text ? normalizedPayload : normalizedPayload);
 
     if (reparsed) {
       setForm({
