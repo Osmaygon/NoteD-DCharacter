@@ -16,6 +16,9 @@ export type CharacterDetail = {
   race: string | null;
   background: string | null;
   hp: number | null;
+  current_hp: number | null;
+  temp_hp: number | null;
+  shields: number | null;
   ac: number | null;
   speed: number | null;
   notes: string | null;
@@ -101,6 +104,9 @@ export async function updateCharacterDetail(
     race: string;
     background: string;
     hp: number | null;
+    current_hp: number | null;
+    temp_hp: number | null;
+    shields: number | null;
     ac: number | null;
     speed: number | null;
     notes: string;
@@ -116,6 +122,9 @@ export async function updateCharacterDetail(
     p_race: input.race,
     p_background: input.background,
     p_hp: input.hp,
+    p_current_hp: input.current_hp,
+    p_temp_hp: input.temp_hp,
+    p_shields: input.shields,
     p_ac: input.ac,
     p_speed: input.speed,
     p_notes: input.notes,

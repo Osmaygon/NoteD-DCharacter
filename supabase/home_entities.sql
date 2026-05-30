@@ -36,12 +36,19 @@ create table if not exists public.app_character_profiles (
   race text,
   background text,
   hp int,
+  current_hp int,
+  temp_hp int not null default 0,
+  shields int not null default 0,
   ac int,
   speed int,
   notes text,
   source_payload jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+alter table public.app_character_profiles add column if not exists current_hp int;
+alter table public.app_character_profiles add column if not exists temp_hp int not null default 0;
+alter table public.app_character_profiles add column if not exists shields int not null default 0;
 
 alter table public.app_campaigns enable row level security;
 alter table public.app_campaign_members enable row level security;
@@ -190,6 +197,9 @@ begin
     race,
     background,
     hp,
+    current_hp,
+    temp_hp,
+    shields,
     ac,
     speed,
     notes,
@@ -202,6 +212,9 @@ begin
     nullif(trim(coalesce(p_payload->>'race', p_payload->>'species', p_payload->>'raza')), ''),
     nullif(trim(coalesce(p_payload->>'background', p_payload->>'trasfondo')), ''),
     nullif(p_payload->>'hp', '')::int,
+    coalesce(nullif(p_payload->>'current_hp', '')::int, nullif(p_payload->>'hp', '')::int, 0),
+    coalesce(nullif(p_payload->>'temp_hp', '')::int, 0),
+    coalesce(nullif(p_payload->>'shields', '')::int, 0),
     nullif(p_payload->>'ac', '')::int,
     nullif(p_payload->>'speed', '')::int,
     nullif(trim(coalesce(p_payload->>'notes', p_payload->>'notas')), ''),
@@ -213,6 +226,9 @@ begin
     race = excluded.race,
     background = excluded.background,
     hp = excluded.hp,
+    current_hp = excluded.current_hp,
+    temp_hp = excluded.temp_hp,
+    shields = excluded.shields,
     ac = excluded.ac,
     speed = excluded.speed,
     notes = excluded.notes,
@@ -224,6 +240,8 @@ begin
 end;
 $$;
 
+drop function if exists public.get_character_detail_for_user(uuid, uuid);
+
 create or replace function public.get_character_detail_for_user(p_user_id uuid, p_character_id uuid)
 returns table(
   id uuid,
@@ -234,6 +252,9 @@ returns table(
   race text,
   background text,
   hp int,
+  current_hp int,
+  temp_hp int,
+  shields int,
   ac int,
   speed int,
   notes text,
@@ -243,13 +264,30 @@ language sql
 security definer
 set search_path = public
 as $$
-  select c.id, c.name, c.join_code, p.class_name, p.level, p.race, p.background, p.hp, p.ac, p.speed, p.notes, p.source_payload
+  select
+    c.id,
+    c.name,
+    c.join_code,
+    p.class_name,
+    p.level,
+    p.race,
+    p.background,
+    p.hp,
+    coalesce(p.current_hp, p.hp, 0),
+    coalesce(p.temp_hp, 0),
+    coalesce(p.shields, 0),
+    p.ac,
+    p.speed,
+    p.notes,
+    p.source_payload
   from public.app_characters c
   join public.app_character_members m on m.character_id = c.id and m.user_id = p_user_id
   left join public.app_character_profiles p on p.character_id = c.id
   where c.id = p_character_id
   limit 1;
 $$;
+
+drop function if exists public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, text);
 
 create or replace function public.update_character_detail_for_user(
   p_user_id uuid,
@@ -260,6 +298,9 @@ create or replace function public.update_character_detail_for_user(
   p_race text,
   p_background text,
   p_hp int,
+  p_current_hp int,
+  p_temp_hp int,
+  p_shields int,
   p_ac int,
   p_speed int,
   p_notes text
@@ -285,7 +326,7 @@ begin
   set name = coalesce(nullif(trim(p_name), ''), name)
   where id = p_character_id;
 
-  insert into public.app_character_profiles(character_id, class_name, level, race, background, hp, ac, speed, notes, source_payload)
+  insert into public.app_character_profiles(character_id, class_name, level, race, background, hp, current_hp, temp_hp, shields, ac, speed, notes, source_payload)
   values (
     p_character_id,
     nullif(trim(p_class_name), ''),
@@ -293,6 +334,9 @@ begin
     nullif(trim(p_race), ''),
     nullif(trim(p_background), ''),
     p_hp,
+    greatest(coalesce(p_current_hp, p_hp, 0), 0),
+    greatest(coalesce(p_temp_hp, 0), 0),
+    greatest(coalesce(p_shields, 0), 0),
     p_ac,
     p_speed,
     nullif(trim(p_notes), ''),
@@ -304,6 +348,9 @@ begin
     race = excluded.race,
     background = excluded.background,
     hp = excluded.hp,
+    current_hp = excluded.current_hp,
+    temp_hp = excluded.temp_hp,
+    shields = excluded.shields,
     ac = excluded.ac,
     speed = excluded.speed,
     notes = excluded.notes,
@@ -379,5 +426,5 @@ grant execute on function public.join_character_by_code(uuid, text) to anon, aut
 grant execute on function public.list_characters_for_user(uuid) to anon, authenticated;
 grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
-grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, text) to anon, authenticated;
+grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) to anon, authenticated;
 grant execute on function public.delete_character_for_user(uuid, uuid) to anon, authenticated;

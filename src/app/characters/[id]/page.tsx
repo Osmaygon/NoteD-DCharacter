@@ -19,6 +19,9 @@ type FormState = {
   race: string;
   background: string;
   hp: string;
+  current_hp: string;
+  temp_hp: string;
+  shields: string;
   ac: string;
   speed: string;
   notes: string;
@@ -45,6 +48,9 @@ export default function CharacterDetailPage() {
     race: "",
     background: "",
     hp: "",
+    current_hp: "",
+    temp_hp: "0",
+    shields: "0",
     ac: "",
     speed: "",
     notes: "",
@@ -61,6 +67,9 @@ export default function CharacterDetailPage() {
       race: detail.race ?? "",
       background: detail.background ?? "",
       hp: detail.hp?.toString() ?? "",
+      current_hp: (detail.current_hp ?? detail.hp ?? 0).toString(),
+      temp_hp: (detail.temp_hp ?? 0).toString(),
+      shields: (detail.shields ?? 0).toString(),
       ac: detail.ac?.toString() ?? "",
       speed: detail.speed?.toString() ?? "",
       notes: detail.notes ?? "",
@@ -107,6 +116,9 @@ export default function CharacterDetailPage() {
         race: reparsed.race || detail.race || "",
         background: reparsed.background || detail.background || "",
         hp: (reparsed.hp ?? detail.hp)?.toString() ?? "",
+        current_hp: (detail.current_hp ?? reparsed.hp ?? detail.hp ?? 0).toString(),
+        temp_hp: (detail.temp_hp ?? 0).toString(),
+        shields: (detail.shields ?? 0).toString(),
         ac: (reparsed.ac ?? detail.ac)?.toString() ?? "",
         speed: (reparsed.speed ?? detail.speed)?.toString() ?? "",
         notes: reparsed.notes || detail.notes || "",
@@ -141,6 +153,9 @@ export default function CharacterDetailPage() {
         race: form.race,
         background: form.background,
         hp: form.hp ? Number(form.hp) : null,
+        current_hp: form.current_hp ? Number(form.current_hp) : 0,
+        temp_hp: form.temp_hp ? Number(form.temp_hp) : 0,
+        shields: form.shields ? Number(form.shields) : 0,
         ac: form.ac ? Number(form.ac) : null,
         speed: form.speed ? Number(form.speed) : null,
         notes: form.notes,
@@ -169,6 +184,22 @@ export default function CharacterDetailPage() {
     const levelPart = form.level ? `Nivel ${form.level}` : "Nivel -";
     return `${classPart} - ${levelPart}`;
   }, [form.class_name, form.level]);
+
+  function updateCounter(field: "current_hp" | "temp_hp" | "shields", delta: number, max?: number) {
+    setForm((current) => {
+      const value = Number(current[field] || 0);
+      const next = Math.max(0, Math.min(max ?? Number.POSITIVE_INFINITY, value + delta));
+      return { ...current, [field]: String(next) };
+    });
+  }
+
+  function setCounter(field: "current_hp" | "temp_hp" | "shields", value: string, max?: number) {
+    const parsed = Number(value);
+    const normalized = Number.isFinite(parsed) ? Math.max(0, Math.min(max ?? Number.POSITIVE_INFINITY, parsed)) : 0;
+    setForm((current) => ({ ...current, [field]: String(normalized) }));
+  }
+
+  const hpMax = Number(form.hp || 0);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
@@ -211,9 +242,9 @@ export default function CharacterDetailPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
-              <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">CA</p>
                   <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.ac || "-"}</p>
@@ -221,6 +252,45 @@ export default function CharacterDetailPage() {
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">HP max</p>
                   <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.hp || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">HP actual</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("current_hp", -1, hpMax || undefined)}>-</button>
+                    <input
+                      className="field h-9 min-w-0 text-center"
+                      inputMode="numeric"
+                      value={form.current_hp}
+                      onChange={(e) => setCounter("current_hp", e.target.value, hpMax || undefined)}
+                    />
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("current_hp", 1, hpMax || undefined)}>+</button>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">Vida temporal</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("temp_hp", -1)}>-</button>
+                    <input
+                      className="field h-9 min-w-0 text-center"
+                      inputMode="numeric"
+                      value={form.temp_hp}
+                      onChange={(e) => setCounter("temp_hp", e.target.value)}
+                    />
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("temp_hp", 1)}>+</button>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">Escudos</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("shields", -1)}>-</button>
+                    <input
+                      className="field h-9 min-w-0 text-center"
+                      inputMode="numeric"
+                      value={form.shields}
+                      onChange={(e) => setCounter("shields", e.target.value)}
+                    />
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("shields", 1)}>+</button>
+                  </div>
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">Velocidad</p>
