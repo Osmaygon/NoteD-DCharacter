@@ -24,14 +24,20 @@ type FormState = {
   notes: string;
 };
 
+const abilityOrder = [
+  { key: "fuerza", label: "FUE" },
+  { key: "destreza", label: "DES" },
+  { key: "constitucion", label: "CON" },
+  { key: "inteligencia", label: "INT" },
+  { key: "sabiduria", label: "SAB" },
+  { key: "carisma", label: "CAR" },
+] as const;
+
 export default function CharacterDetailPage() {
   const params = useParams<{ id: string }>();
   const [userId, setUserId] = useState("");
   const [message, setMessage] = useState("");
   const [rawPayload, setRawPayload] = useState<Record<string, unknown>>({});
-  const [selectedPage, setSelectedPage] = useState(0);
-  const [showJson, setShowJson] = useState(false);
-  const [viewMode, setViewMode] = useState<"estadisticas" | "informacion">("estadisticas");
   const [form, setForm] = useState<FormState>({
     name: "",
     class_name: "",
@@ -44,28 +50,8 @@ export default function CharacterDetailPage() {
     notes: "",
   });
 
-  const pdfPages = useMemo(() => {
-    const pages = rawPayload.pages;
-    if (Array.isArray(pages) && pages.every((p) => typeof p === "string")) {
-      return pages as string[];
-    }
-    const rawText = typeof rawPayload.raw_text === "string" ? rawPayload.raw_text : "";
-    return rawText ? rawText.split(/\n\s*\n+/).filter(Boolean) : [];
-  }, [rawPayload]);
-
   const summary = (rawPayload.summary as Record<string, unknown> | undefined) ?? {};
-  const sections = (rawPayload.sections as Record<string, string> | undefined) ?? {};
   const abilities = (summary.abilities as Record<string, { score?: number; modifier?: number }> | undefined) ?? {};
-  const spells = (rawPayload.spells_detected as string[] | undefined) ?? [];
-
-  const abilityOrder = [
-    { key: "fuerza", label: "FUE" },
-    { key: "destreza", label: "DES" },
-    { key: "constitucion", label: "CON" },
-    { key: "inteligencia", label: "INT" },
-    { key: "sabiduria", label: "SAB" },
-    { key: "carisma", label: "CAR" },
-  ];
 
   function hydrate(detail: CharacterDetail) {
     setForm({
@@ -93,9 +79,6 @@ export default function CharacterDetailPage() {
       source_payload?: {
         raw_text?: string;
         summary?: Record<string, unknown>;
-        sections?: Record<string, string>;
-        spells_detected?: string[];
-        pages?: string[];
       };
       [key: string]: unknown;
     };
@@ -105,28 +88,16 @@ export default function CharacterDetailPage() {
           ...payload,
           raw_text: payload.raw_text ?? payload.source_payload.raw_text,
           summary: payload.summary ?? payload.source_payload.summary,
-          sections: payload.sections ?? payload.source_payload.sections,
-          spells_detected: payload.spells_detected ?? payload.source_payload.spells_detected,
-          pages: payload.pages ?? payload.source_payload.pages,
         }
       : payload;
-
-    const hasStructuredData =
-      Object.prototype.hasOwnProperty.call(normalizedPayload, "summary") ||
-      Object.prototype.hasOwnProperty.call(normalizedPayload, "sections") ||
-      Object.prototype.hasOwnProperty.call(normalizedPayload, "spells_detected") ||
-      Object.prototype.hasOwnProperty.call(normalizedPayload, "pages");
 
     const reparsed = normalizedPayload.raw_text ? parseImportedCharacter(normalizedPayload.raw_text) : null;
     const rebuilt = reparsed?.source_payload
       ? {
           ...normalizedPayload,
           ...reparsed.source_payload,
-          pages: Array.isArray(normalizedPayload.pages) && normalizedPayload.pages.length
-            ? normalizedPayload.pages
-            : reparsed.source_payload.pages,
         }
-      : (!hasStructuredData && normalizedPayload.raw_text ? normalizedPayload : normalizedPayload);
+      : normalizedPayload;
 
     if (reparsed) {
       setForm({
@@ -145,7 +116,6 @@ export default function CharacterDetailPage() {
     }
 
     setRawPayload(rebuilt);
-    setSelectedPage(0);
   }, []);
 
   useEffect(() => {
@@ -194,176 +164,92 @@ export default function CharacterDetailPage() {
     }
   }
 
+  const subtitle = useMemo(() => {
+    const classPart = form.class_name || "Sin clase";
+    const levelPart = form.level ? `Nivel ${form.level}` : "Nivel -";
+    return `${classPart} - ${levelPart}`;
+  }, [form.class_name, form.level]);
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
       <AppHeader />
 
-      <section className="panel mb-4 p-5">
-        <h1 className="mb-4 text-2xl">Ficha de personaje</h1>
+      <section className="panel p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ficha de personaje</p>
+            <h1 className="mt-1 text-3xl font-semibold text-[#f3dfac]">{form.name || "Personaje"}</h1>
+            <p className="mt-1 text-sm text-[#d9c89e]">{subtitle}</p>
+            <p className="text-sm text-[#b9ae8d]">{form.race || "Especie -"} - {form.background || "Trasfondo -"}</p>
+          </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button className="btn-primary" type="button" onClick={() => void onSave()}>Guardar cambios</button>
-          <button className="rounded-md border border-red-400 px-4 py-2 text-red-300" type="button" onClick={() => void onDelete()}>Borrar personaje</button>
-        </div>
-        {message ? <p className="mt-2 text-sm text-[#b9ae8d]">{message}</p> : null}
-
-        <hr className="my-5 border-[#d3a84a44]" />
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            className={viewMode === "estadisticas" ? "btn-primary" : "btn-secondary"}
-            type="button"
-            onClick={() => setViewMode("estadisticas")}
-          >
-            Estadísticas
-          </button>
-          <button
-            className={viewMode === "informacion" ? "btn-primary" : "btn-secondary"}
-            type="button"
-            onClick={() => setViewMode("informacion")}
-          >
-            Información
-          </button>
+          <div className="flex gap-2">
+            <button className="btn-primary" type="button" onClick={() => void onSave()}>Guardar</button>
+            <button className="rounded-md border border-red-400 px-3 py-2 text-sm text-red-300" type="button" onClick={() => void onDelete()}>Borrar</button>
+          </div>
         </div>
 
-        {viewMode === "estadisticas" ? (
-          <>
-            <div className="grid gap-3 md:grid-cols-4">
+        {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+          <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+            <p className="mb-3 text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Caracteristicas</p>
+            <div className="grid grid-cols-2 gap-3">
               {abilityOrder.map((ability) => {
                 const row = abilities[ability.key] ?? {};
                 const score = row.score ?? "-";
                 const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
                 return (
-                  <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3 text-center">
+                  <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
                     <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
-                    <p className="mt-1 text-2xl font-semibold">{modifier}</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
                     <p className="text-sm text-[#d9c89e]">{score}</p>
                   </div>
                 );
               })}
             </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Defensas</p>
-                <p className="mt-2 text-sm">CA: <span className="font-semibold">{form.ac || "-"}</span></p>
-                <p className="text-sm">HP máx: <span className="font-semibold">{form.hp || "-"}</span></p>
-                <p className="text-sm">Velocidad: <span className="font-semibold">{form.speed || "-"}</span></p>
-                <p className="text-sm">Competencia: <span className="font-semibold">{String(summary.proficiency_bonus ?? "-")}</span></p>
-              </div>
-              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Tiradas de salvación</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.saving_throws || "-"}</p>
-              </div>
-              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.skills || "-"}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Ataques y equipo</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.attacks || "-"}</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.competencies || "-"}</p>
-              </div>
-              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Rasgos</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.traits || sections.full_traits || "-"}</p>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Clase</p>
-              <p className="mt-2 text-sm">{form.class_name || "-"}</p>
-            </div>
-            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Especie</p>
-              <p className="mt-2 text-sm">{form.race || "-"}</p>
-            </div>
-            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Trasfondo</p>
-              <p className="mt-2 text-sm whitespace-pre-wrap">{form.background || "-"}</p>
-            </div>
-            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
-              <p className="mt-2 text-sm whitespace-pre-wrap">{form.notes || "-"}</p>
-            </div>
           </div>
-        )}
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Ataques y equipo</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.attacks || "-"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.competencies || "-"}</p>
-          </div>
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Rasgos</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.traits || sections.full_traits || "-"}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">CA</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.ac || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">HP max</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.hp || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">Velocidad</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.speed || "-"}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">Competencia</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{String(summary.proficiency_bonus ?? "-")}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Informacion</p>
+              <div className="mt-3 space-y-2 text-sm text-[#d9c89e]">
+                <p><span className="text-[#b9ae8d]">Clase:</span> {form.class_name || "-"}</p>
+                <p><span className="text-[#b9ae8d]">Nivel:</span> {form.level || "-"}</p>
+                <p><span className="text-[#b9ae8d]">Especie:</span> {form.race || "-"}</p>
+                <p><span className="text-[#b9ae8d]">Trasfondo:</span> {form.background || "-"}</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Notas (temporal)</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin notas"}</p>
+              <p className="mt-2 text-xs text-[#9f9578]">Texto temporal: este bloque lo retocaremos luego.</p>
+            </div>
           </div>
         </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Personalidad / Ideales / Vínculos / Defectos</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm"><strong>Personalidad:</strong> {sections.personality || "-"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm"><strong>Ideales:</strong> {sections.ideals || "-"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm"><strong>Vínculos:</strong> {sections.bonds || "-"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm"><strong>Defectos:</strong> {sections.defects || "-"}</p>
-          </div>
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Conjuros</p>
-            <p className="mt-2 text-sm">Detectados: {spells.length ? spells.join(", ") : "-"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.spell_chunk || "-"}</p>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Apariencia</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.appearance || "-"}</p>
-          </div>
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Historia</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.story || sections.additional_notes || "-"}</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="panel p-4">
-        <h2 className="mb-3 text-xl">PDF importado</h2>
-        {pdfPages.length ? (
-          <>
-            <div className="mb-3 flex flex-wrap gap-2">
-              {pdfPages.map((_p, idx) => (
-                <button
-                  key={`tab-${idx + 1}`}
-                  className={selectedPage === idx ? "btn-primary" : "btn-secondary"}
-                  type="button"
-                  onClick={() => setSelectedPage(idx)}
-                >
-                  Página {idx + 1}
-                </button>
-              ))}
-            </div>
-            <div className="rounded border border-[#d3a84a44] bg-black/20 p-3">
-              <p className="text-sm whitespace-pre-wrap">{pdfPages[selectedPage] ?? ""}</p>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-[#b9ae8d]">No hay contenido de PDF guardado para este personaje.</p>
-        )}
-
-        <button className="btn-secondary mt-3" type="button" onClick={() => setShowJson((v) => !v)}>
-          {showJson ? "Ocultar JSON" : "Ver JSON técnico"}
-        </button>
-        {showJson ? (
-          <pre className="mt-3 overflow-auto rounded border border-[#d3a84a44] bg-black/30 p-3 text-xs text-[#d9c89e]">
-            {JSON.stringify(rawPayload, null, 2)}
-          </pre>
-        ) : null}
       </section>
     </main>
   );
