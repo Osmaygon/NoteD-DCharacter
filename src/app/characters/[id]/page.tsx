@@ -247,9 +247,8 @@ export default function CharacterDetailPage() {
           <button className="rounded-md border border-red-400 px-4 py-2 text-red-300" type="button" onClick={() => void onDelete()}>Borrar personaje</button>
         </div>
         {message ? <p className="mt-2 text-sm text-[#b9ae8d]">{message}</p> : null}
-      </section>
 
-      <section className="panel mb-4 p-5">
+        <hr className="my-5 border-[#d3a84a44]" />
         <h2 className="mb-4 text-xl">Vista de ficha D&D</h2>
 
         <div className="grid gap-3 md:grid-cols-4">
