@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
+import { parseImportedCharacter } from "@/lib/character-import";
 import { getCurrentAppUser } from "@/lib/custom-auth";
 import {
   CharacterDetail,
@@ -129,16 +130,44 @@ export default function CharacterDetailPage() {
       }
       hydrate(detail);
       const payload = (detail.source_payload ?? {}) as {
+        raw_text?: string;
         summary?: Record<string, unknown>;
         sections?: Record<string, string>;
         spells_detected?: string[];
         pages?: string[];
       };
+
+      const hasStructuredData =
+        !!payload.summary ||
+        !!payload.sections ||
+        !!payload.spells_detected ||
+        !!payload.pages;
+
+      const rebuilt = !hasStructuredData && payload.raw_text
+        ? parseImportedCharacter(payload.raw_text)
+        : null;
+
+      const finalPayload = rebuilt
+        ? (rebuilt.source_payload as {
+            summary?: Record<string, unknown>;
+            sections?: Record<string, string>;
+            spells_detected?: string[];
+            pages?: string[];
+            raw_text?: string;
+          })
+        : payload;
+
       setRawPayload(JSON.stringify(detail.source_payload ?? {}, null, 2));
-      setSummary(payload.summary ?? {});
-      setAllSections(payload.sections ?? {});
-      setSpellsDetected(payload.spells_detected ?? []);
-      setPdfPages(payload.pages ?? []);
+      setSummary(finalPayload.summary ?? {});
+      setAllSections(finalPayload.sections ?? {});
+      setSpellsDetected(finalPayload.spells_detected ?? []);
+      if (finalPayload.pages?.length) {
+        setPdfPages(finalPayload.pages);
+      } else if (finalPayload.raw_text) {
+        setPdfPages(finalPayload.raw_text.split(/\n\s*\n+/));
+      } else {
+        setPdfPages([]);
+      }
     })();
   }, [params.id]);
 
