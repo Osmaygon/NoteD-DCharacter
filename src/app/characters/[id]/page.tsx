@@ -191,10 +191,10 @@ export default function CharacterDetailPage() {
 
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="mt-5 grid gap-4">
           <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
             <p className="mb-3 text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Caracteristicas</p>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               {abilityOrder.map((ability) => {
                 const row = abilities[ability.key] ?? {};
                 const score = row.score ?? "-";
