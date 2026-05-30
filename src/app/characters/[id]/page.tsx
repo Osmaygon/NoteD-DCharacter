@@ -215,13 +215,13 @@ export default function CharacterDetailPage() {
   const speedFeet = Number(form.speed || 0);
   const speedSquares = speedFeet > 0 ? Math.floor(speedFeet / 5) : null;
 
-  function renderCheckCards(entries: CheckEntry[], fallback: string) {
+  function renderCheckCards(entries: CheckEntry[], fallback: string, gridClassName = "grid-cols-1 sm:grid-cols-2") {
     if (!entries.length) {
       return <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "-"}</p>;
     }
 
     return (
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className={`mt-2 grid gap-2 ${gridClassName}`}>
         {entries.map((entry) => (
           <div key={entry.name} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-2">
             <div className="flex items-center justify-between gap-2">
@@ -310,18 +310,14 @@ export default function CharacterDetailPage() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              <div className="mt-4 grid gap-3">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Tiradas de salvación</p>
-                  {renderCheckCards(savingThrows, sections.saving_throws)}
+                  {renderCheckCards(savingThrows, sections.saving_throws, "grid-cols-2 md:grid-cols-3 xl:grid-cols-6")}
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
-                  {renderCheckCards(skills, sections.skills)}
-                </div>
-                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Competencias e idiomas</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.competencies || "-"}</p>
+                  {renderCheckCards(skills, sections.skills, "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}
                 </div>
               </div>
             </section>
