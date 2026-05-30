@@ -265,7 +265,7 @@ export default function CharacterDetailPage() {
               </div>
 
               <p className="mt-4 text-xs uppercase tracking-wide text-[#b9ae8d]">Durante la partida</p>
-              <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">HP actual</p>
                   <div className="mt-2 flex items-center gap-2">
@@ -290,19 +290,6 @@ export default function CharacterDetailPage() {
                       onChange={(e) => setCounter("temp_hp", e.target.value)}
                     />
                     <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("temp_hp", 1)}>+</button>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                  <p className="text-xs text-[#b9ae8d]">Escudos</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("shields", -1)}>-</button>
-                    <input
-                      className="field h-9 min-w-0 text-center"
-                      inputMode="numeric"
-                      value={form.shields}
-                      onChange={(e) => setCounter("shields", e.target.value)}
-                    />
-                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => updateCounter("shields", 1)}>+</button>
                   </div>
                 </div>
               </div>
