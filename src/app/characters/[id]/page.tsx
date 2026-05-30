@@ -212,6 +212,8 @@ export default function CharacterDetailPage() {
   }
 
   const hpMax = Number(form.hp || 0);
+  const speedFeet = Number(form.speed || 0);
+  const speedSquares = speedFeet > 0 ? Math.floor(speedFeet / 5) : null;
 
   function renderCheckCards(entries: CheckEntry[], fallback: string) {
     if (!entries.length) {
@@ -354,7 +356,16 @@ export default function CharacterDetailPage() {
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">Velocidad</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.speed || "-"}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[11px] text-[#b9ae8d]">Pies</p>
+                      <p className="text-2xl font-semibold text-[#f3dfac]">{form.speed || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-[#b9ae8d]">Casillas</p>
+                      <p className="text-2xl font-semibold text-[#f3dfac]">{speedSquares ?? "-"}</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">Competencia</p>
