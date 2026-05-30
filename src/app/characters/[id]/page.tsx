@@ -31,6 +31,7 @@ export default function CharacterDetailPage() {
   const [rawPayload, setRawPayload] = useState<Record<string, unknown>>({});
   const [selectedPage, setSelectedPage] = useState(0);
   const [showJson, setShowJson] = useState(false);
+  const [viewMode, setViewMode] = useState<"estadisticas" | "informacion">("estadisticas");
   const [form, setForm] = useState<FormState>({
     name: "",
     class_name: "",
@@ -249,37 +250,90 @@ export default function CharacterDetailPage() {
         {message ? <p className="mt-2 text-sm text-[#b9ae8d]">{message}</p> : null}
 
         <hr className="my-5 border-[#d3a84a44]" />
-        <h2 className="mb-4 text-xl">Vista de ficha D&D</h2>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            className={viewMode === "estadisticas" ? "btn-primary" : "btn-secondary"}
+            type="button"
+            onClick={() => setViewMode("estadisticas")}
+          >
+            Estadísticas
+          </button>
+          <button
+            className={viewMode === "informacion" ? "btn-primary" : "btn-secondary"}
+            type="button"
+            onClick={() => setViewMode("informacion")}
+          >
+            Información
+          </button>
+        </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
-          {abilityOrder.map((ability) => {
-            const row = abilities[ability.key] ?? {};
-            const score = row.score ?? "-";
-            const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
-            return (
-              <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3 text-center">
-                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
-                <p className="mt-1 text-2xl font-semibold">{modifier}</p>
-                <p className="text-sm text-[#d9c89e]">{score}</p>
+        {viewMode === "estadisticas" ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-4">
+              {abilityOrder.map((ability) => {
+                const row = abilities[ability.key] ?? {};
+                const score = row.score ?? "-";
+                const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
+                return (
+                  <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3 text-center">
+                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
+                    <p className="mt-1 text-2xl font-semibold">{modifier}</p>
+                    <p className="text-sm text-[#d9c89e]">{score}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Defensas</p>
+                <p className="mt-2 text-sm">CA: <span className="font-semibold">{form.ac || "-"}</span></p>
+                <p className="text-sm">HP máx: <span className="font-semibold">{form.hp || "-"}</span></p>
+                <p className="text-sm">Velocidad: <span className="font-semibold">{form.speed || "-"}</span></p>
+                <p className="text-sm">Competencia: <span className="font-semibold">{String(summary.proficiency_bonus ?? "-")}</span></p>
               </div>
-            );
-          })}
-        </div>
+              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Tiradas de salvación</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.saving_throws || "-"}</p>
+              </div>
+              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.skills || "-"}</p>
+              </div>
+            </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Defensas</p>
-            <p className="mt-2 text-sm">CA: <span className="font-semibold">{form.ac || "-"}</span></p>
-            <p className="text-sm">HP máx: <span className="font-semibold">{form.hp || "-"}</span></p>
-            <p className="text-sm">Velocidad: <span className="font-semibold">{form.speed || "-"}</span></p>
-            <p className="text-sm">Competencia: <span className="font-semibold">{String(summary.proficiency_bonus ?? "-")}</span></p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Ataques y equipo</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.attacks || "-"}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.competencies || "-"}</p>
+              </div>
+              <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Rasgos</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{sections.traits || sections.full_traits || "-"}</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Clase</p>
+              <p className="mt-2 text-sm">{form.class_name || "-"}</p>
+            </div>
+            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Especie</p>
+              <p className="mt-2 text-sm">{form.race || "-"}</p>
+            </div>
+            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Trasfondo</p>
+              <p className="mt-2 text-sm whitespace-pre-wrap">{form.background || "-"}</p>
+            </div>
+            <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
+              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
+              <p className="mt-2 text-sm whitespace-pre-wrap">{form.notes || "-"}</p>
+            </div>
           </div>
-          <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3 md:col-span-2">
-            <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Salvaciones y habilidades</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.saving_throws || "-"}</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm">{sections.skills || "-"}</p>
-          </div>
-        </div>
+        )}
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-[#d3a84a66] bg-black/25 p-3">
