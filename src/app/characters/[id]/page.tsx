@@ -99,9 +99,15 @@ export default function CharacterDetailPage() {
       Object.prototype.hasOwnProperty.call(payload, "pages");
 
     const reparsed = payload.raw_text ? parseImportedCharacter(payload.raw_text) : null;
-    const rebuilt = !hasStructuredData && payload.raw_text
-      ? reparsed?.source_payload ?? payload
-      : payload;
+    const rebuilt = reparsed?.source_payload
+      ? {
+          ...payload,
+          ...reparsed.source_payload,
+          pages: Array.isArray(payload.pages) && payload.pages.length
+            ? payload.pages
+            : reparsed.source_payload.pages,
+        }
+      : (!hasStructuredData && payload.raw_text ? payload : payload);
 
     if (reparsed) {
       setForm({

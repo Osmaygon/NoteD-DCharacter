@@ -126,6 +126,14 @@ function parseAbility(text: string, label: string): AbilityBlock {
   };
 }
 
+function parseAbilityMulti(text: string, labels: string[]): AbilityBlock {
+  for (const label of labels) {
+    const parsed = parseAbility(text, label);
+    if (parsed.score !== null || parsed.modifier !== null) return parsed;
+  }
+  return { score: null, modifier: null };
+}
+
 function sectionAfter(text: string, startLabel: string): string {
   const start = text.toUpperCase().indexOf(startLabel.toUpperCase());
   if (start === -1) return "";
@@ -144,6 +152,9 @@ function extractSpeed(text: string): number | null {
   const beforeLabel = firstMatch(text, /(\d{1,3})\s+VELOCIDAD\s*\(PIES\)/i);
   if (beforeLabel) return toInt(beforeLabel);
 
+  const noisy = firstMatch(text, /VELOCIDAD[^\d]{0,20}(\d{1,3})/i);
+  if (noisy) return toInt(noisy);
+
   const aroundInitiative = firstMatchGroups(
     text,
     /INICIATIVA\s*(\d{1,3})\s+VELOCIDAD\s*\(PIES\)\s*(\d{1,3})?/i,
@@ -156,15 +167,26 @@ function extractSpeed(text: string): number | null {
 function extractAc(text: string): number | null {
   const direct = firstMatch(text, /\bCA\s*(\d{1,3})\b/i);
   if (direct) return toInt(direct);
+  const before = firstMatch(text, /(\d{1,3})\s+CA\b/i);
+  if (before) return toInt(before);
   const around = firstMatchGroups(text, /CA\s*[-+]?\d*\s*(\d{1,3})/i);
   if (around[0]) return toInt(around[0]);
+  const noisy = firstMatch(text, /CA[^\d]{0,20}(\d{1,3})/i);
+  if (noisy) return toInt(noisy);
   return null;
 }
 
 function extractHp(text: string): number | null {
   const direct = firstMatch(text, /Puntos de Golpe M[aá]ximos\s*(\d{1,3})/i);
   if (direct) return toInt(direct);
+  const before = firstMatch(text, /(\d{1,3})\s+Puntos de Golpe M[aá]ximos/i);
+  if (before) return toInt(before);
+  const current = firstMatch(text, /PUNTOS DE GOLPE ACTUALES[^\d]{0,20}(\d{1,3})/i);
+  if (current) return toInt(current);
   const fallback = firstMatch(text, /\bHP\s*(\d{1,3})/i);
+  if (fallback) return toInt(fallback);
+  const noisy = firstMatch(text, /HP[^\d]{0,20}(\d{1,3})/i);
+  if (noisy) return toInt(noisy);
   return toInt(fallback);
 }
 
@@ -233,12 +255,12 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const fullTraits = sectionAfter(text, "RASGOS");
 
   const abilities = {
-    fuerza: parseAbility(text, "FUERZA"),
-    destreza: parseAbility(text, "DESTREZA"),
-    constitucion: parseAbility(text, "CONSTITUCIÓN"),
-    inteligencia: parseAbility(text, "INTELIGENCIA"),
-    sabiduria: parseAbility(text, "SABIDURÍA"),
-    carisma: parseAbility(text, "CARISMA"),
+    fuerza: parseAbilityMulti(text, ["FUERZA"]),
+    destreza: parseAbilityMulti(text, ["DESTREZA"]),
+    constitucion: parseAbilityMulti(text, ["CONSTITUCIÓN", "CONSTITUCION"]),
+    inteligencia: parseAbilityMulti(text, ["INTELIGENCIA"]),
+    sabiduria: parseAbilityMulti(text, ["SABIDURÍA", "SABIDURIA"]),
+    carisma: parseAbilityMulti(text, ["CARISMA"]),
   };
 
   const savingThrowsChunk = sectionBetween(text, "TIRADAS DE SALVACIÓN", "HABILIDADES");
