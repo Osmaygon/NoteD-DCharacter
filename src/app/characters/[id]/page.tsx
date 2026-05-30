@@ -346,12 +346,12 @@ export default function CharacterDetailPage() {
                   <p className="text-xs text-[#b9ae8d]">Velocidad</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div>
-                      <p className="text-[11px] text-[#b9ae8d]">Pies</p>
                       <p className="text-2xl font-semibold text-[#f3dfac]">{form.speed || "-"}</p>
+                      <p className="text-[11px] text-[#b9ae8d]">Pies</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-[#b9ae8d]">Casillas</p>
                       <p className="text-2xl font-semibold text-[#f3dfac]">{speedSquares ?? "-"}</p>
+                      <p className="text-[11px] text-[#b9ae8d]">Casillas</p>
                     </div>
                   </div>
                 </div>
