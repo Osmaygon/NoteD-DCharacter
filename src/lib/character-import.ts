@@ -25,6 +25,14 @@ function normalizeWhitespace(value: string): string {
     .trim();
 }
 
+function dedupeLineBreaks(value: string): string {
+  const chunks = value
+    .split(/\n+/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+  return Array.from(new Set(chunks)).join("\n");
+}
+
 function firstMatch(text: string, pattern: RegExp): string {
   const match = text.match(pattern);
   return match?.[1]?.trim() ?? "";
@@ -62,6 +70,16 @@ function captureAfterLabel(text: string, label: string): string {
   const regex = new RegExp(`${label}\\s*[:\\-]?\\s*([^\\n]+)`, "i");
   const match = text.match(regex);
   return match?.[1]?.trim() ?? "";
+}
+
+function extractBeforeLabel(text: string, label: string): string {
+  const regex = new RegExp(`([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_()'\\- ]{2,80})\\s+${label}`, "i");
+  const match = text.match(regex);
+  return match?.[1]?.trim() ?? "";
+}
+
+function cleanText(value: string): string {
+  return value.replace(/\s+/g, " ").replace(/\b\d+\b$/g, "").trim();
 }
 
 function listSpells(text: string): string[] {
@@ -114,18 +132,66 @@ function extractSpeed(text: string): number | null {
   return null;
 }
 
+function extractAc(text: string): number | null {
+  const direct = firstMatch(text, /\bCA\s*(\d{1,3})\b/i);
+  if (direct) return toInt(direct);
+  const around = firstMatchGroups(text, /CA\s*[-+]?\d*\s*(\d{1,3})/i);
+  if (around[0]) return toInt(around[0]);
+  return null;
+}
+
+function extractHp(text: string): number | null {
+  const direct = firstMatch(text, /Puntos de Golpe M[aá]ximos\s*(\d{1,3})/i);
+  if (direct) return toInt(direct);
+  const fallback = firstMatch(text, /\bHP\s*(\d{1,3})/i);
+  return toInt(fallback);
+}
+
+function extractClassAndLevel(text: string): { className: string; level: number | null } {
+  const groups = firstMatchGroups(
+    text,
+    /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+(\d{1,2})\s+CLASE Y NIVEL/i,
+  );
+  if (groups.length >= 2) {
+    return {
+      className: cleanText(groups[0]),
+      level: toInt(groups[1]),
+    };
+  }
+
+  const near = firstMatch(text, /NOMBRE DEL PERSONAJE\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]+\s+\d{1,2})/i);
+  if (near) {
+    const m = near.match(/^(.*?)(\d{1,2})$/);
+    return {
+      className: cleanText(m?.[1] ?? ""),
+      level: toInt(m?.[2] ?? ""),
+    };
+  }
+
+  return { className: "", level: null };
+}
+
+function extractSpecies(text: string): string {
+  const before = extractBeforeLabel(text, "ESPECIE");
+  if (before) return cleanText(before);
+  return cleanText(captureAfterLabel(text, "ESPECIE"));
+}
+
+function extractBackground(text: string): string {
+  const before = extractBeforeLabel(text, "TRASFONDO");
+  if (before) return cleanText(before);
+  return cleanText(captureAfterLabel(text, "TRASFONDO"));
+}
+
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const text = normalizeWhitespace(rawText);
 
   const name = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,80})\s+NOMBRE DEL PERSONAJE/i);
-  const classParts = firstMatchGroups(
-    text,
-    /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+(\d{1,2})\s+CLASE Y NIVEL/i,
-  );
-  const background = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ()'\- ]{2,80})\s+TRASFONDO/i);
-  const race = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ'\- ]{2,60})\s+ESPECIE/i);
-  const hpText = firstMatch(text, /Puntos de Golpe M[aá]ximos\s*(\d+)/i);
-  const acText = firstMatch(text, /\bCA\s*[-+]?\d*\s*(\d{1,3})/i);
+  const { className, level } = extractClassAndLevel(text);
+  const background = extractBackground(text);
+  const race = extractSpecies(text);
+  const hpValue = extractHp(text);
+  const acValue = extractAc(text);
   const speedValue = extractSpeed(text);
   const player = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_\- ]+)\s+JUGADOR/i) || captureAfterLabel(text, "JUGADOR");
   const alignment = firstMatch(text, /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+)\s+ALINEAMIENTO/i) || captureAfterLabel(text, "ALINEAMIENTO");
@@ -157,17 +223,14 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const savingThrowsChunk = sectionBetween(text, "TIRADAS DE SALVACIÓN", "HABILIDADES");
   const skillsChunk = sectionBetween(text, "HABILIDADES", "SABIDURÍA (PERCEPCIÓN) PASIVA");
 
-  const className = classParts[0] ?? "";
-  const level = toInt(classParts[1] ?? "");
-
   return {
     name: name || "Personaje importado",
-    class_name: className.replace(/\b\d+\b/g, "").trim(),
+    class_name: className,
     level,
-    race: race.replace(/\b\d+\b/g, "").trim(),
+    race,
     background,
-    hp: toInt(hpText),
-    ac: toInt(acText),
+    hp: hpValue,
+    ac: acValue,
     speed: speedValue,
     notes: additionalNotes || "Importado desde PDF",
     source_payload: {
@@ -180,22 +243,22 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         abilities,
       },
       sections: {
-        saving_throws: savingThrowsChunk,
-        skills: skillsChunk,
-        competencies,
-        attacks,
-        traits,
-        personality,
-        ideals,
-        bonds,
-        defects,
-        appearance,
-        additional_notes: additionalNotes,
-        story,
-        full_traits: fullTraits,
-        spell_chunk: spellChunk,
+        saving_throws: dedupeLineBreaks(savingThrowsChunk),
+        skills: dedupeLineBreaks(skillsChunk),
+        competencies: dedupeLineBreaks(competencies),
+        attacks: dedupeLineBreaks(attacks),
+        traits: dedupeLineBreaks(traits),
+        personality: dedupeLineBreaks(personality),
+        ideals: dedupeLineBreaks(ideals),
+        bonds: dedupeLineBreaks(bonds),
+        defects: dedupeLineBreaks(defects),
+        appearance: dedupeLineBreaks(appearance),
+        additional_notes: dedupeLineBreaks(additionalNotes),
+        story: dedupeLineBreaks(story),
+        full_traits: dedupeLineBreaks(fullTraits),
+        spell_chunk: dedupeLineBreaks(spellChunk),
       },
-      spells_detected: listSpells(text),
+      spells_detected: Array.from(new Set(listSpells(text))),
     },
   };
 }

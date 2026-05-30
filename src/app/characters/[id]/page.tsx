@@ -87,8 +87,6 @@ export default function CharacterDetailPage() {
       return;
     }
 
-    hydrate(detail);
-
     const payload = (detail.source_payload ?? {}) as {
       raw_text?: string;
       [key: string]: unknown;
@@ -100,9 +98,26 @@ export default function CharacterDetailPage() {
       Object.prototype.hasOwnProperty.call(payload, "spells_detected") ||
       Object.prototype.hasOwnProperty.call(payload, "pages");
 
+    const reparsed = payload.raw_text ? parseImportedCharacter(payload.raw_text) : null;
     const rebuilt = !hasStructuredData && payload.raw_text
-      ? parseImportedCharacter(payload.raw_text).source_payload
+      ? reparsed?.source_payload ?? payload
       : payload;
+
+    if (reparsed) {
+      setForm({
+        name: reparsed.name || detail.name || "",
+        class_name: reparsed.class_name || detail.class_name || "",
+        level: (reparsed.level ?? detail.level)?.toString() ?? "",
+        race: reparsed.race || detail.race || "",
+        background: reparsed.background || detail.background || "",
+        hp: (reparsed.hp ?? detail.hp)?.toString() ?? "",
+        ac: (reparsed.ac ?? detail.ac)?.toString() ?? "",
+        speed: (reparsed.speed ?? detail.speed)?.toString() ?? "",
+        notes: reparsed.notes || detail.notes || "",
+      });
+    } else {
+      hydrate(detail);
+    }
 
     setRawPayload(rebuilt);
     setSelectedPage(0);
