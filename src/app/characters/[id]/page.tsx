@@ -279,33 +279,25 @@ export default function CharacterDetailPage() {
           <div className="mt-4 grid gap-4">
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Info útil</p>
-              <div className="mt-3 grid gap-4 xl:grid-cols-[1fr_340px]">
-                <div>
-                  <p className="mb-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Caracteristicas</p>
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                    {abilityOrder.map((ability) => {
-                      const row = abilities[ability.key] ?? {};
-                      const score = row.score ?? "-";
-                      const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
-                      return (
-                        <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
-                          <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
-                          <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
-                          <p className="text-sm text-[#d9c89e]">{score}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Personaje</p>
-                  <div className="mt-3 space-y-2 text-sm text-[#d9c89e]">
-                    <p><span className="text-[#b9ae8d]">Clase:</span> {form.class_name || "-"}</p>
-                    <p><span className="text-[#b9ae8d]">Nivel:</span> {form.level || "-"}</p>
-                    <p><span className="text-[#b9ae8d]">Especie:</span> {form.race || "-"}</p>
-                    <p><span className="text-[#b9ae8d]">Trasfondo:</span> {form.background || "-"}</p>
-                    <p><span className="text-[#b9ae8d]">Percepción pasiva:</span> {String(summary.passive_perception ?? "-")}</p>
+              <div className="mt-3">
+                <p className="mb-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Caracteristicas</p>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+                  {abilityOrder.map((ability) => {
+                    const row = abilities[ability.key] ?? {};
+                    const score = row.score ?? "-";
+                    const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
+                    return (
+                      <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
+                        <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
+                        <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
+                        <p className="text-sm text-[#d9c89e]">{score}</p>
+                      </div>
+                    );
+                  })}
+                  <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
+                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">PP</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{String(summary.passive_perception ?? "-")}</p>
+                    <p className="text-sm text-[#d9c89e]">Percepción pasiva</p>
                   </div>
                 </div>
               </div>
