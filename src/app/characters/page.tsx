@@ -119,13 +119,14 @@ export default function CharactersPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ characterPath: selectedNivel20Path, appSessionToken }),
       });
-      const body = (await response.json()) as { error?: string };
+      const body = (await response.json()) as { error?: string; action?: "created" | "updated" | "unchanged" };
       if (!response.ok) {
         throw new Error(body.error || "No se pudo importar personaje de Nivel20");
       }
       await refresh(userId);
       const pickedName = nivel20Characters.find((row) => row.path === selectedNivel20Path)?.name || "Personaje";
-      setImportInfo(`Importado desde Nivel20: ${pickedName}`);
+      const actionText = body.action === "updated" ? "Actualizado" : body.action === "unchanged" ? "Sin cambios" : "Importado";
+      setImportInfo(`${actionText} desde Nivel20: ${pickedName}`);
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : "No se pudo importar personaje de Nivel20");
     } finally {
