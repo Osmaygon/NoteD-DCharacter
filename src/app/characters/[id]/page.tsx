@@ -54,6 +54,22 @@ type TraitEntry = {
   kind?: string;
 };
 
+type SpellEntry = {
+  id: number;
+  level: number;
+  name: string;
+  prepared: boolean;
+  included: boolean;
+  label?: string[];
+  summary?: string;
+  description?: string;
+  range?: string;
+  casting_time?: string;
+  duration?: string;
+  components?: string;
+  school?: string;
+};
+
 type TraitDetail = {
   status: "loading" | "ready";
   text: string;
@@ -122,7 +138,7 @@ export default function CharacterDetailPage() {
   const [userId, setUserId] = useState("");
   const [message, setMessage] = useState("");
   const [rawPayload, setRawPayload] = useState<Record<string, unknown>>({});
-  const [activeTab, setActiveTab] = useState<"informacion" | "combate">("informacion");
+  const [activeTab, setActiveTab] = useState<"informacion" | "combate" | "rasgos" | "conjuros">("informacion");
   const [form, setForm] = useState<FormState>({
     name: "",
     class_name: "",
@@ -146,6 +162,20 @@ export default function CharacterDetailPage() {
   const attacks = Array.isArray(summary.attacks) ? summary.attacks as AttackEntry[] : [];
   const equipment = Array.isArray(summary.equipment) ? summary.equipment as EquipmentEntry[] : [];
   const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
+  const spells = Array.isArray(summary.spells) ? summary.spells as SpellEntry[] : [];
+  const spellMeta = (summary.spell_meta as {
+    ability?: string | null;
+    save_dc?: number | null;
+    attack_bonus?: number | null;
+    prepared_limit?: number | null;
+    slots?: Record<string, string>;
+  } | undefined) ?? {};
+  const preparedSpellIds = Array.isArray(rawPayload.prepared_spell_ids)
+    ? rawPayload.prepared_spell_ids.map((entry) => Number(entry)).filter((entry) => Number.isFinite(entry))
+    : [];
+  const combatFavorites = Array.isArray(rawPayload.combat_favorites)
+    ? rawPayload.combat_favorites.map((entry) => String(entry))
+    : [];
   const manualTraitDescriptions = (
     rawPayload.manual_trait_descriptions &&
     typeof rawPayload.manual_trait_descriptions === "object" &&
@@ -156,6 +186,12 @@ export default function CharacterDetailPage() {
   const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
+
+  const preparedLimit = typeof spellMeta.prepared_limit === "number" ? spellMeta.prepared_limit : 0;
+  const preparedSpellSet = new Set(preparedSpellIds);
+  const preparedCount = spells.filter((spell) => preparedSpellSet.has(spell.id) && !(spell.label?.length)).length;
+  const preparedCombatSpells = spells.filter((spell) => preparedSpellSet.has(spell.id));
+  const combatTraits = traits.filter((trait) => combatFavorites.includes(normalizeTraitKey(trait.name)));
 
   function hydrate(detail: CharacterDetail) {
     setForm({
@@ -473,6 +509,40 @@ export default function CharacterDetailPage() {
     setMessage(nextText ? "Descripción manual guardada." : "Descripción manual eliminada.");
   }
 
+  async function persistLocalPayload(patch: Record<string, unknown>) {
+    if (!userId) return;
+    const nextPayload = {
+      ...rawPayload,
+      ...patch,
+    };
+    await updateCharacterSourcePayload(userId, params.id, nextPayload);
+    setRawPayload(nextPayload);
+  }
+
+  async function toggleCombatTrait(trait: TraitEntry) {
+    const key = normalizeTraitKey(trait.name);
+    const next = combatFavorites.includes(key)
+      ? combatFavorites.filter((entry) => entry !== key)
+      : [...combatFavorites, key];
+    await persistLocalPayload({ combat_favorites: next });
+    setMessage(next.includes(key) ? "Rasgo añadido a combate." : "Rasgo quitado de combate.");
+  }
+
+  async function togglePreparedSpell(spell: SpellEntry) {
+    const isPrepared = preparedSpellSet.has(spell.id);
+    const isFixed = Boolean(spell.label?.length);
+    if (!isPrepared && !isFixed && preparedLimit > 0 && preparedCount >= preparedLimit) {
+      setMessage(`Solo puedes preparar ${preparedLimit} conjuros.`);
+      return;
+    }
+
+    const next = isPrepared
+      ? preparedSpellIds.filter((entry) => entry !== spell.id)
+      : [...preparedSpellIds, spell.id];
+    await persistLocalPayload({ prepared_spell_ids: next });
+    setMessage(isPrepared ? "Conjuro desmarcado." : "Conjuro preparado.");
+  }
+
   function renderTraitList(entries: TraitEntry[], fallback: string) {
     if (!entries.length) {
       return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin rasgos importados todavía."}</p>;
@@ -580,6 +650,20 @@ export default function CharacterDetailPage() {
           >
             Combate
           </button>
+          <button
+            className={activeTab === "rasgos" ? "btn-primary" : "btn-secondary"}
+            type="button"
+            onClick={() => setActiveTab("rasgos")}
+          >
+            Rasgos
+          </button>
+          <button
+            className={activeTab === "conjuros" ? "btn-primary" : "btn-secondary"}
+            type="button"
+            onClick={() => setActiveTab("conjuros")}
+          >
+            Conjuros
+          </button>
         </div>
 
         {activeTab === "informacion" ? (
@@ -635,7 +719,7 @@ export default function CharacterDetailPage() {
               </div>
             </section>
           </div>
-        ) : (
+        ) : activeTab === "combate" ? (
           <div className="mt-4 grid gap-4">
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
@@ -709,10 +793,85 @@ export default function CharacterDetailPage() {
                 {renderEquipmentList(equipment, sections.equipment)}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos, conjuros y trucos</p>
-                {renderTraitList(traits, sections.traits)}
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos utiles para combate</p>
+                {!combatTraits.length ? <p className="mt-2 text-sm text-[#d9c89e]">Marca rasgos como "Mostrar en combate" desde la pestaña Rasgos.</p> : renderTraitList(combatTraits, sections.traits)}
+              </div>
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros y trucos preparados</p>
+                <p className="mt-2 text-xs text-[#9f9578]">Preparados: {preparedCount}{preparedLimit ? ` / ${preparedLimit}` : ""}</p>
+                {!preparedCombatSpells.length ? (
+                  <p className="mt-2 text-sm text-[#d9c89e]">No hay conjuros preparados. Marca desde la pestaña Conjuros.</p>
+                ) : (
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {preparedCombatSpells.map((spell) => (
+                      <div key={spell.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
+                          <p className="text-xs text-[#b9ae8d]">Nv {spell.level}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}</p>
+                        <p className="mt-2 text-sm text-[#d9c89e] whitespace-pre-wrap">{spell.summary || spell.description || "Sin descripción"}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
+          </div>
+        ) : activeTab === "rasgos" ? (
+          <div className="mt-4 rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos y dotes</p>
+            <div className="mt-3 grid gap-2">
+              {traits.map((trait) => {
+                const key = normalizeTraitKey(trait.name);
+                const enabled = combatFavorites.includes(key);
+                return (
+                  <div key={`toggle-${key}`} className="flex items-center justify-between gap-2 rounded border border-[#d3a84a33] bg-black/20 p-2">
+                    <div>
+                      <p className="text-sm text-[#f3dfac]">{trait.name}</p>
+                      <p className="text-xs text-[#9f9578]">{trait.kind || "Rasgo"}</p>
+                    </div>
+                    <button className={enabled ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void toggleCombatTrait(trait)}>
+                      {enabled ? "En combate" : "Mostrar en combate"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            {renderTraitList(traits, sections.traits)}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros</p>
+            <p className="mt-2 text-sm text-[#d9c89e]">Caract.: {spellMeta.ability || "-"} · CD: {String(spellMeta.save_dc ?? "-")} · Ataque: {String(spellMeta.attack_bonus ?? "-")}</p>
+            <p className="mt-1 text-sm text-[#b9ae8d]">Preparados: {preparedCount}{preparedLimit ? ` / ${preparedLimit}` : ""}</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs text-[#b9ae8d]">
+              {Object.entries(spellMeta.slots ?? {}).map(([level, count]) => (
+                <span key={`slot-${level}`} className="rounded border border-[#d3a84a44] px-2 py-1">Nv {level}: {count}</span>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-2">
+              {spells.map((spell) => {
+                const isPrepared = preparedSpellSet.has(spell.id);
+                const isFixed = Boolean(spell.label?.length);
+                return (
+                  <div key={spell.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
+                        <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {spell.school || "-"}</p>
+                      </div>
+                      <button className={isPrepared ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void togglePreparedSpell(spell)}>
+                        {isPrepared ? "Preparado" : "Preparar"}
+                      </button>
+                    </div>
+                    {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">Conjuro fijo ({spell.label?.join(", ")})</p> : null}
+                    <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"} · {spell.components || "-"}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{spell.summary || spell.description || "Sin descripción"}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </section>
