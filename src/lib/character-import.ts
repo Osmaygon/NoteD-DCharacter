@@ -344,12 +344,18 @@ function inferEquipmentQuickUse(name: string, detail: string, kind: string): str
 }
 
 function parseEquipmentEntries(value: string): ParsedEquipment[] {
-  const lines = value
+  const rawLines = value
     .replace(/\s+-\s+/g, "\n- ")
     .split(/\n+/)
     .map((line) => cleanText(line.replace(/^[-•]+\s*/, "")))
     .filter(Boolean)
     .filter((line) => !/^(EQUIPO|INSPIRACIÓN|INSPIRACION)$/i.test(line));
+
+  const lines = rawLines.flatMap((line) => {
+    const packageMatch = line.match(/^(Paquete de sacerdote)\s+(.{3,})$/i);
+    if (packageMatch) return [packageMatch[1], packageMatch[2]];
+    return [line];
+  });
 
   const entries = new Map<string, ParsedEquipment>();
   for (const line of lines) {
