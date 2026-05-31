@@ -557,39 +557,53 @@ export default function CharacterDetailPage() {
           const isOpen = openTraits[key] ?? false;
           const isEditorOpen = openTraitEditors[key] ?? false;
           const inCombat = combatFavorites.includes(key);
+          const shortDescription = (manualTraitDescriptions[key] || trait.pdf_description || detail?.text || "Sin descripción todavía.").trim();
           return (
             <div key={trait.name} className="rounded-lg border border-[#d3a84a44] bg-black/25">
-              <button
-                className="flex w-full items-center justify-between gap-3 p-3 text-left text-sm font-semibold text-[#f3dfac]"
-                type="button"
-                onClick={() => void toggleTrait(trait)}
-              >
-                <span className="flex flex-wrap items-center gap-2">
-                  <span>{trait.name}</span>
-                  <span className="rounded-full border border-[#d3a84a55] px-2 py-0.5 text-[11px] font-normal text-[#b9ae8d]">
-                    {trait.kind || "Rasgo"}
-                  </span>
-                </span>
-                <span className="text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
-              </button>
+              <div className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <button
+                    className="min-w-0 flex-1 text-left"
+                    type="button"
+                    onClick={() => void toggleTrait(trait)}
+                  >
+                    <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#f3dfac]">
+                      <span>{trait.name}</span>
+                      <span className="rounded-full border border-[#d3a84a55] px-2 py-0.5 text-[11px] font-normal text-[#b9ae8d]">
+                        {trait.kind || "Rasgo"}
+                      </span>
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {showCombatToggle ? (
+                      <button
+                        className={inCombat ? "btn-primary px-2 py-1 text-xs" : "btn-secondary px-2 py-1 text-xs"}
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void toggleCombatTrait(trait);
+                        }}
+                      >
+                        {inCombat ? "En combate" : "Mostrar en combate"}
+                      </button>
+                    ) : null}
+                    <button
+                      className="rounded border border-[#d3a84a55] px-2 py-1 text-xs text-[#b9ae8d]"
+                      type="button"
+                      onClick={() => void toggleTrait(trait)}
+                    >
+                      {isOpen ? "-" : "+"}
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 line-clamp-2 text-xs text-[#b9ae8d]">{shortDescription}</p>
+              </div>
               {isOpen ? (
                 <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
                   {detail?.status === "loading" ? (
                     <p>Buscando información...</p>
                   ) : (
                     <>
-                      {showCombatToggle ? (
-                        <button
-                          className={inCombat ? "btn-primary mb-2" : "btn-secondary mb-2"}
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void toggleCombatTrait(trait);
-                          }}
-                        >
-                          {inCombat ? "En combate" : "Mostrar en combate"}
-                        </button>
-                      ) : null}
                       <p className="whitespace-pre-wrap">{detail?.text || trait.pdf_description || "Sin descripción disponible en español."}</p>
                       <p className="mt-2 text-xs text-[#9f9578]">
                         Fuente: {detail?.source === "manual" ? "Manual" : detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
