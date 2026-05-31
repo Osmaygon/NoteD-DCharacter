@@ -79,6 +79,10 @@ function normalizeTraitKey(value: string): string {
     .trim();
 }
 
+function looksSpanish(value: string): boolean {
+  return /\b(el|la|los|las|una|unos|puedes|tienes|daño|acción|tirada|salvación|conjuro)\b/i.test(value);
+}
+
 async function fetchTraitFromApi(name: string): Promise<string> {
   const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
   for (const path of paths) {
@@ -87,7 +91,7 @@ async function fetchTraitFromApi(name: string): Promise<string> {
       if (!response.ok) continue;
       const data = await response.json() as DndApiEntry;
       const description = Array.isArray(data.desc) ? data.desc.join("\n\n").trim() : "";
-      if (description) return description;
+      if (description && looksSpanish(description)) return description;
     } catch {
       continue;
     }
@@ -335,14 +339,26 @@ export default function CharacterDetailPage() {
       [key]: { status: "loading", text: "", source: "none" },
     }));
 
-    const apiDescription = await fetchTraitFromApi(trait.name);
     const pdfDescription = trait.pdf_description?.trim() ?? "";
+    if (pdfDescription) {
+      setTraitDetails((current) => ({
+        ...current,
+        [key]: {
+          status: "ready",
+          text: pdfDescription,
+          source: "pdf",
+        },
+      }));
+      return;
+    }
+
+    const apiDescription = await fetchTraitFromApi(trait.name);
     setTraitDetails((current) => ({
       ...current,
       [key]: {
         status: "ready",
-        text: apiDescription || pdfDescription || "Sin descripción disponible.",
-        source: apiDescription ? "api" : (pdfDescription ? "pdf" : "none"),
+        text: apiDescription || "Sin descripción disponible en español.",
+        source: apiDescription ? "api" : "none",
       },
     }));
   }
