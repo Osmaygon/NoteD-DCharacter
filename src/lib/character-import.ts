@@ -312,13 +312,39 @@ function formatAttackEntries(entries: ParsedAttack[]): string {
   return entries.map((entry) => `${entry.name} ${entry.bonus} ${entry.damage} ${entry.damageType}`).join("\n");
 }
 
+function cleanTraitDescription(value: string): string {
+  let cleaned = cleanText(value);
+  const stopLabels = [
+    "RASGOS Y ATRIBUTOS",
+    "RASGOS DE PERSONALIDAD",
+    "RASGOS",
+    "APARIENCIA",
+    "IDEALES",
+    "VÍNCULOS",
+    "VINCULOS",
+    "DEFECTOS",
+    "HISTORIA DEL PERSONAJE",
+    "NOTAS ADICIONALES",
+    "EQUIPO",
+    "ATAQUES Y LANZAMIENTO DE CONJUROS",
+  ];
+
+  for (const label of stopLabels) {
+    const idx = normalizeSearch(cleaned).indexOf(normalizeSearch(label));
+    if (idx !== -1) cleaned = cleanText(cleaned.slice(0, idx));
+  }
+
+  if (/^[-:;,./\s]*$/.test(cleaned)) return "";
+  return cleaned;
+}
+
 function parseTraitEntries(text: string): ParsedTrait[] {
   const entries = new Map<string, ParsedTrait>();
   const detailPattern = /\uf0da\s*([^:]{2,90}):\s*([\s\S]*?)(?=\s*\uf0da\s*[^:]{2,90}:|\s+RASGOS\b|\s+APARIENCIA\b|$)/g;
 
   for (const match of text.matchAll(detailPattern)) {
     const name = cleanText(match[1]);
-    const description = cleanText(match[2]);
+    const description = cleanTraitDescription(match[2]);
     if (!name) continue;
     entries.set(normalizeSearch(name), {
       name,

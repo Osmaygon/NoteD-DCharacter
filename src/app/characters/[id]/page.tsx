@@ -10,6 +10,7 @@ import {
   deleteCharacter,
   getCharacterDetail,
   updateCharacterDetail,
+  updateCharacterSourcePayload,
 } from "@/lib/home-entities";
 
 type FormState = {
@@ -48,7 +49,7 @@ type TraitEntry = {
 type TraitDetail = {
   status: "loading" | "ready";
   text: string;
-  source: "api" | "pdf" | "none";
+  source: "manual" | "api" | "pdf" | "none";
 };
 
 type DndApiEntry = {
@@ -136,8 +137,14 @@ export default function CharacterDetailPage() {
   const skills = Array.isArray(summary.skills) ? summary.skills as CheckEntry[] : [];
   const attacks = Array.isArray(summary.attacks) ? summary.attacks as AttackEntry[] : [];
   const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
+  const manualTraitDescriptions = (
+    rawPayload.manual_trait_descriptions &&
+    typeof rawPayload.manual_trait_descriptions === "object" &&
+    !Array.isArray(rawPayload.manual_trait_descriptions)
+  ) ? rawPayload.manual_trait_descriptions as Record<string, string> : {};
   const [openTraits, setOpenTraits] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
+  const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
 
   function hydrate(detail: CharacterDetail) {
     setForm({
@@ -328,9 +335,13 @@ export default function CharacterDetailPage() {
   }
 
   async function toggleTrait(trait: TraitEntry) {
-    const key = trait.name;
+    const key = normalizeTraitKey(trait.name);
     const willOpen = !openTraits[key];
     setOpenTraits((current) => ({ ...current, [key]: willOpen }));
+    setTraitDrafts((current) => ({
+      ...current,
+      [key]: current[key] ?? manualTraitDescriptions[key] ?? trait.pdf_description ?? "",
+    }));
 
     if (!willOpen || traitDetails[key]) return;
 
@@ -338,6 +349,19 @@ export default function CharacterDetailPage() {
       ...current,
       [key]: { status: "loading", text: "", source: "none" },
     }));
+
+    const manualDescription = manualTraitDescriptions[key]?.trim() ?? "";
+    if (manualDescription) {
+      setTraitDetails((current) => ({
+        ...current,
+        [key]: {
+          status: "ready",
+          text: manualDescription,
+          source: "manual",
+        },
+      }));
+      return;
+    }
 
     const pdfDescription = trait.pdf_description?.trim() ?? "";
     if (pdfDescription) {
@@ -363,6 +387,35 @@ export default function CharacterDetailPage() {
     }));
   }
 
+  async function saveManualTrait(trait: TraitEntry) {
+    if (!userId) return;
+    const key = normalizeTraitKey(trait.name);
+    const nextText = traitDrafts[key]?.trim() ?? "";
+    const nextManualDescriptions = { ...manualTraitDescriptions };
+    if (nextText) {
+      nextManualDescriptions[key] = nextText;
+    } else {
+      delete nextManualDescriptions[key];
+    }
+
+    const nextPayload = {
+      ...rawPayload,
+      manual_trait_descriptions: nextManualDescriptions,
+    };
+
+    await updateCharacterSourcePayload(userId, params.id, nextPayload);
+    setRawPayload(nextPayload);
+    setTraitDetails((current) => ({
+      ...current,
+      [key]: {
+        status: "ready",
+        text: nextText || trait.pdf_description || "Sin descripción disponible en español.",
+        source: nextText ? "manual" : (trait.pdf_description ? "pdf" : "none"),
+      },
+    }));
+    setMessage(nextText ? "Descripción manual guardada." : "Descripción manual eliminada.");
+  }
+
   function renderTraitList(entries: TraitEntry[], fallback: string) {
     if (!entries.length) {
       return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin rasgos importados todavía."}</p>;
@@ -371,8 +424,10 @@ export default function CharacterDetailPage() {
     return (
       <div className="mt-3 grid gap-2">
         {entries.map((trait) => {
-          const detail = traitDetails[trait.name];
-          const isOpen = openTraits[trait.name] ?? false;
+          const key = normalizeTraitKey(trait.name);
+          const inputId = `trait-${key.replace(/\s+/g, "-")}`;
+          const detail = traitDetails[key];
+          const isOpen = openTraits[key] ?? false;
           return (
             <div key={trait.name} className="rounded-lg border border-[#d3a84a44] bg-black/25">
               <button
@@ -389,10 +444,21 @@ export default function CharacterDetailPage() {
                     <p>Buscando información...</p>
                   ) : (
                     <>
-                      <p className="whitespace-pre-wrap">{detail?.text || trait.pdf_description || "Sin descripción disponible."}</p>
+                      <p className="whitespace-pre-wrap">{detail?.text || trait.pdf_description || "Sin descripción disponible en español."}</p>
                       <p className="mt-2 text-xs text-[#9f9578]">
-                        Fuente: {detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
+                        Fuente: {detail?.source === "manual" ? "Manual" : detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
                       </p>
+                      <label className="mt-3 block text-xs uppercase tracking-wide text-[#b9ae8d]" htmlFor={inputId}>Descripción manual</label>
+                      <textarea
+                        id={inputId}
+                        className="field mt-2 min-h-28 w-full"
+                        value={traitDrafts[key] ?? ""}
+                        onChange={(event) => setTraitDrafts((current) => ({ ...current, [key]: event.target.value }))}
+                        placeholder="Añade o corrige la descripción de este rasgo"
+                      />
+                      <button className="btn-secondary mt-2" type="button" onClick={() => void saveManualTrait(trait)}>
+                        Guardar descripción
+                      </button>
                     </>
                   )}
                 </div>

@@ -382,6 +382,36 @@ begin
 end;
 $$;
 
+create or replace function public.update_character_source_payload_for_user(
+  p_user_id uuid,
+  p_character_id uuid,
+  p_source_payload jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_character_members m
+    where m.character_id = p_character_id and m.user_id = p_user_id
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  insert into public.app_character_profiles(character_id, source_payload)
+  values (p_character_id, coalesce(p_source_payload, '{}'::jsonb))
+  on conflict (character_id) do update set
+    source_payload = excluded.source_payload,
+    updated_at = now();
+end;
+$$;
+
 create or replace function public.join_character_by_code(p_user_id uuid, p_code text)
 returns table(id uuid, name text, join_code text)
 language plpgsql
@@ -427,4 +457,5 @@ grant execute on function public.list_characters_for_user(uuid) to anon, authent
 grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) to anon, authenticated;
+grant execute on function public.update_character_source_payload_for_user(uuid, uuid, jsonb) to anon, authenticated;
 grant execute on function public.delete_character_for_user(uuid, uuid) to anon, authenticated;

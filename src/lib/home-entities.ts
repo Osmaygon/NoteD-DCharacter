@@ -132,6 +132,20 @@ export async function updateCharacterDetail(
   if (error) throw new Error(error.message);
 }
 
+export async function updateCharacterSourcePayload(
+  userId: string,
+  characterId: string,
+  sourcePayload: Record<string, unknown>,
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("update_character_source_payload_for_user", {
+    p_user_id: userId,
+    p_character_id: characterId,
+    p_source_payload: sourcePayload,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function deleteCharacter(userId: string, characterId: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
   const { error } = await supabase.rpc("delete_character_for_user", {
