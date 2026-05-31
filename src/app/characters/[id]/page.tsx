@@ -152,6 +152,7 @@ export default function CharacterDetailPage() {
     !Array.isArray(rawPayload.manual_trait_descriptions)
   ) ? rawPayload.manual_trait_descriptions as Record<string, string> : {};
   const [openTraits, setOpenTraits] = useState<Record<string, boolean>>({});
+  const [openTraitEditors, setOpenTraitEditors] = useState<Record<string, boolean>>({});
   const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
@@ -468,6 +469,7 @@ export default function CharacterDetailPage() {
         source: nextText ? "manual" : (trait.pdf_description ? "pdf" : "none"),
       },
     }));
+    setOpenTraitEditors((current) => ({ ...current, [key]: false }));
     setMessage(nextText ? "Descripción manual guardada." : "Descripción manual eliminada.");
   }
 
@@ -483,6 +485,7 @@ export default function CharacterDetailPage() {
           const inputId = `trait-${key.replace(/\s+/g, "-")}`;
           const detail = traitDetails[key];
           const isOpen = openTraits[key] ?? false;
+          const isEditorOpen = openTraitEditors[key] ?? false;
           return (
             <div key={trait.name} className="rounded-lg border border-[#d3a84a44] bg-black/25">
               <button
@@ -508,17 +511,28 @@ export default function CharacterDetailPage() {
                       <p className="mt-2 text-xs text-[#9f9578]">
                         Fuente: {detail?.source === "manual" ? "Manual" : detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
                       </p>
-                      <label className="mt-3 block text-xs uppercase tracking-wide text-[#b9ae8d]" htmlFor={inputId}>Descripción manual</label>
-                      <textarea
-                        id={inputId}
-                        className="field mt-2 min-h-28 w-full"
-                        value={traitDrafts[key] ?? ""}
-                        onChange={(event) => setTraitDrafts((current) => ({ ...current, [key]: event.target.value }))}
-                        placeholder="Añade o corrige la descripción de este rasgo"
-                      />
-                      <button className="btn-secondary mt-2" type="button" onClick={() => void saveManualTrait(trait)}>
-                        Guardar descripción
+                      <button
+                        className="btn-secondary mt-3"
+                        type="button"
+                        onClick={() => setOpenTraitEditors((current) => ({ ...current, [key]: !isEditorOpen }))}
+                      >
+                        {isEditorOpen ? "Ocultar edición" : "Editar descripción"}
                       </button>
+                      {isEditorOpen ? (
+                        <div className="mt-3 rounded-lg border border-[#d3a84a33] bg-black/20 p-3">
+                          <label className="block text-xs uppercase tracking-wide text-[#b9ae8d]" htmlFor={inputId}>Descripción manual</label>
+                          <textarea
+                            id={inputId}
+                            className="field mt-2 min-h-28 w-full"
+                            value={traitDrafts[key] ?? ""}
+                            onChange={(event) => setTraitDrafts((current) => ({ ...current, [key]: event.target.value }))}
+                            placeholder="Añade o corrige la descripción de este rasgo"
+                          />
+                          <button className="btn-secondary mt-2" type="button" onClick={() => void saveManualTrait(trait)}>
+                            Guardar descripción
+                          </button>
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </div>
