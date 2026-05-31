@@ -33,6 +33,13 @@ type CheckEntry = {
   proficient: boolean;
 };
 
+type AttackEntry = {
+  name: string;
+  bonus: string;
+  damage: string;
+  damageType: string;
+};
+
 const abilityOrder = [
   { key: "fuerza", label: "FUE" },
   { key: "destreza", label: "DES" },
@@ -68,6 +75,7 @@ export default function CharacterDetailPage() {
   const abilities = (summary.abilities as Record<string, { score?: number; modifier?: number }> | undefined) ?? {};
   const savingThrows = Array.isArray(summary.saving_throws) ? summary.saving_throws as CheckEntry[] : [];
   const skills = Array.isArray(summary.skills) ? summary.skills as CheckEntry[] : [];
+  const attacks = Array.isArray(summary.attacks) ? summary.attacks as AttackEntry[] : [];
 
   function hydrate(detail: CharacterDetail) {
     setForm({
@@ -237,6 +245,26 @@ export default function CharacterDetailPage() {
     );
   }
 
+  function renderAttackCards(entries: AttackEntry[], fallback: string) {
+    if (!entries.length) {
+      return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin ataques detectados todavía."}</p>;
+    }
+
+    return (
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
+        {entries.map((entry) => (
+          <div key={`${entry.name}-${entry.bonus}-${entry.damage}`} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-semibold text-[#f3dfac]">{entry.name}</p>
+              <p className="text-lg font-semibold text-[#f3dfac]">{entry.bonus}</p>
+            </div>
+            <p className="mt-1 text-sm text-[#d9c89e]">{entry.damage} {entry.damageType}</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
       <AppHeader />
@@ -394,12 +422,16 @@ export default function CharacterDetailPage() {
 
             <section className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Acciones y ataques</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.attacks || "Sin acciones importadas todavía."}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ataques</p>
+                {renderAttackCards(attacks, sections.attacks)}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Equipo</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.equipment || "Sin equipo importado todavía."}</p>
+              </div>
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 lg:col-span-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos, conjuros y trucos</p>
-                <p className="mt-3 text-sm text-[#d9c89e]">Pendiente de conectar con el parser y futuras APIs.</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.traits || "Pendiente de conectar con el parser y futuras APIs."}</p>
               </div>
             </section>
           </div>

@@ -22,6 +22,13 @@ type ParsedCheck = {
   proficient: boolean;
 };
 
+type ParsedAttack = {
+  name: string;
+  bonus: string;
+  damage: string;
+  damageType: string;
+};
+
 const savingThrowNames = ["Fuerza", "Destreza", "Constitución", "Inteligencia", "Sabiduría", "Carisma"];
 
 const skillNames = [
@@ -253,6 +260,13 @@ function sectionBetween(text: string, startLabel: string, endLabel: string): str
   return text.slice(start + startLabel.length, end).trim();
 }
 
+function sectionAfter(text: string, startLabel: string, maxLength = 900): string {
+  const upper = normalizeSearch(text);
+  const start = upper.indexOf(normalizeSearch(startLabel));
+  if (start === -1) return "";
+  return text.slice(start + startLabel.length, start + startLabel.length + maxLength).trim();
+}
+
 function parseCheckEntries(text: string, names: string[]): ParsedCheck[] {
   return names.flatMap((name) => {
     const regex = new RegExp(`(?:^|\\s)([x\\s]{0,8})${escapeRegExp(name)}\\s+([+-]?\\d{1,2}|0)\\b`, "i");
@@ -269,6 +283,28 @@ function parseCheckEntries(text: string, names: string[]): ParsedCheck[] {
 
 function formatCheckEntries(entries: ParsedCheck[]): string {
   return entries.map((entry) => `${entry.proficient ? "x " : ""}${entry.name} ${entry.bonus}`).join("\n");
+}
+
+function parseAttackEntries(text: string): ParsedAttack[] {
+  const chunk = sectionAfter(text, "NOMBRE BONIF. DAÑO/TIPO", 900);
+  if (!chunk) return [];
+
+  const attacks: ParsedAttack[] = [];
+  const pattern = /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9()'….,\- ]{2,70}?)\s+([+-]\d{1,2})\s+(\d+d\d+(?:\s*\+\s*\d+)?)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ…]+)(?=\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9()'….,\- ]{2,70}?\s+[+-]\d{1,2}\s+\d+d\d+|\s*(?:EQUIPO|RASGOS|$))/gi;
+  for (const match of chunk.matchAll(pattern)) {
+    attacks.push({
+      name: cleanText(match[1]),
+      bonus: match[2],
+      damage: cleanText(match[3]),
+      damageType: cleanText(match[4]),
+    });
+  }
+
+  return attacks;
+}
+
+function formatAttackEntries(entries: ParsedAttack[]): string {
+  return entries.map((entry) => `${entry.name} ${entry.bonus} ${entry.damage} ${entry.damageType}`).join("\n");
 }
 
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
@@ -300,7 +336,9 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const parsedSavingThrows = parseCheckEntries(`${savingThrowsChunk}\n${checksChunk}`, savingThrowNames);
   const parsedSkills = parseCheckEntries(checksChunk, skillNames);
   const competencies = sectionBetween(text, "OTRAS COMPETENCIAS E IDIOMAS", "ATAQUES Y LANZAMIENTO DE CONJUROS");
-  const attacks = sectionBetween(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO");
+  const equipment = sectionBetween(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO");
+  const traits = sectionBetween(text, "EQUIPO", "RASGOS Y ATRIBUTOS");
+  const parsedAttacks = parseAttackEntries(text);
   const notes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE") || "Importado desde PDF";
 
   return {
@@ -323,12 +361,15 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         abilities,
         saving_throws: parsedSavingThrows,
         skills: parsedSkills,
+        attacks: parsedAttacks,
       },
       sections: {
         saving_throws: formatCheckEntries(parsedSavingThrows) || dedupeLineBreaks(savingThrowsChunk),
         skills: formatCheckEntries(parsedSkills) || dedupeLineBreaks(skillsChunk),
         competencies: dedupeLineBreaks(competencies),
-        attacks: dedupeLineBreaks(attacks),
+        equipment: dedupeLineBreaks(equipment),
+        attacks: formatAttackEntries(parsedAttacks),
+        traits: dedupeLineBreaks(traits),
       },
       spells_detected: [],
     },
