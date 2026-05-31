@@ -543,7 +543,7 @@ export default function CharacterDetailPage() {
     setMessage(isPrepared ? "Conjuro desmarcado." : "Conjuro preparado.");
   }
 
-  function renderTraitList(entries: TraitEntry[], fallback: string) {
+  function renderTraitList(entries: TraitEntry[], fallback: string, showCombatToggle = false) {
     if (!entries.length) {
       return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin rasgos importados todavía."}</p>;
     }
@@ -556,6 +556,7 @@ export default function CharacterDetailPage() {
           const detail = traitDetails[key];
           const isOpen = openTraits[key] ?? false;
           const isEditorOpen = openTraitEditors[key] ?? false;
+          const inCombat = combatFavorites.includes(key);
           return (
             <div key={trait.name} className="rounded-lg border border-[#d3a84a44] bg-black/25">
               <button
@@ -577,6 +578,18 @@ export default function CharacterDetailPage() {
                     <p>Buscando información...</p>
                   ) : (
                     <>
+                      {showCombatToggle ? (
+                        <button
+                          className={inCombat ? "btn-primary mb-2" : "btn-secondary mb-2"}
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void toggleCombatTrait(trait);
+                          }}
+                        >
+                          {inCombat ? "En combate" : "Mostrar en combate"}
+                        </button>
+                      ) : null}
                       <p className="whitespace-pre-wrap">{detail?.text || trait.pdf_description || "Sin descripción disponible en español."}</p>
                       <p className="mt-2 text-xs text-[#9f9578]">
                         Fuente: {detail?.source === "manual" ? "Manual" : detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
@@ -821,24 +834,7 @@ export default function CharacterDetailPage() {
         ) : activeTab === "rasgos" ? (
           <div className="mt-4 rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
             <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos y dotes</p>
-            <div className="mt-3 grid gap-2">
-              {traits.map((trait) => {
-                const key = normalizeTraitKey(trait.name);
-                const enabled = combatFavorites.includes(key);
-                return (
-                  <div key={`toggle-${key}`} className="flex items-center justify-between gap-2 rounded border border-[#d3a84a33] bg-black/20 p-2">
-                    <div>
-                      <p className="text-sm text-[#f3dfac]">{trait.name}</p>
-                      <p className="text-xs text-[#9f9578]">{trait.kind || "Rasgo"}</p>
-                    </div>
-                    <button className={enabled ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void toggleCombatTrait(trait)}>
-                      {enabled ? "En combate" : "Mostrar en combate"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            {renderTraitList(traits, sections.traits)}
+            {renderTraitList(traits, sections.traits, true)}
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
