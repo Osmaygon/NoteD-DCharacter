@@ -30,6 +30,8 @@ type Nivel20CharacterJson = {
       speed?: number;
       player?: string;
       campaign?: string;
+      hit_points?: number;
+      proficiency_bonus?: number;
     };
     armor?: { normal?: number };
     ability?: Record<string, { total?: number; mod?: number }>;
@@ -53,6 +55,7 @@ type Nivel20CharacterJson = {
       edad?: string | null;
       idiomas?: string | null;
       notas?: string | null;
+      perception?: { total?: number };
     };
     background?: {
       name?: string;

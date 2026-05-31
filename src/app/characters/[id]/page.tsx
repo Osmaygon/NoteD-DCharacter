@@ -794,7 +794,7 @@ export default function CharacterDetailPage() {
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos utiles para combate</p>
-                {!combatTraits.length ? <p className="mt-2 text-sm text-[#d9c89e]">Marca rasgos como "Mostrar en combate" desde la pestaña Rasgos.</p> : renderTraitList(combatTraits, sections.traits)}
+                {!combatTraits.length ? <p className="mt-2 text-sm text-[#d9c89e]">Marca rasgos como &quot;Mostrar en combate&quot; desde la pestaña Rasgos.</p> : renderTraitList(combatTraits, sections.traits)}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros y trucos preparados</p>
