@@ -301,15 +301,22 @@ export default function CharacterDetailPage() {
   const speedFeet = Number(form.speed || 0);
   const speedSquares = speedFeet > 0 ? Math.floor(speedFeet / 5) : null;
 
-  function renderCheckCards(entries: CheckEntry[], fallback: string, gridClassName = "grid-cols-1 sm:grid-cols-2") {
+  function renderCheckCards(
+    entries: CheckEntry[],
+    fallback: string,
+    gridClassName = "grid-cols-1 sm:grid-cols-2",
+    centerLastPair = false,
+  ) {
     if (!entries.length) {
       return <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "-"}</p>;
     }
 
     return (
       <div className={`mt-2 grid gap-2 ${gridClassName}`}>
-        {entries.map((entry) => (
-          <div key={entry.name} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-2">
+        {entries.map((entry, index) => {
+          const shouldCenterPair = centerLastPair && entries.length % 4 === 2 && index === entries.length - 2;
+          return (
+          <div key={entry.name} className={`rounded-lg border border-[#d3a84a44] bg-black/25 p-2 ${shouldCenterPair ? "xl:col-start-2" : ""}`}>
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-[#d9c89e]">{entry.name}</p>
               <p className="text-lg font-semibold text-[#f3dfac]">{entry.bonus}</p>
@@ -318,7 +325,8 @@ export default function CharacterDetailPage() {
               {entry.proficient ? "Competente" : "Sin competencia"}
             </p>
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -588,7 +596,7 @@ export default function CharacterDetailPage() {
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
-                  {renderCheckCards(skills, sections.skills, "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4")}
+                  {renderCheckCards(skills, sections.skills, "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4", true)}
                 </div>
               </div>
             </section>
