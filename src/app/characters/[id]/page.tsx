@@ -671,7 +671,7 @@ export default function CharacterDetailPage() {
               </div>
             </section>
 
-            <section className="grid gap-4 lg:grid-cols-2">
+            <section className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ataques</p>
                 {renderAttackCards(attacks, sections.attacks)}
@@ -680,7 +680,7 @@ export default function CharacterDetailPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Equipo</p>
                 {renderEquipmentList(equipment, sections.equipment)}
               </div>
-              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 lg:col-span-2">
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos, conjuros y trucos</p>
                 {renderTraitList(traits, sections.traits)}
               </div>
