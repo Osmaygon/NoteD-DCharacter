@@ -51,6 +51,7 @@ type EquipmentEntry = {
 type TraitEntry = {
   name: string;
   pdf_description?: string;
+  kind?: string;
 };
 
 type TraitDetail = {
@@ -489,7 +490,12 @@ export default function CharacterDetailPage() {
                 type="button"
                 onClick={() => void toggleTrait(trait)}
               >
-                <span>{trait.name}</span>
+                <span className="flex flex-wrap items-center gap-2">
+                  <span>{trait.name}</span>
+                  <span className="rounded-full border border-[#d3a84a55] px-2 py-0.5 text-[11px] font-normal text-[#b9ae8d]">
+                    {trait.kind || "Rasgo"}
+                  </span>
+                </span>
                 <span className="text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
               </button>
               {isOpen ? (

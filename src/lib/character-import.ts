@@ -32,6 +32,7 @@ type ParsedAttack = {
 type ParsedTrait = {
   name: string;
   pdf_description: string;
+  kind: string;
 };
 
 type ParsedEquipment = {
@@ -409,6 +410,13 @@ function cleanTraitDescription(value: string): string {
 
 function parseTraitEntries(text: string): ParsedTrait[] {
   const entries = new Map<string, ParsedTrait>();
+  const customTraitNames = new Set(
+    Array.from(text.matchAll(/Rasgos personalizados:\s*([\s\S]*?)(?=\s+RASGOS|\s+RASGOS Y ATRIBUTOS|$)/gi))
+      .flatMap((match) => match[1].split(/\s+-\s*/))
+      .map((name) => cleanText(name))
+      .filter(Boolean)
+      .map((name) => normalizeSearch(name)),
+  );
   const detailPattern = /\uf0da\s*([^:]{2,90}):\s*([\s\S]*?)(?=\s*\uf0da\s*[^:]{2,90}:|\s+RASGOS\b|\s+APARIENCIA\b|$)/g;
 
   for (const match of text.matchAll(detailPattern)) {
@@ -418,6 +426,7 @@ function parseTraitEntries(text: string): ParsedTrait[] {
     entries.set(normalizeSearch(name), {
       name,
       pdf_description: description,
+      kind: customTraitNames.has(normalizeSearch(name)) ? "Rasgo personalizado" : "Rasgo",
     });
   }
 
