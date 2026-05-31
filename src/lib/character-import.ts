@@ -29,6 +29,11 @@ type ParsedAttack = {
   damageType: string;
 };
 
+type ParsedTrait = {
+  name: string;
+  pdf_description: string;
+};
+
 const savingThrowNames = ["Fuerza", "Destreza", "Constitución", "Inteligencia", "Sabiduría", "Carisma"];
 
 const skillNames = [
@@ -307,6 +312,27 @@ function formatAttackEntries(entries: ParsedAttack[]): string {
   return entries.map((entry) => `${entry.name} ${entry.bonus} ${entry.damage} ${entry.damageType}`).join("\n");
 }
 
+function parseTraitEntries(text: string): ParsedTrait[] {
+  const entries = new Map<string, ParsedTrait>();
+  const detailPattern = /\uf0da\s*([^:]{2,90}):\s*([\s\S]*?)(?=\s*\uf0da\s*[^:]{2,90}:|\s+RASGOS\b|\s+APARIENCIA\b|$)/g;
+
+  for (const match of text.matchAll(detailPattern)) {
+    const name = cleanText(match[1]);
+    const description = cleanText(match[2]);
+    if (!name) continue;
+    entries.set(normalizeSearch(name), {
+      name,
+      pdf_description: description,
+    });
+  }
+
+  return Array.from(entries.values());
+}
+
+function formatTraitEntries(entries: ParsedTrait[]): string {
+  return entries.map((entry) => `${entry.name}: ${entry.pdf_description}`).join("\n");
+}
+
 export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const text = normalizeWhitespace(rawText);
   const lines = splitLines(rawText);
@@ -339,6 +365,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const equipment = sectionBetween(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO");
   const traits = sectionBetween(text, "EQUIPO", "RASGOS Y ATRIBUTOS");
   const parsedAttacks = parseAttackEntries(text);
+  const parsedTraits = parseTraitEntries(text);
   const notes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE") || "Importado desde PDF";
 
   return {
@@ -362,6 +389,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         saving_throws: parsedSavingThrows,
         skills: parsedSkills,
         attacks: parsedAttacks,
+        traits: parsedTraits,
       },
       sections: {
         saving_throws: formatCheckEntries(parsedSavingThrows) || dedupeLineBreaks(savingThrowsChunk),
@@ -369,7 +397,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         competencies: dedupeLineBreaks(competencies),
         equipment: dedupeLineBreaks(equipment),
         attacks: formatAttackEntries(parsedAttacks),
-        traits: dedupeLineBreaks(traits),
+        traits: formatTraitEntries(parsedTraits) || dedupeLineBreaks(traits),
       },
       spells_detected: [],
     },

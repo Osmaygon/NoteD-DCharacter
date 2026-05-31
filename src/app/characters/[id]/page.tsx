@@ -40,6 +40,61 @@ type AttackEntry = {
   damageType: string;
 };
 
+type TraitEntry = {
+  name: string;
+  pdf_description?: string;
+};
+
+type TraitDetail = {
+  status: "loading" | "ready";
+  text: string;
+  source: "api" | "pdf" | "none";
+};
+
+type DndApiEntry = {
+  desc?: string[];
+};
+
+const traitApiPaths: Record<string, string[]> = {
+  "linaje draconico": ["/api/traits/draconic-ancestry"],
+  "ataque de aliento": ["/api/traits/breath-weapon"],
+  "resistencia al dano": ["/api/traits/damage-resistance"],
+  "ataque adicional": ["/api/features/extra-attack"],
+  "aura de proteccion": ["/api/features/aura-of-protection"],
+  "canalizar divinidad": ["/api/features/channel-divinity"],
+  "castigo divino": ["/api/features/divine-smite"],
+  "defensa": ["/api/features/fighting-style-defense"],
+  "imponer las manos": ["/api/features/lay-on-hands"],
+  "lanzamiento de conjuros": ["/api/features/spellcasting-paladin"],
+  "mejora de caracteristica": ["/api/features/ability-score-improvement"],
+  "salud divina": ["/api/features/divine-health"],
+  "sentidos divinos": ["/api/features/divine-sense"],
+};
+
+function normalizeTraitKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+async function fetchTraitFromApi(name: string): Promise<string> {
+  const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
+  for (const path of paths) {
+    try {
+      const response = await fetch(`https://www.dnd5eapi.co${path}`);
+      if (!response.ok) continue;
+      const data = await response.json() as DndApiEntry;
+      const description = Array.isArray(data.desc) ? data.desc.join("\n\n").trim() : "";
+      if (description) return description;
+    } catch {
+      continue;
+    }
+  }
+  return "";
+}
+
 const abilityOrder = [
   { key: "fuerza", label: "FUE" },
   { key: "destreza", label: "DES" },
@@ -76,6 +131,9 @@ export default function CharacterDetailPage() {
   const savingThrows = Array.isArray(summary.saving_throws) ? summary.saving_throws as CheckEntry[] : [];
   const skills = Array.isArray(summary.skills) ? summary.skills as CheckEntry[] : [];
   const attacks = Array.isArray(summary.attacks) ? summary.attacks as AttackEntry[] : [];
+  const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
+  const [openTraits, setOpenTraits] = useState<Record<string, boolean>>({});
+  const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
 
   function hydrate(detail: CharacterDetail) {
     setForm({
@@ -265,6 +323,71 @@ export default function CharacterDetailPage() {
     );
   }
 
+  async function toggleTrait(trait: TraitEntry) {
+    const key = trait.name;
+    const willOpen = !openTraits[key];
+    setOpenTraits((current) => ({ ...current, [key]: willOpen }));
+
+    if (!willOpen || traitDetails[key]) return;
+
+    setTraitDetails((current) => ({
+      ...current,
+      [key]: { status: "loading", text: "", source: "none" },
+    }));
+
+    const apiDescription = await fetchTraitFromApi(trait.name);
+    const pdfDescription = trait.pdf_description?.trim() ?? "";
+    setTraitDetails((current) => ({
+      ...current,
+      [key]: {
+        status: "ready",
+        text: apiDescription || pdfDescription || "Sin descripción disponible.",
+        source: apiDescription ? "api" : (pdfDescription ? "pdf" : "none"),
+      },
+    }));
+  }
+
+  function renderTraitList(entries: TraitEntry[], fallback: string) {
+    if (!entries.length) {
+      return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin rasgos importados todavía."}</p>;
+    }
+
+    return (
+      <div className="mt-3 grid gap-2">
+        {entries.map((trait) => {
+          const detail = traitDetails[trait.name];
+          const isOpen = openTraits[trait.name] ?? false;
+          return (
+            <div key={trait.name} className="rounded-lg border border-[#d3a84a44] bg-black/25">
+              <button
+                className="flex w-full items-center justify-between gap-3 p-3 text-left text-sm font-semibold text-[#f3dfac]"
+                type="button"
+                onClick={() => void toggleTrait(trait)}
+              >
+                <span>{trait.name}</span>
+                <span className="text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
+              </button>
+              {isOpen ? (
+                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
+                  {detail?.status === "loading" ? (
+                    <p>Buscando información...</p>
+                  ) : (
+                    <>
+                      <p className="whitespace-pre-wrap">{detail?.text || trait.pdf_description || "Sin descripción disponible."}</p>
+                      <p className="mt-2 text-xs text-[#9f9578]">
+                        Fuente: {detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
       <AppHeader />
@@ -431,7 +554,7 @@ export default function CharacterDetailPage() {
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 lg:col-span-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos, conjuros y trucos</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.traits || "Pendiente de conectar con el parser y futuras APIs."}</p>
+                {renderTraitList(traits, sections.traits)}
               </div>
             </section>
           </div>
