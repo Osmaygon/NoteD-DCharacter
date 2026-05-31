@@ -34,6 +34,13 @@ type ParsedTrait = {
   pdf_description: string;
 };
 
+type ParsedEquipment = {
+  name: string;
+  detail: string;
+  kind: string;
+  quick_use: string;
+};
+
 const savingThrowNames = ["Fuerza", "Destreza", "Constitución", "Inteligencia", "Sabiduría", "Carisma"];
 
 const skillNames = [
@@ -312,6 +319,62 @@ function formatAttackEntries(entries: ParsedAttack[]): string {
   return entries.map((entry) => `${entry.name} ${entry.bonus} ${entry.damage} ${entry.damageType}`).join("\n");
 }
 
+function inferEquipmentKind(name: string, detail: string): string {
+  const normalized = normalizeSearch(`${name} ${detail}`);
+  if (normalized.includes("ESCUDO")) return "Escudo";
+  if (/\b(CLAYMORE|DAGA|ARMA|ESPADA|MARTILLO|LANZA|ARCO)\b/.test(normalized)) return "Arma";
+  if (normalized.includes("SIMBOLO SAGRADO")) return "Foco";
+  if (normalized.includes("PAQUETE")) return "Paquete";
+  if (normalized.includes("DADOS") || normalized.includes("JUEGO")) return "Herramienta";
+  if (normalized.includes("ROPA") || normalized.includes("ARMADURA")) return "Vestimenta";
+  if (normalized.includes("CA")) return "Defensa";
+  return "Objeto";
+}
+
+function inferEquipmentQuickUse(name: string, detail: string, kind: string): string {
+  const normalized = normalizeSearch(`${name} ${detail}`);
+  if (kind === "Escudo") return "Útil para defensa. Revisa si su bonificador de CA está activo o equipado.";
+  if (kind === "Arma") return "Útil en combate. Revisa si aparece también en la sección de ataques.";
+  if (kind === "Foco") return "Puede servir como foco para lanzar conjuros si tu clase lo permite.";
+  if (kind === "Paquete") return "Conjunto de objetos de apoyo para exploración, descanso o roleo.";
+  if (kind === "Herramienta") return "Útil en pruebas, roleo o escenas fuera de combate.";
+  if (kind === "Vestimenta") return "Objeto principalmente narrativo o social salvo que indique defensa.";
+  if (normalized.includes("CA")) return "Puede afectar a la defensa. Comprueba cuándo aplica ese valor de CA.";
+  return "Objeto disponible en inventario. Añade notas manuales si necesitas un uso concreto.";
+}
+
+function parseEquipmentEntries(value: string): ParsedEquipment[] {
+  const lines = value
+    .replace(/\s+-\s+/g, "\n- ")
+    .split(/\n+/)
+    .map((line) => cleanText(line.replace(/^[-•]+\s*/, "")))
+    .filter(Boolean)
+    .filter((line) => !/^(EQUIPO|INSPIRACIÓN|INSPIRACION)$/i.test(line));
+
+  const entries = new Map<string, ParsedEquipment>();
+  for (const line of lines) {
+    const detailMatch = line.match(/\b(CA\s*[+-]?\d{1,3}|\d+d\d+(?:\s*\+\s*\d+)?\s+[A-Za-zÁÉÍÓÚÜÑáéíóúüñ…]+)\b/i);
+    const detail = cleanText(detailMatch?.[1] ?? "");
+    const name = cleanText(detail ? line.replace(detailMatch?.[0] ?? "", "") : line);
+    if (!name) continue;
+
+    const kind = inferEquipmentKind(name, detail);
+    const key = normalizeSearch(`${name} ${detail}`);
+    entries.set(key, {
+      name,
+      detail,
+      kind,
+      quick_use: inferEquipmentQuickUse(name, detail, kind),
+    });
+  }
+
+  return Array.from(entries.values());
+}
+
+function formatEquipmentEntries(entries: ParsedEquipment[]): string {
+  return entries.map((entry) => `${entry.name}${entry.detail ? ` (${entry.detail})` : ""}`).join("\n");
+}
+
 function cleanTraitDescription(value: string): string {
   let cleaned = cleanText(value);
   const stopLabels = [
@@ -391,6 +454,7 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const equipment = sectionBetween(text, "ATAQUES Y LANZAMIENTO DE CONJUROS", "EQUIPO");
   const traits = sectionBetween(text, "EQUIPO", "RASGOS Y ATRIBUTOS");
   const parsedAttacks = parseAttackEntries(text);
+  const parsedEquipment = parseEquipmentEntries(equipment);
   const parsedTraits = parseTraitEntries(text);
   const notes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE") || "Importado desde PDF";
 
@@ -415,13 +479,14 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
         saving_throws: parsedSavingThrows,
         skills: parsedSkills,
         attacks: parsedAttacks,
+        equipment: parsedEquipment,
         traits: parsedTraits,
       },
       sections: {
         saving_throws: formatCheckEntries(parsedSavingThrows) || dedupeLineBreaks(savingThrowsChunk),
         skills: formatCheckEntries(parsedSkills) || dedupeLineBreaks(skillsChunk),
         competencies: dedupeLineBreaks(competencies),
-        equipment: dedupeLineBreaks(equipment),
+        equipment: formatEquipmentEntries(parsedEquipment) || dedupeLineBreaks(equipment),
         attacks: formatAttackEntries(parsedAttacks),
         traits: formatTraitEntries(parsedTraits) || dedupeLineBreaks(traits),
       },

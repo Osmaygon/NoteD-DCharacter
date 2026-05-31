@@ -41,6 +41,13 @@ type AttackEntry = {
   damageType: string;
 };
 
+type EquipmentEntry = {
+  name: string;
+  detail?: string;
+  kind?: string;
+  quick_use?: string;
+};
+
 type TraitEntry = {
   name: string;
   pdf_description?: string;
@@ -136,6 +143,7 @@ export default function CharacterDetailPage() {
   const savingThrows = Array.isArray(summary.saving_throws) ? summary.saving_throws as CheckEntry[] : [];
   const skills = Array.isArray(summary.skills) ? summary.skills as CheckEntry[] : [];
   const attacks = Array.isArray(summary.attacks) ? summary.attacks as AttackEntry[] : [];
+  const equipment = Array.isArray(summary.equipment) ? summary.equipment as EquipmentEntry[] : [];
   const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
   const manualTraitDescriptions = (
     rawPayload.manual_trait_descriptions &&
@@ -143,6 +151,7 @@ export default function CharacterDetailPage() {
     !Array.isArray(rawPayload.manual_trait_descriptions)
   ) ? rawPayload.manual_trait_descriptions as Record<string, string> : {};
   const [openTraits, setOpenTraits] = useState<Record<string, boolean>>({});
+  const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
 
@@ -330,6 +339,43 @@ export default function CharacterDetailPage() {
             <p className="mt-1 text-sm text-[#d9c89e]">{entry.damage} {entry.damageType}</p>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  function renderEquipmentList(entries: EquipmentEntry[], fallback: string) {
+    if (!entries.length) {
+      return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin equipo importado todavía."}</p>;
+    }
+
+    return (
+      <div className="mt-3 grid gap-2">
+        {entries.map((item) => {
+          const key = normalizeTraitKey(`${item.name}-${item.detail ?? ""}`);
+          const isOpen = openEquipment[key] ?? false;
+          return (
+            <div key={key} className="rounded-lg border border-[#d3a84a44] bg-black/25">
+              <button
+                className="flex w-full items-center justify-between gap-3 p-3 text-left"
+                type="button"
+                onClick={() => setOpenEquipment((current) => ({ ...current, [key]: !isOpen }))}
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-[#f3dfac]">{item.name}</span>
+                  {item.detail ? <span className="text-xs text-[#b9ae8d]">{item.detail}</span> : null}
+                </span>
+                <span className="text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
+              </button>
+              {isOpen ? (
+                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
+                  <p><span className="text-[#b9ae8d]">Tipo:</span> {item.kind || "Objeto"}</p>
+                  <p><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle detectado"}</p>
+                  <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Uso rápido:</span> {item.quick_use || "Añade notas si necesitas recordar un uso concreto."}</p>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -632,7 +678,7 @@ export default function CharacterDetailPage() {
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Equipo</p>
-                <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{sections.equipment || "Sin equipo importado todavía."}</p>
+                {renderEquipmentList(equipment, sections.equipment)}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 lg:col-span-2">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos, conjuros y trucos</p>
