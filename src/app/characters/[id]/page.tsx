@@ -225,8 +225,16 @@ export default function CharacterDetailPage() {
 
     const payload = (detail.source_payload ?? {}) as {
       raw_text?: string;
+      raw?: Record<string, unknown>;
+      nivel20?: Record<string, unknown>;
+      prepared_spell_ids?: unknown[];
+      combat_favorites?: unknown[];
       source_payload?: {
         raw_text?: string;
+        raw?: Record<string, unknown>;
+        nivel20?: Record<string, unknown>;
+        prepared_spell_ids?: unknown[];
+        combat_favorites?: unknown[];
         summary?: Record<string, unknown>;
         sections?: Record<string, string>;
       };
@@ -237,6 +245,10 @@ export default function CharacterDetailPage() {
       ? {
           ...payload,
           raw_text: payload.raw_text ?? payload.source_payload.raw_text,
+          raw: payload.raw ?? payload.source_payload.raw,
+          nivel20: payload.nivel20 ?? payload.source_payload.nivel20,
+          prepared_spell_ids: payload.prepared_spell_ids ?? payload.source_payload.prepared_spell_ids,
+          combat_favorites: payload.combat_favorites ?? payload.source_payload.combat_favorites,
           summary: payload.summary ?? payload.source_payload.summary,
           sections: payload.sections ?? payload.source_payload.sections,
         }
@@ -461,13 +473,13 @@ export default function CharacterDetailPage() {
       return;
     }
 
-    const pdfDescription = trait.pdf_description?.trim() ?? "";
-    if (pdfDescription) {
+    const importedDescription = (trait.pdf_description?.trim() || findTraitDescriptionInRawPayload(trait.name)).trim();
+    if (importedDescription) {
       setTraitDetails((current) => ({
         ...current,
         [key]: {
           status: "ready",
-          text: pdfDescription,
+          text: importedDescription,
           source: "pdf",
         },
       }));
@@ -593,8 +605,9 @@ export default function CharacterDetailPage() {
           const isEditorOpen = openTraitEditors[key] ?? false;
           const inCombat = combatFavorites.includes(key);
           const rawDescription = findTraitDescriptionInRawPayload(trait.name);
+          const detailText = detail?.source === "none" ? "" : (detail?.text ?? "");
           const fullDescription = (
-            detail?.text ||
+            detailText ||
             manualTraitDescriptions[key] ||
             trait.pdf_description ||
             rawDescription ||
