@@ -11,6 +11,7 @@ import {
   getCharacterDetail,
   updateCharacterDetail,
   updateCharacterSourcePayload,
+  updateCharacterSpellSlots,
 } from "@/lib/home-entities";
 
 type FormState = {
@@ -237,6 +238,14 @@ export default function CharacterDetailPage() {
     .sort((a, b) => Number(a.level) - Number(b.level));
   const otherSpellSlotInfo = Object.entries(spellMeta.slots ?? {})
     .filter(([level]) => !/^\d+$/.test(level));
+  const spellSlotsSpent = (
+    rawPayload.spell_slots_spent &&
+    typeof rawPayload.spell_slots_spent === "object" &&
+    !Array.isArray(rawPayload.spell_slots_spent)
+  ) ? Object.fromEntries(
+      Object.entries(rawPayload.spell_slots_spent as Record<string, unknown>)
+        .map(([level, count]) => [level, Math.max(0, Math.floor(numberFromUnknown(count) ?? 0))]),
+    ) as Record<string, number> : {};
 
   const preparedLimit = typeof spellMeta.prepared_limit === "number" ? spellMeta.prepared_limit : 0;
   const preparedSpellSet = new Set(preparedSpellIds);
@@ -280,6 +289,7 @@ export default function CharacterDetailPage() {
         nivel20?: Record<string, unknown>;
         prepared_spell_ids?: unknown[];
         combat_favorites?: unknown[];
+        spell_slots_spent?: Record<string, number>;
         summary?: Record<string, unknown>;
         sections?: Record<string, string>;
       };
@@ -294,10 +304,14 @@ export default function CharacterDetailPage() {
           nivel20: payload.nivel20 ?? payload.source_payload.nivel20,
           prepared_spell_ids: payload.prepared_spell_ids ?? payload.source_payload.prepared_spell_ids,
           combat_favorites: payload.combat_favorites ?? payload.source_payload.combat_favorites,
+          spell_slots_spent: detail.spell_slots_spent ?? payload.spell_slots_spent ?? payload.source_payload.spell_slots_spent,
           summary: payload.summary ?? payload.source_payload.summary,
           sections: payload.sections ?? payload.source_payload.sections,
         }
-      : payload;
+      : {
+          ...payload,
+          spell_slots_spent: detail.spell_slots_spent ?? payload.spell_slots_spent,
+        };
 
     const reparsed = normalizedPayload.raw_text ? parseImportedCharacter(normalizedPayload.raw_text) : null;
     const rebuilt = reparsed?.source_payload
@@ -610,6 +624,57 @@ export default function CharacterDetailPage() {
       : [...preparedSpellIds, spell.id];
     await persistLocalPayload({ prepared_spell_ids: next });
     setMessage(isPrepared ? "Conjuro desmarcado." : "Conjuro preparado.");
+  }
+
+  async function toggleSpentSpellSlot(level: string, index: number) {
+    if (!userId) return;
+    const currentSpent = spellSlotsSpent[level] ?? 0;
+    const nextSpent = index < currentSpent ? index : index + 1;
+    const next = { ...spellSlotsSpent, [level]: nextSpent };
+    if (nextSpent <= 0) delete next[level];
+
+    await updateCharacterSpellSlots(userId, params.id, next);
+    setRawPayload((current) => ({ ...current, spell_slots_spent: next }));
+    setMessage("Espacios de conjuro actualizados.");
+  }
+
+  function renderCombatSpellSlotTracker() {
+    if (!numericSpellSlots.length) {
+      return <p className="mt-2 text-sm text-[#d9c89e]">Sin espacios de conjuro detectados.</p>;
+    }
+
+    return (
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {numericSpellSlots.map((slot) => {
+          const spent = Math.min(spellSlotsSpent[slot.level] ?? 0, slot.count);
+          return (
+            <div key={`combat-slot-${slot.level}`} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[#f3dfac]">Nivel {slot.level}</p>
+                <p className="text-xs text-[#b9ae8d]">Gastados {spent}/{slot.count}</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {Array.from({ length: slot.count }, (_, index) => {
+                  const isSpent = index < spent;
+                  return (
+                    <button
+                      key={`combat-slot-${slot.level}-${index}`}
+                      className={isSpent
+                        ? "h-8 w-8 rounded-md border border-red-300/70 bg-red-900/40"
+                        : "h-8 w-8 rounded-md border border-[#d3a84a88] bg-[#d3a84a22] hover:bg-[#d3a84a33]"}
+                      type="button"
+                      aria-label={`Marcar espacio ${index + 1} de nivel ${slot.level}`}
+                      title={isSpent ? "Gastado" : "Disponible"}
+                      onClick={() => void toggleSpentSpellSlot(slot.level, index)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   }
 
   function findTraitDescriptionInRawPayload(traitName: string): string {
@@ -930,6 +995,10 @@ export default function CharacterDetailPage() {
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros y trucos preparados</p>
                 <p className="mt-2 text-xs text-[#9f9578]">Preparados: {preparedCount}{preparedLimit ? ` / ${preparedLimit}` : ""}</p>
+                <div className="mt-4 rounded-xl border border-[#d3a84a44] bg-black/20 p-3">
+                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Espacios gastados en combate</p>
+                  {renderCombatSpellSlotTracker()}
+                </div>
                 {!preparedCombatSpells.length ? (
                   <p className="mt-2 text-sm text-[#d9c89e]">No hay conjuros preparados. Marca desde la pestaña Conjuros.</p>
                 ) : (
