@@ -114,7 +114,7 @@ Las 6 salvaciones son:
 
 Todo lo demas de esa lista son habilidades.
 
-La UI actual muestra habilidades en tarjetas individuales, en escritorio con filas de 4 y la ultima fila de 2 centrada.
+La UI actual muestra habilidades en tarjetas individuales, en escritorio con 3 columnas.
 
 ### Equipo
 
@@ -405,7 +405,7 @@ Contiene datos de consulta del personaje:
 - Habilidades en tarjetas individuales.
 - Historia y notas.
 
-El bloque de habilidades esta organizado para que en escritorio quede en filas de 4 y la ultima fila de 2 quede centrada.
+El bloque de habilidades esta organizado para que en escritorio quede en 3 columnas.
 
 ### Combate
 
