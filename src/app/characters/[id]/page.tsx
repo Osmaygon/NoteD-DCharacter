@@ -108,6 +108,12 @@ function looksSpanish(value: string): boolean {
   return /\b(el|la|los|las|una|unos|puedes|tienes|daño|acción|tirada|salvación|conjuro)\b/i.test(value);
 }
 
+function shortText(value: string, max = 120): string {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
+}
+
 async function fetchTraitFromApi(name: string): Promise<string> {
   const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
   for (const path of paths) {
@@ -543,6 +549,35 @@ export default function CharacterDetailPage() {
     setMessage(isPrepared ? "Conjuro desmarcado." : "Conjuro preparado.");
   }
 
+  function findTraitDescriptionInRawPayload(traitName: string): string {
+    const raw = (rawPayload.raw as Record<string, unknown> | undefined) ?? {};
+    const key = normalizeTraitKey(traitName);
+
+    const custom = Array.isArray(raw.custom_feats)
+      ? raw.custom_feats as Array<{ name?: string; description?: string }>
+      : [];
+    const customMatch = custom.find((entry) => normalizeTraitKey(entry.name ?? "") === key)?.description?.trim();
+    if (customMatch) return customMatch;
+
+    const race = Array.isArray(raw.race_feats)
+      ? raw.race_feats as Array<{ name?: string; description?: string } | string>
+      : [];
+    for (const entry of race) {
+      if (typeof entry === "string") continue;
+      if (normalizeTraitKey(entry.name ?? "") === key && entry.description?.trim()) return entry.description.trim();
+    }
+
+    const professions = Array.isArray(raw.professions)
+      ? raw.professions as Array<{ feats?: Array<{ name?: string; description?: string }> }>
+      : [];
+    for (const profession of professions) {
+      const match = (profession.feats ?? []).find((entry) => normalizeTraitKey(entry.name ?? "") === key)?.description?.trim();
+      if (match) return match;
+    }
+
+    return "";
+  }
+
   function renderTraitList(entries: TraitEntry[], fallback: string, showCombatToggle = false) {
     if (!entries.length) {
       return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin rasgos importados todavía."}</p>;
@@ -557,7 +592,15 @@ export default function CharacterDetailPage() {
           const isOpen = openTraits[key] ?? false;
           const isEditorOpen = openTraitEditors[key] ?? false;
           const inCombat = combatFavorites.includes(key);
-          const shortDescription = (manualTraitDescriptions[key] || trait.pdf_description || detail?.text || "Sin descripción todavía.").trim();
+          const rawDescription = findTraitDescriptionInRawPayload(trait.name);
+          const fullDescription = (
+            detail?.text ||
+            manualTraitDescriptions[key] ||
+            trait.pdf_description ||
+            rawDescription ||
+            "Sin descripción todavía."
+          ).trim();
+          const shortDescription = shortText(fullDescription, 110);
           return (
             <div key={trait.name} className="rounded-lg border border-[#d3a84a44] bg-black/25">
               <div className="p-3">
@@ -587,16 +630,11 @@ export default function CharacterDetailPage() {
                         {inCombat ? "En combate" : "Mostrar en combate"}
                       </button>
                     ) : null}
-                    <button
-                      className="rounded border border-[#d3a84a55] px-2 py-1 text-xs text-[#b9ae8d]"
-                      type="button"
-                      onClick={() => void toggleTrait(trait)}
-                    >
-                      {isOpen ? "-" : "+"}
-                    </button>
                   </div>
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs text-[#b9ae8d]">{shortDescription}</p>
+                <button className="mt-2 block w-full text-left text-xs text-[#b9ae8d]" type="button" onClick={() => void toggleTrait(trait)}>
+                  {shortDescription}
+                </button>
               </div>
               {isOpen ? (
                 <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
@@ -604,7 +642,7 @@ export default function CharacterDetailPage() {
                     <p>Buscando información...</p>
                   ) : (
                     <>
-                      <p className="whitespace-pre-wrap">{detail?.text || trait.pdf_description || "Sin descripción disponible en español."}</p>
+                      <p className="whitespace-pre-wrap">{fullDescription || "Sin descripción disponible en español."}</p>
                       <p className="mt-2 text-xs text-[#9f9578]">
                         Fuente: {detail?.source === "manual" ? "Manual" : detail?.source === "api" ? "API" : detail?.source === "pdf" ? "PDF" : "sin fuente"}
                       </p>
