@@ -422,9 +422,7 @@ export default function CharacterDetailPage() {
               <p className="text-sm text-[#d9c89e]">{entry.name}</p>
               <p className="text-lg font-semibold text-[#f3dfac]">{entry.bonus}</p>
             </div>
-            <p className={entry.proficient ? "mt-1 text-xs text-[#f3dfac]" : "mt-1 text-xs text-[#8d846c]"}>
-              {entry.proficient ? "Competente" : "Sin competencia"}
-            </p>
+            {entry.proficient ? <p className="mt-1 text-xs text-[#f3dfac]">Competente</p> : null}
           </div>
           );
         })}

@@ -450,7 +450,7 @@ Reglas actuales:
 ## Tiradas Y Habilidades
 
 - Se muestran como bloques individuales.
-- Cada bloque muestra nombre, bonus y si tiene competencia.
+- Cada bloque muestra nombre y bonus; solo se marca visualmente si tiene competencia.
 - No se muestran los iconos raros del PDF.
 - El parser separa automaticamente salvaciones de habilidades.
 
