@@ -226,7 +226,7 @@ Pestanas:
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia.
 - Durante la partida: HP actual y vida temporal en bloques apilados.
 - Ataques y Equipo en bloques apilados.
-- Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas.
+- Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. En la pestaña Conjuros, los espacios por nivel se muestran a la derecha como bloques visibles.
 
 ### Estado Persistente Actual
 
