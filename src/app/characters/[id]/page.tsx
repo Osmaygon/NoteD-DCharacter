@@ -133,6 +133,12 @@ function spellComponentSiglas(spell: SpellEntry): string {
     .trim();
 }
 
+function spellCastSummary(spell: SpellEntry): string {
+  return [spell.casting_time || "-", spell.range || "-", spell.duration || "-", spellComponentSiglas(spell)]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function isAlwaysPreparedSpell(spell: SpellEntry): boolean {
   return Boolean(spell.always_prepared) || Boolean(spell.label?.some((label) => /conjuros? de (juramento|dominio|artillero)/i.test(normalizeTraitKey(label))));
 }
@@ -1042,11 +1048,10 @@ export default function CharacterDetailPage() {
                           type="button"
                           onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                         >
-                          <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                             <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                            <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {isOpen ? "-" : "+"}</p>
+                            <p className="text-right text-xs text-[#b9ae8d]">Nv {spell.level} · {spellCastSummary(spell)} · {isOpen ? "-" : "+"}</p>
                           </div>
-                          <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}{spellComponentSiglas(spell) ? ` · ${spellComponentSiglas(spell)}` : ""}</p>
                           <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                           </p>
@@ -1098,12 +1103,12 @@ export default function CharacterDetailPage() {
                   <div key={spell.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <button
-                        className="min-w-0 flex-1 text-left"
+                        className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-x-3 gap-y-1 text-left"
                         type="button"
                         onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                       >
                         <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                        <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {spell.school || "-"} · {isOpen ? "Cerrar" : "Ver más"}</p>
+                        <p className="text-right text-xs text-[#b9ae8d]">Nv {spell.level} · {spellCastSummary(spell)} · {isOpen ? "Cerrar" : "Ver más"}</p>
                       </button>
                       <button className={isPrepared ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void togglePreparedSpell(spell)}>
                         {isAutoPrepared ? alwaysPreparedSource(spell) : isPrepared ? "Preparado" : "Preparar"}
@@ -1115,7 +1120,6 @@ export default function CharacterDetailPage() {
                       type="button"
                       onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                     >
-                      <p className="text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}{spellComponentSiglas(spell) ? ` · ${spellComponentSiglas(spell)}` : ""}</p>
                       <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                         {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                       </p>
