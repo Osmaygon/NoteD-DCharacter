@@ -804,7 +804,7 @@ export default function CharacterDetailPage() {
 
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Historia</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="mt-3 grid gap-3">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Trasfondo narrativo</p>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.background || "-"}</p>
