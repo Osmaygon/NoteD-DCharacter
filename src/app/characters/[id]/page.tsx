@@ -767,22 +767,24 @@ export default function CharacterDetailPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Info útil</p>
               <div className="mt-3">
                 <p className="mb-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Caracteristicas</p>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-                  {abilityOrder.map((ability) => {
-                    const row = abilities[ability.key] ?? {};
-                    const score = row.score ?? "-";
-                    const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
-                    return (
-                      <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
-                        <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
-                        <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
-                        <p className="text-sm text-[#d9c89e]">{score}</p>
-                      </div>
-                    );
-                  })}
-                  <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
+                <div className="grid gap-3 lg:grid-cols-[1fr_12rem]">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {abilityOrder.map((ability) => {
+                      const row = abilities[ability.key] ?? {};
+                      const score = row.score ?? "-";
+                      const modifier = typeof row.modifier === "number" ? (row.modifier >= 0 ? `+${row.modifier}` : `${row.modifier}`) : "-";
+                      return (
+                        <div key={ability.key} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
+                          <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{ability.label}</p>
+                          <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{modifier}</p>
+                          <p className="text-sm text-[#d9c89e]">{score}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex min-h-full flex-col justify-center rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
                     <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">PP</p>
-                    <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{passivePerception ?? "-"}</p>
+                    <p className="mt-1 text-3xl font-semibold text-[#f3dfac]">{passivePerception ?? "-"}</p>
                     <p className="text-sm text-[#d9c89e]">Percepción pasiva</p>
                   </div>
                 </div>

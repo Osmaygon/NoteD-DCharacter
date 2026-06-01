@@ -215,8 +215,8 @@ Pestanas:
 
 `Informacion`:
 
-- Caracteristicas.
-- PP dentro de caracteristicas.
+- Caracteristicas en 3 columnas y 2 filas.
+- PP separado a la derecha de las caracteristicas en escritorio.
 - Tiradas de salvacion horizontales.
 - Habilidades horizontales.
 - Historia y notas.
@@ -399,8 +399,8 @@ La ficha esta dividida en dos pestanas:
 
 Contiene datos de consulta del personaje:
 
-- Caracteristicas (`FUE`, `DES`, `CON`, `INT`, `SAB`, `CAR`).
-- `PP` como percepcion pasiva.
+- Caracteristicas (`FUE`, `DES`, `CON`, `INT`, `SAB`, `CAR`) en 3 columnas y 2 filas.
+- `PP` como percepcion pasiva, separado a la derecha en escritorio.
 - Tiradas de salvacion en tarjetas individuales.
 - Habilidades en tarjetas individuales.
 - Historia y notas.
