@@ -287,7 +287,7 @@ No se guardan todavia manualmente:
 ## Rutas Principales
 
 - `/`: login y creacion de cuenta.
-- `/dashboard`: pantalla principal tras iniciar sesion.
+- `/dashboard`: pantalla principal tras iniciar sesion; los personajes mostrados enlazan directamente a su ficha.
 - `/characters`: lista e importacion de personajes.
 - `/characters/[id]`: ficha del personaje.
 - `/campaigns`: campanas.
