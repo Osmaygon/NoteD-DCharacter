@@ -114,8 +114,12 @@ function shortText(value: string, max = 120): string {
   return `${clean.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function spellDescription(spell: SpellEntry): string {
+  return spell.summary || spell.description || "Sin descripción";
+}
+
 function shortSpellDescription(spell: SpellEntry): string {
-  return shortText(spell.summary || spell.description || "Sin descripción", 160);
+  return shortText(spellDescription(spell), 160);
 }
 
 function numberFromUnknown(value: unknown): number | null {
@@ -211,6 +215,7 @@ export default function CharacterDetailPage() {
   const [openTraits, setOpenTraits] = useState<Record<string, boolean>>({});
   const [openTraitEditors, setOpenTraitEditors] = useState<Record<string, boolean>>({});
   const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
+  const [openSpells, setOpenSpells] = useState<Record<number, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
 
@@ -910,16 +915,26 @@ export default function CharacterDetailPage() {
                   <p className="mt-2 text-sm text-[#d9c89e]">No hay conjuros preparados. Marca desde la pestaña Conjuros.</p>
                 ) : (
                   <div className="mt-3 grid gap-2">
-                    {preparedCombatSpells.map((spell) => (
-                      <div key={spell.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                          <p className="text-xs text-[#b9ae8d]">Nv {spell.level}</p>
-                        </div>
-                        <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}</p>
-                        <p className="mt-2 text-sm text-[#d9c89e]">{shortSpellDescription(spell)}</p>
-                      </div>
-                    ))}
+                    {preparedCombatSpells.map((spell) => {
+                      const isOpen = openSpells[spell.id] ?? false;
+                      return (
+                        <button
+                          key={spell.id}
+                          className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3 text-left hover:border-[#d3a84a88]"
+                          type="button"
+                          onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
+                            <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {isOpen ? "-" : "+"}</p>
+                          </div>
+                          <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}</p>
+                          <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
+                            {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
+                          </p>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -944,20 +959,33 @@ export default function CharacterDetailPage() {
               {spells.map((spell) => {
                 const isPrepared = preparedSpellSet.has(spell.id);
                 const isFixed = Boolean(spell.label?.length);
+                const isOpen = openSpells[spell.id] ?? false;
                 return (
                   <div key={spell.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
+                      <button
+                        className="min-w-0 flex-1 text-left"
+                        type="button"
+                        onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
+                      >
                         <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                        <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {spell.school || "-"}</p>
-                      </div>
+                        <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {spell.school || "-"} · {isOpen ? "Cerrar" : "Ver más"}</p>
+                      </button>
                       <button className={isPrepared ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void togglePreparedSpell(spell)}>
                         {isPrepared ? "Preparado" : "Preparar"}
                       </button>
                     </div>
                     {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">Conjuro fijo ({spell.label?.join(", ")})</p> : null}
-                    <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"} · {spell.components || "-"}</p>
-                    <p className="mt-2 text-sm text-[#d9c89e]">{shortSpellDescription(spell)}</p>
+                    <button
+                      className="mt-1 w-full text-left"
+                      type="button"
+                      onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
+                    >
+                      <p className="text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"} · {spell.components || "-"}</p>
+                      <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
+                        {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
+                      </p>
+                    </button>
                   </div>
                 );
               })}
