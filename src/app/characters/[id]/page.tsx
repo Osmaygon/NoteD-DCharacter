@@ -419,10 +419,12 @@ export default function CharacterDetailPage() {
           return (
           <div key={entry.name} className={`rounded-lg border border-[#d3a84a44] bg-black/25 p-2 ${shouldCenterPair ? "xl:col-start-2" : ""}`}>
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm text-[#d9c89e]">{entry.name}</p>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <p className="text-sm text-[#d9c89e]">{entry.name}</p>
+                {entry.proficient ? <span className="rounded border border-[#d3a84a55] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#f3dfac]">Competente</span> : null}
+              </div>
               <p className="text-lg font-semibold text-[#f3dfac]">{entry.bonus}</p>
             </div>
-            {entry.proficient ? <p className="mt-1 text-xs text-[#f3dfac]">Competente</p> : null}
           </div>
           );
         })}
