@@ -1035,24 +1035,22 @@ export default function CharacterDetailPage() {
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
-            <div className="grid gap-4 lg:grid-cols-[1fr_minmax(17rem,22rem)]">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros</p>
-                <p className="mt-2 text-sm text-[#d9c89e]">Caract.: {spellMeta.ability || "-"} · CD: {String(spellMeta.save_dc ?? "-")} · Ataque: {String(spellMeta.attack_bonus ?? "-")}</p>
-                <p className="mt-1 text-sm text-[#b9ae8d]">Preparados: {preparedCount}{preparedLimit ? ` / ${preparedLimit}` : ""}</p>
-              </div>
-              <div className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros</p>
+              <p className="mt-2 text-base text-[#d9c89e] md:text-lg">Caract.: {spellMeta.ability || "-"} · CD: {String(spellMeta.save_dc ?? "-")} · Ataque: {String(spellMeta.attack_bonus ?? "-")}</p>
+              <p className="mt-1 text-base text-[#b9ae8d] md:text-lg">Preparados: {preparedCount}{preparedLimit ? ` / ${preparedLimit}` : ""}</p>
+              <div className="mt-4 rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
                 <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Espacios de conjuro</p>
-                <div className="mt-3 grid gap-2">
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
                   {numericSpellSlots.length ? numericSpellSlots.map((slot) => (
-                    <div key={`slot-${slot.level}`} className="flex items-center justify-between gap-3 rounded-lg border border-[#d3a84a44] bg-black/25 px-3 py-2">
+                    <div key={`slot-${slot.level}`} className="flex min-w-28 items-center justify-between gap-3 rounded-lg border border-[#d3a84a44] bg-black/25 px-3 py-2">
                       <p className="text-sm font-semibold text-[#f3dfac]">Nivel {slot.level}</p>
-                      <p className="text-lg font-semibold text-[#f3dfac]">{slot.count}</p>
+                      <p className="text-xl font-semibold text-[#f3dfac]">{slot.count}</p>
                     </div>
                   )) : <p className="text-sm text-[#d9c89e]">Sin espacios detectados.</p>}
                 </div>
                 {otherSpellSlotInfo.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#b9ae8d]">
+                  <div className="mt-3 flex flex-wrap gap-2 text-sm text-[#b9ae8d]">
                     {otherSpellSlotInfo.map(([key, count]) => (
                       <span key={`slot-meta-${key}`} className="rounded border border-[#d3a84a44] px-2 py-1">{slotMetaLabel(key)}: {count}</span>
                     ))}
