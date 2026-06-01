@@ -494,7 +494,7 @@ Tipos actuales:
 - `Rasgo`.
 - `Rasgo personalizado`.
 
-Los conjuros otorgados automaticamente por subclase/dominio/juramento se muestran en `Conjuros` como `Siempre preparado`, no en `Rasgos`.
+Los conjuros otorgados automaticamente por subclase/dominio/juramento se muestran en `Conjuros` con su origen (`Por juramento`, `Por dominio`, etc.), no en `Rasgos`.
 
 El plan es anadir mas adelante:
 

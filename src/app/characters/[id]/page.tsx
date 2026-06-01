@@ -132,6 +132,14 @@ function isSpellReady(spell: SpellEntry, preparedSpellSet: Set<number>): boolean
   return isAlwaysPreparedSpell(spell) || preparedSpellSet.has(spell.id);
 }
 
+function alwaysPreparedSource(spell: SpellEntry): string {
+  const label = normalizeTraitKey(spell.label?.join(" ") ?? "");
+  if (label.includes("juramento")) return "Por juramento";
+  if (label.includes("dominio")) return "Por dominio";
+  if (label.includes("artillero")) return "Por artillero";
+  return "Automático";
+}
+
 function numberFromUnknown(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -1089,10 +1097,10 @@ export default function CharacterDetailPage() {
                         <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {spell.school || "-"} · {isOpen ? "Cerrar" : "Ver más"}</p>
                       </button>
                       <button className={isPrepared ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void togglePreparedSpell(spell)}>
-                        {isAutoPrepared ? "Siempre" : isPrepared ? "Preparado" : "Preparar"}
+                        {isAutoPrepared ? alwaysPreparedSource(spell) : isPrepared ? "Preparado" : "Preparar"}
                       </button>
                     </div>
-                    {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">{isAutoPrepared ? "Siempre preparado" : "Conjuro fijo"} ({spell.label?.join(", ")})</p> : null}
+                    {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">{isAutoPrepared ? alwaysPreparedSource(spell) : "Conjuro fijo"} ({spell.label?.join(", ")})</p> : null}
                     <button
                       className="mt-1 w-full text-left"
                       type="button"
