@@ -525,7 +525,7 @@ export default function CharacterDetailPage() {
                     </span>
                   ) : null}
                 </span>
-
+                <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
               </button>
               {isOpen ? (
                 <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
@@ -1050,7 +1050,7 @@ export default function CharacterDetailPage() {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                             <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · Nv {spell.level}</p>
+                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · {isOpen ? "-" : "+"} · Nv {spell.level}</p>
                           </div>
                           <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
