@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:nivel20": "node scripts/import-nivel20-campaign.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
