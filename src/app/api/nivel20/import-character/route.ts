@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se pudo leer id/nombre del personaje de Nivel20" }, { status: 500 });
     }
 
-    const listResp = await supabase.rpc("list_characters_for_user", { p_user_id: user.user_id });
+    const listResp = await supabase.rpc("list_all_characters_for_user", { p_user_id: user.user_id });
     if (listResp.error) {
       return NextResponse.json({ error: listResp.error.message }, { status: 500 });
     }
@@ -163,6 +163,15 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: importResp.error.message }, { status: 500 });
       }
       return NextResponse.json({ ok: true, action: "created", imported: importResp.data });
+    }
+
+    const visibilityResp = await supabase.rpc("set_character_visibility_for_user", {
+      p_user_id: user.user_id,
+      p_character_id: target.id,
+      p_is_visible: true,
+    });
+    if (visibilityResp.error) {
+      return NextResponse.json({ error: visibilityResp.error.message }, { status: 500 });
     }
 
     const existingPayload = (target.source_payload ?? {}) as Record<string, unknown>;

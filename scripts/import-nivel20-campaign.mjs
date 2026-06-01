@@ -242,7 +242,7 @@ async function rpc(supabase, name, args) {
 }
 
 async function findTargetCharacter(supabase, userId, externalId, importedName) {
-  const rows = await rpc(supabase, "list_characters_for_user", { p_user_id: userId });
+  const rows = await rpc(supabase, "list_all_characters_for_user", { p_user_id: userId });
   let matchByName = null;
   for (const row of rows ?? []) {
     const details = await rpc(supabase, "get_character_detail_for_user", { p_user_id: userId, p_character_id: row.id });

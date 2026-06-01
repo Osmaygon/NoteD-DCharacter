@@ -39,6 +39,23 @@ export async function listCharacters(userId: string): Promise<HomeEntity[]> {
   return (data ?? []) as HomeEntity[];
 }
 
+export async function listHiddenCharacters(userId: string): Promise<HomeEntity[]> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("list_hidden_characters_for_user", { p_user_id: userId });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as HomeEntity[];
+}
+
+export async function setCharacterVisibility(userId: string, characterId: string, isVisible: boolean): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("set_character_visibility_for_user", {
+    p_user_id: userId,
+    p_character_id: characterId,
+    p_is_visible: isVisible,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function createCampaign(userId: string, name: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
   const { error } = await supabase.rpc("create_campaign_for_user", {

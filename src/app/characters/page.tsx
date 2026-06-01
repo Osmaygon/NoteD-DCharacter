@@ -7,15 +7,17 @@ import { getCurrentAppUser, getStoredSessionToken } from "@/lib/custom-auth";
 import { parseImportedCharacter } from "@/lib/character-import";
 import { extractTextFromPdf } from "@/lib/pdf-import";
 import {
-  deleteCharacter,
   HomeEntity,
   importCharacterFromPayload,
   listCharacters,
+  listHiddenCharacters,
+  setCharacterVisibility,
 } from "@/lib/home-entities";
 
 export default function CharactersPage() {
   const [userId, setUserId] = useState("");
   const [characters, setCharacters] = useState<HomeEntity[]>([]);
+  const [hiddenCharacters, setHiddenCharacters] = useState<HomeEntity[]>([]);
   const [importing, setImporting] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [importInfo, setImportInfo] = useState("");
@@ -24,8 +26,12 @@ export default function CharactersPage() {
   const [selectedNivel20Path, setSelectedNivel20Path] = useState("");
 
   async function refresh(uid: string) {
-    const rows = await listCharacters(uid);
-    setCharacters(rows);
+    const [visibleRows, hiddenRows] = await Promise.all([
+      listCharacters(uid),
+      listHiddenCharacters(uid),
+    ]);
+    setCharacters(visibleRows);
+    setHiddenCharacters(hiddenRows);
   }
 
   useEffect(() => {
@@ -38,6 +44,7 @@ export default function CharactersPage() {
         }
         setUserId(user.user_id);
         await refresh(user.user_id);
+        await loadNivel20Characters();
       } catch (error) {
         console.error(error);
       }
@@ -67,14 +74,14 @@ export default function CharactersPage() {
     }
   }
 
-  async function onDeleteCharacter(characterId: string) {
+  async function onSetCharacterVisible(characterId: string, isVisible: boolean) {
     if (!userId) return;
     try {
       setErrorText("");
-      await deleteCharacter(userId, characterId);
+      await setCharacterVisibility(userId, characterId, isVisible);
       await refresh(userId);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : "No se pudo borrar el personaje");
+      setErrorText(error instanceof Error ? error.message : "No se pudo cambiar la visibilidad del personaje");
     }
   }
 
@@ -140,7 +147,7 @@ export default function CharactersPage() {
 
       <section className="panel mb-4 p-4">
         <h1 className="mb-2 text-2xl">Personajes</h1>
-        <p className="mb-1 text-sm text-[#b9ae8d]">Selecciona un personaje de Nivel20 y traelo a tu web para editarlo aqui.</p>
+        <p className="mb-1 text-sm text-[#b9ae8d]">Primero ves tus personajes guardados en la BD. Despues se cargan los de Nivel20 para importar solo los que quieras.</p>
         <p className="mb-4 text-xs text-[#9f9578]">Nivel20 se usa en modo solo lectura. Nunca se modifican datos remotos.</p>
 
         <div className="mb-4 grid gap-2 md:grid-cols-[auto_1fr_auto]">
@@ -164,7 +171,7 @@ export default function CharactersPage() {
             disabled={nivel20Loading || !selectedNivel20Path}
             onClick={() => void importSelectedNivel20Character()}
           >
-            Unirme
+            Importar personaje
           </button>
         </div>
 
@@ -193,6 +200,10 @@ export default function CharactersPage() {
       </section>
 
       <section className="panel p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-xl">Tus personajes visibles</h2>
+          <p className="text-xs text-[#9f9578]">Ocultar no borra de la BD.</p>
+        </div>
         <div className="grid gap-2">
           {characters.map((c) => (
             <div key={c.id} className="rounded border border-[#d3a84a44] p-3">
@@ -203,15 +214,41 @@ export default function CharactersPage() {
                 </Link>
                 <button
                   type="button"
-                  className="rounded border border-red-400/70 px-2 py-1 text-xs text-red-300 hover:bg-red-900/30"
-                  onClick={() => void onDeleteCharacter(c.id)}
+                  className="rounded border border-[#d3a84a77] px-2 py-1 text-xs text-[#f3dfac] hover:bg-[#d3a84a22]"
+                  onClick={() => void onSetCharacterVisible(c.id, false)}
                 >
-                  Borrar
+                  Ocultar
                 </button>
               </div>
             </div>
           ))}
+          {!characters.length ? <p className="text-sm text-[#b9ae8d]">No tienes personajes visibles. Importa uno desde Nivel20 o muestra uno oculto.</p> : null}
         </div>
+
+        {hiddenCharacters.length ? (
+          <details className="mt-5">
+            <summary className="cursor-pointer text-sm text-[#b9ae8d]">Personajes ocultos ({hiddenCharacters.length})</summary>
+            <div className="mt-3 grid gap-2">
+              {hiddenCharacters.map((c) => (
+                <div key={c.id} className="rounded border border-[#d3a84a33] p-3 opacity-80">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{c.name}</p>
+                      <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded border border-[#d3a84a77] px-2 py-1 text-xs text-[#f3dfac] hover:bg-[#d3a84a22]"
+                      onClick={() => void onSetCharacterVisible(c.id, true)}
+                    >
+                      Mostrar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </section>
     </main>
   );

@@ -25,6 +25,7 @@ create table if not exists public.app_characters (
 create table if not exists public.app_character_members (
   character_id uuid not null references public.app_characters(id) on delete cascade,
   user_id uuid not null references public.app_users(id) on delete cascade,
+  is_visible boolean not null default true,
   created_at timestamptz not null default now(),
   primary key (character_id, user_id)
 );
@@ -46,6 +47,17 @@ create table if not exists public.app_character_profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.app_character_user_state (
+  character_id uuid not null references public.app_characters(id) on delete cascade,
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  current_hp int,
+  temp_hp int not null default 0,
+  shields int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (character_id, user_id)
+);
+
+alter table public.app_character_members add column if not exists is_visible boolean not null default true;
 alter table public.app_character_profiles add column if not exists current_hp int;
 alter table public.app_character_profiles add column if not exists temp_hp int not null default 0;
 alter table public.app_character_profiles add column if not exists shields int not null default 0;
@@ -55,18 +67,21 @@ alter table public.app_campaign_members enable row level security;
 alter table public.app_characters enable row level security;
 alter table public.app_character_members enable row level security;
 alter table public.app_character_profiles enable row level security;
+alter table public.app_character_user_state enable row level security;
 
 drop policy if exists "no direct app_campaigns" on public.app_campaigns;
 drop policy if exists "no direct app_campaign_members" on public.app_campaign_members;
 drop policy if exists "no direct app_characters" on public.app_characters;
 drop policy if exists "no direct app_character_members" on public.app_character_members;
 drop policy if exists "no direct app_character_profiles" on public.app_character_profiles;
+drop policy if exists "no direct app_character_user_state" on public.app_character_user_state;
 
 create policy "no direct app_campaigns" on public.app_campaigns for all using (false) with check (false);
 create policy "no direct app_campaign_members" on public.app_campaign_members for all using (false) with check (false);
 create policy "no direct app_characters" on public.app_characters for all using (false) with check (false);
 create policy "no direct app_character_members" on public.app_character_members for all using (false) with check (false);
 create policy "no direct app_character_profiles" on public.app_character_profiles for all using (false) with check (false);
+create policy "no direct app_character_user_state" on public.app_character_user_state for all using (false) with check (false);
 
 create or replace function public.create_campaign_for_user(p_user_id uuid, p_name text)
 returns table(id uuid, name text, join_code text)
@@ -273,9 +288,9 @@ as $$
     p.race,
     p.background,
     p.hp,
-    coalesce(p.current_hp, p.hp, 0),
-    coalesce(p.temp_hp, 0),
-    coalesce(p.shields, 0),
+    coalesce(s.current_hp, p.current_hp, p.hp, 0),
+    coalesce(s.temp_hp, p.temp_hp, 0),
+    coalesce(s.shields, p.shields, 0),
     p.ac,
     p.speed,
     p.notes,
@@ -283,6 +298,7 @@ as $$
   from public.app_characters c
   join public.app_character_members m on m.character_id = c.id and m.user_id = p_user_id
   left join public.app_character_profiles p on p.character_id = c.id
+  left join public.app_character_user_state s on s.character_id = c.id and s.user_id = p_user_id
   where c.id = p_character_id
   limit 1;
 $$;
@@ -334,9 +350,9 @@ begin
     nullif(trim(p_race), ''),
     nullif(trim(p_background), ''),
     p_hp,
-    greatest(coalesce(p_current_hp, p_hp, 0), 0),
-    greatest(coalesce(p_temp_hp, 0), 0),
-    greatest(coalesce(p_shields, 0), 0),
+    greatest(coalesce(p_hp, 0), 0),
+    0,
+    0,
     p_ac,
     p_speed,
     nullif(trim(p_notes), ''),
@@ -348,12 +364,23 @@ begin
     race = excluded.race,
     background = excluded.background,
     hp = excluded.hp,
-    current_hp = excluded.current_hp,
-    temp_hp = excluded.temp_hp,
-    shields = excluded.shields,
     ac = excluded.ac,
     speed = excluded.speed,
     notes = excluded.notes,
+    updated_at = now();
+
+  insert into public.app_character_user_state(character_id, user_id, current_hp, temp_hp, shields)
+  values (
+    p_character_id,
+    p_user_id,
+    greatest(coalesce(p_current_hp, p_hp, 0), 0),
+    greatest(coalesce(p_temp_hp, 0), 0),
+    greatest(coalesce(p_shields, 0), 0)
+  )
+  on conflict (character_id, user_id) do update set
+    current_hp = excluded.current_hp,
+    temp_hp = excluded.temp_hp,
+    shields = excluded.shields,
     updated_at = now();
 end;
 $$;
@@ -426,9 +453,9 @@ begin
     raise exception 'Personaje no encontrado';
   end if;
 
-  insert into public.app_character_members(character_id, user_id)
-  values (character_row.id, p_user_id)
-  on conflict (character_id, user_id) do nothing;
+  insert into public.app_character_members(character_id, user_id, is_visible)
+  values (character_row.id, p_user_id, true)
+  on conflict (character_id, user_id) do update set is_visible = true;
 
   return query
   select character_row.id, character_row.name, character_row.join_code;
@@ -445,7 +472,56 @@ as $$
   from public.app_character_members m
   join public.app_characters c on c.id = m.character_id
   where m.user_id = p_user_id
+    and coalesce(m.is_visible, true)
   order by c.created_at desc;
+$$;
+
+create or replace function public.list_all_characters_for_user(p_user_id uuid)
+returns table(id uuid, name text, join_code text, created_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.join_code, c.created_at
+  from public.app_character_members m
+  join public.app_characters c on c.id = m.character_id
+  where m.user_id = p_user_id
+  order by c.created_at desc;
+$$;
+
+create or replace function public.list_hidden_characters_for_user(p_user_id uuid)
+returns table(id uuid, name text, join_code text, created_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.join_code, c.created_at
+  from public.app_character_members m
+  join public.app_characters c on c.id = m.character_id
+  where m.user_id = p_user_id
+    and not coalesce(m.is_visible, true)
+  order by c.created_at desc;
+$$;
+
+create or replace function public.set_character_visibility_for_user(
+  p_user_id uuid,
+  p_character_id uuid,
+  p_is_visible boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.app_character_members
+  set is_visible = coalesce(p_is_visible, true)
+  where user_id = p_user_id and character_id = p_character_id;
+
+  if not found then
+    raise exception 'Personaje no encontrado';
+  end if;
+end;
 $$;
 
 grant execute on function public.create_campaign_for_user(uuid, text) to anon, authenticated;
@@ -454,6 +530,9 @@ grant execute on function public.list_campaigns_for_user(uuid) to anon, authenti
 grant execute on function public.create_character_for_user(uuid, text) to anon, authenticated;
 grant execute on function public.join_character_by_code(uuid, text) to anon, authenticated;
 grant execute on function public.list_characters_for_user(uuid) to anon, authenticated;
+grant execute on function public.list_all_characters_for_user(uuid) to anon, authenticated;
+grant execute on function public.list_hidden_characters_for_user(uuid) to anon, authenticated;
+grant execute on function public.set_character_visibility_for_user(uuid, uuid, boolean) to anon, authenticated;
 grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) to anon, authenticated;

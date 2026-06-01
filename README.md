@@ -10,6 +10,8 @@ Aplicacion web para importar, consultar y usar fichas de personaje de D&D durant
 - Importacion de personajes desde PDF usando `pdfjs-dist`.
 - Parser propio para extraer datos de hojas tipo Nivel20.
 - Datos guardados en Supabase mediante RPCs.
+- Los personajes pueden ocultarse por usuario sin borrarse de la BD.
+- El estado de combate editable en partida se guarda por usuario para no pisar la vida de otras cuentas.
 - Ficha reconstruida visualmente desde cero y dividida en pestañas.
 - Commit y push inmediato despues de cada cambio funcional o visual para verlo en Vercel.
 
@@ -287,8 +289,8 @@ No se guardan todavia manualmente:
 ## Rutas Principales
 
 - `/`: login y creacion de cuenta.
-- `/dashboard`: pantalla principal tras iniciar sesion; los personajes mostrados enlazan directamente a su ficha.
-- `/characters`: lista e importacion de personajes.
+- `/dashboard`: pantalla principal tras iniciar sesion; los personajes visibles mostrados enlazan directamente a su ficha.
+- `/characters`: lista de personajes visibles, personajes ocultos e importacion desde Nivel20/PDF.
 - `/characters/[id]`: ficha del personaje.
 - `/campaigns`: campanas.
 - `/user`: usuario.
@@ -315,6 +317,7 @@ Tablas principales:
 - `app_characters`
 - `app_character_members`
 - `app_character_profiles`
+- `app_character_user_state`
 
 Campos relevantes de `app_character_profiles`:
 
@@ -430,7 +433,7 @@ Regla de velocidad:
 
 ## Contadores Persistentes
 
-Se guardan en base de datos al pulsar `Guardar`:
+Se guardan en base de datos al pulsar `Guardar`, por usuario en `app_character_user_state`:
 
 - `current_hp`: HP actual.
 - `temp_hp`: vida temporal.
@@ -440,6 +443,7 @@ Reglas actuales:
 - `current_hp` no baja de `0`.
 - `current_hp` no sube por encima de `hp` maximo.
 - `temp_hp` no baja de `0`.
+- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida son independientes.
 
 `shields` existe en la base de datos por una iteracion anterior, pero se quito del visual. Hay que limpiarlo mas adelante si se confirma que no se va a usar.
 
