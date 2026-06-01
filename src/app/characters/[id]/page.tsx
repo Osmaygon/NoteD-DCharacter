@@ -1050,7 +1050,7 @@ export default function CharacterDetailPage() {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                             <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · {isOpen ? "-" : "+"} · Nv {spell.level}</p>
+                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · Nv {spell.level} {isOpen ? "-" : "+"}</p>
                           </div>
                           <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
