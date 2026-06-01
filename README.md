@@ -118,7 +118,7 @@ La UI actual muestra habilidades en tarjetas individuales, en escritorio con 3 c
 
 ### Equipo
 
-El equipo se debe mostrar como objetos desplegables, no como texto plano.
+El equipo se debe mostrar como objetos desplegables, no como texto plano. La vista cerrada usa una descripcion corta; la descripcion completa aparece al abrir el objeto.
 
 El parser debe separar casos como:
 
@@ -452,7 +452,7 @@ Reglas actuales:
 
 ## Equipo
 
-El equipo se parsea como objetos individuales y se muestra como desplegable.
+El equipo se parsea como objetos individuales y se muestra como desplegable en 2 columnas desde escritorio, con descripcion corta cerrada y detalle completo al abrir.
 
 Cada objeto puede tener:
 

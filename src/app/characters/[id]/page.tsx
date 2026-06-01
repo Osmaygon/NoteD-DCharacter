@@ -430,10 +430,12 @@ export default function CharacterDetailPage() {
     }
 
     return (
-      <div className="mt-3 grid gap-2">
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
         {entries.map((item) => {
           const key = normalizeTraitKey(`${item.name}-${item.detail ?? ""}`);
           const isOpen = openEquipment[key] ?? false;
+          const detailPreview = item.detail ? shortText(item.detail, 90) : "";
+          const hasLongDetail = Boolean(item.detail && detailPreview !== item.detail);
           return (
             <div key={key} className="rounded-lg border border-[#d3a84a44] bg-black/25">
               <button
@@ -441,11 +443,15 @@ export default function CharacterDetailPage() {
                 type="button"
                 onClick={() => setOpenEquipment((current) => ({ ...current, [key]: !isOpen }))}
               >
-                <span>
+                <span className="min-w-0">
                   <span className="block text-sm font-semibold text-[#f3dfac]">{item.name}</span>
-                  {item.detail ? <span className="text-xs text-[#b9ae8d]">{item.detail}</span> : null}
+                  {detailPreview ? (
+                    <span className="block text-xs text-[#b9ae8d]">
+                      {detailPreview}{hasLongDetail && !isOpen ? " Pulsa para ver más." : ""}
+                    </span>
+                  ) : null}
                 </span>
-                <span className="text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
+                <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
               </button>
               {isOpen ? (
                 <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
