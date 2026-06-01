@@ -46,6 +46,15 @@ function decodeHtmlEntities(value) {
     .replace(/&Uacute;/g, "Ú");
 }
 
+function isSpellGrantTraitName(name) {
+  const normalized = normalizeName(name);
+  return /^conjuros? de (juramento|dominio|artillero)\b/.test(normalized);
+}
+
+function isAlwaysPreparedSpellLabel(labels = []) {
+  return labels.some((label) => /conjuros? de (juramento|dominio|artillero)/i.test(normalizeName(label)));
+}
+
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
   if (value && typeof value === "object") {
@@ -96,7 +105,7 @@ function normalizeNivel20Character(payload, sourcePath) {
 
   const classFeats = (printable.professions ?? []).flatMap((profession) =>
     (profession.feats ?? []).flatMap((feat) =>
-      feat?.name
+      feat?.name && !isSpellGrantTraitName(feat.name)
         ? [{ name: feat.name, pdf_description: feat.description ?? "", kind: profession.name ? `Clase: ${profession.name}` : "Clase" }]
         : [],
     ),
@@ -130,13 +139,17 @@ function normalizeNivel20Character(payload, sourcePath) {
 
   const spellBook = printable.spell_books?.[0];
   const spells = (spellBook?.spells ?? []).flatMap(([level, rows]) =>
-    rows.map((spell) => ({
+    rows.map((spell) => {
+      const label = spell.label ?? [];
+      const alwaysPrepared = isAlwaysPreparedSpellLabel(label);
+      return {
       id: spell.id,
       level,
       name: spell.name,
-      prepared: Boolean(spell.prepared),
-      included: Boolean(spell.included),
-      label: spell.label ?? [],
+      prepared: Boolean(spell.prepared) || alwaysPrepared,
+      included: Boolean(spell.included) || alwaysPrepared,
+      always_prepared: alwaysPrepared,
+      label,
       summary: spell.summary ?? "",
       description: spell.description ?? "",
       range: spell.range ?? "",
@@ -144,7 +157,8 @@ function normalizeNivel20Character(payload, sourcePath) {
       duration: spell.duration ?? "",
       components: spell.short_components ?? "",
       school: spell.spell_school_name ?? "",
-    })),
+      };
+    }),
   );
 
   const perceptionSkill = (printable.skills ?? []).find((entry) =>

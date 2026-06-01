@@ -61,6 +61,7 @@ type SpellEntry = {
   name: string;
   prepared: boolean;
   included: boolean;
+  always_prepared?: boolean;
   label?: string[];
   summary?: string;
   description?: string;
@@ -121,6 +122,14 @@ function spellDescription(spell: SpellEntry): string {
 
 function shortSpellDescription(spell: SpellEntry): string {
   return shortText(spellDescription(spell), 160);
+}
+
+function isAlwaysPreparedSpell(spell: SpellEntry): boolean {
+  return Boolean(spell.always_prepared) || Boolean(spell.label?.some((label) => /conjuros? de (juramento|dominio|artillero)/i.test(normalizeTraitKey(label))));
+}
+
+function isSpellReady(spell: SpellEntry, preparedSpellSet: Set<number>): boolean {
+  return isAlwaysPreparedSpell(spell) || preparedSpellSet.has(spell.id);
 }
 
 function numberFromUnknown(value: unknown): number | null {
@@ -249,8 +258,8 @@ export default function CharacterDetailPage() {
 
   const preparedLimit = typeof spellMeta.prepared_limit === "number" ? spellMeta.prepared_limit : 0;
   const preparedSpellSet = new Set(preparedSpellIds);
-  const preparedCount = spells.filter((spell) => preparedSpellSet.has(spell.id) && !(spell.label?.length)).length;
-  const preparedCombatSpells = spells.filter((spell) => preparedSpellSet.has(spell.id));
+  const preparedCount = spells.filter((spell) => preparedSpellSet.has(spell.id) && !isAlwaysPreparedSpell(spell)).length;
+  const preparedCombatSpells = spells.filter((spell) => isSpellReady(spell, preparedSpellSet));
   const combatTraits = traits.filter((trait) => combatFavorites.includes(normalizeTraitKey(trait.name)));
 
   function hydrate(detail: CharacterDetail) {
@@ -612,9 +621,13 @@ export default function CharacterDetailPage() {
   }
 
   async function togglePreparedSpell(spell: SpellEntry) {
-    const isPrepared = preparedSpellSet.has(spell.id);
-    const isFixed = Boolean(spell.label?.length);
-    if (!isPrepared && !isFixed && preparedLimit > 0 && preparedCount >= preparedLimit) {
+    const isAutoPrepared = isAlwaysPreparedSpell(spell);
+    const isPrepared = isSpellReady(spell, preparedSpellSet);
+    if (isAutoPrepared) {
+      setMessage("Este conjuro siempre está preparado y no cuenta para el límite.");
+      return;
+    }
+    if (!isPrepared && preparedLimit > 0 && preparedCount >= preparedLimit) {
       setMessage(`Solo puedes preparar ${preparedLimit} conjuros.`);
       return;
     }
@@ -1060,7 +1073,8 @@ export default function CharacterDetailPage() {
             </div>
             <div className="mt-4 grid gap-2">
               {spells.map((spell) => {
-                const isPrepared = preparedSpellSet.has(spell.id);
+                const isAutoPrepared = isAlwaysPreparedSpell(spell);
+                const isPrepared = isSpellReady(spell, preparedSpellSet);
                 const isFixed = Boolean(spell.label?.length);
                 const isOpen = openSpells[spell.id] ?? false;
                 return (
@@ -1075,10 +1089,10 @@ export default function CharacterDetailPage() {
                         <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {spell.school || "-"} · {isOpen ? "Cerrar" : "Ver más"}</p>
                       </button>
                       <button className={isPrepared ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void togglePreparedSpell(spell)}>
-                        {isPrepared ? "Preparado" : "Preparar"}
+                        {isAutoPrepared ? "Siempre" : isPrepared ? "Preparado" : "Preparar"}
                       </button>
                     </div>
-                    {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">Conjuro fijo ({spell.label?.join(", ")})</p> : null}
+                    {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">{isAutoPrepared ? "Siempre preparado" : "Conjuro fijo"} ({spell.label?.join(", ")})</p> : null}
                     <button
                       className="mt-1 w-full text-left"
                       type="button"

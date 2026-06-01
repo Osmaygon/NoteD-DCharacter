@@ -382,6 +382,11 @@ function formatEquipmentEntries(entries: ParsedEquipment[]): string {
   return entries.map((entry) => `${entry.name}${entry.detail ? ` (${entry.detail})` : ""}`).join("\n");
 }
 
+function isSpellGrantTraitName(name: string): boolean {
+  const normalized = normalizeSearch(name);
+  return /^CONJUROS? DE (JURAMENTO|DOMINIO|ARTILLERO)\b/.test(normalized);
+}
+
 function cleanTraitDescription(value: string): string {
   let cleaned = cleanText(value);
   const stopLabels = [
@@ -422,7 +427,7 @@ function parseTraitEntries(text: string): ParsedTrait[] {
   for (const match of text.matchAll(detailPattern)) {
     const name = cleanText(match[1]);
     const description = cleanTraitDescription(match[2]);
-    if (!name) continue;
+    if (!name || isSpellGrantTraitName(name)) continue;
     entries.set(normalizeSearch(name), {
       name,
       pdf_description: description,

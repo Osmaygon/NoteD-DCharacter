@@ -159,6 +159,8 @@ El OCR puede truncar textos con `...` o `…`; no asumir nombres perfectos.
 
 ### Rasgos, Conjuros Y Trucos
 
+Regla de clasificacion: los `Conjuros de juramento`, `Conjuros de dominio` y `Conjuros de artillero` se tratan como conjuros siempre preparados, no como rasgos. No cuentan para el limite de preparados, pero si gastan espacios al lanzarse. Rasgos como `Canalizar Divinidad` siguen siendo rasgos de clase.
+
 El bloque debe seguir siendo unico, pero cada elemento debe tener un identificador pequeno:
 
 - `Rasgo`.
@@ -491,6 +493,8 @@ Tipos actuales:
 
 - `Rasgo`.
 - `Rasgo personalizado`.
+
+Los conjuros otorgados automaticamente por subclase/dominio/juramento se muestran en `Conjuros` como `Siempre preparado`, no en `Rasgos`.
 
 El plan es anadir mas adelante:
 

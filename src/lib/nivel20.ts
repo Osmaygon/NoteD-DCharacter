@@ -113,6 +113,15 @@ function normalizeSearch(value: string): string {
     .trim();
 }
 
+function isSpellGrantTraitName(name: string): boolean {
+  const normalized = normalizeSearch(name);
+  return /^conjuros? de (juramento|dominio|artillero)\b/.test(normalized);
+}
+
+function isAlwaysPreparedSpellLabel(labels: string[] = []): boolean {
+  return labels.some((label) => /conjuros? de (juramento|dominio|artillero)/i.test(normalizeSearch(label)));
+}
+
 export async function nivel20FetchText(path: string): Promise<string> {
   const baseUrl = (process.env.NIVEL20_BASE_URL || "https://nivel20.com").replace(/\/$/, "");
   const sessionCookie = process.env.NIVEL20_SESSION_COOKIE;
@@ -162,7 +171,7 @@ export function normalizeNivel20Character(payload: Nivel20CharacterJson, sourceP
   const className = info.level_desc?.replace(/\s+\d+$/, "").trim() || "";
   const classFeats = (printable.professions ?? []).flatMap((profession) =>
     (profession.feats ?? []).flatMap((feat) => {
-      if (!feat.name) return [];
+      if (!feat.name || isSpellGrantTraitName(feat.name)) return [];
       return [{
         name: feat.name,
         pdf_description: feat.description ?? "",
@@ -205,13 +214,17 @@ export function normalizeNivel20Character(payload: Nivel20CharacterJson, sourceP
 
   const spellBook = printable.spell_books?.[0];
   const spellRows = (spellBook?.spells ?? []).flatMap(([level, spells]) =>
-    spells.map((spell) => ({
+    spells.map((spell) => {
+      const label = spell.label ?? [];
+      const alwaysPrepared = isAlwaysPreparedSpellLabel(label);
+      return {
       id: spell.id,
       level,
       name: spell.name,
-      prepared: Boolean(spell.prepared),
-      included: Boolean(spell.included),
-      label: spell.label ?? [],
+      prepared: Boolean(spell.prepared) || alwaysPrepared,
+      included: Boolean(spell.included) || alwaysPrepared,
+      always_prepared: alwaysPrepared,
+      label,
       summary: spell.summary ?? "",
       description: spell.description ?? "",
       range: spell.range ?? "",
@@ -219,7 +232,8 @@ export function normalizeNivel20Character(payload: Nivel20CharacterJson, sourceP
       duration: spell.duration ?? "",
       components: spell.short_components ?? "",
       school: spell.spell_school_name ?? "",
-    })),
+      };
+    }),
   );
   const perceptionSkill = (printable.skills ?? []).find((entry) =>
     entry.slug === "percepcion" || normalizeSearch(entry.name) === "percepcion",
