@@ -1043,18 +1043,11 @@ export default function CharacterDetailPage() {
               </div>
               <div className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
                 <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Espacios de conjuro</p>
-                <div className="mt-3 grid gap-3">
+                <div className="mt-3 grid gap-2">
                   {numericSpellSlots.length ? numericSpellSlots.map((slot) => (
-                    <div key={`slot-${slot.level}`}>
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-[#f3dfac]">Nivel {slot.level}</p>
-                        <p className="text-xs text-[#b9ae8d]">{slot.count}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {Array.from({ length: slot.count }, (_, index) => (
-                          <span key={`slot-${slot.level}-${index}`} className="h-7 w-7 rounded-md border border-[#d3a84a88] bg-[#d3a84a22]" aria-label={`Espacio de nivel ${slot.level}`} />
-                        ))}
-                      </div>
+                    <div key={`slot-${slot.level}`} className="flex items-center justify-between gap-3 rounded-lg border border-[#d3a84a44] bg-black/25 px-3 py-2">
+                      <p className="text-sm font-semibold text-[#f3dfac]">Nivel {slot.level}</p>
+                      <p className="text-lg font-semibold text-[#f3dfac]">{slot.count}</p>
                     </div>
                   )) : <p className="text-sm text-[#d9c89e]">Sin espacios detectados.</p>}
                 </div>
