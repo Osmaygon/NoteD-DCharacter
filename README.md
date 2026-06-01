@@ -224,7 +224,7 @@ Pestanas:
 `Combate`:
 
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia.
-- Durante la partida: HP actual y vida temporal en bloques apilados.
+- Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Ataques y Equipo en bloques apilados.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. En la pestaña Conjuros, los espacios por nivel se muestran a la derecha como bloques visibles.
 
