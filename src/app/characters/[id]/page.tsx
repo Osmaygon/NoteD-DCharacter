@@ -1050,7 +1050,7 @@ export default function CharacterDetailPage() {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                             <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                            <p className="text-right text-xs text-[#b9ae8d]">Nv {spell.level} · {spellCastSummary(spell)} · {isOpen ? "-" : "+"}</p>
+                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · {isOpen ? "-" : "+"} · Nv {spell.level}</p>
                           </div>
                           <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
@@ -1108,7 +1108,7 @@ export default function CharacterDetailPage() {
                         onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                       >
                         <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                        <p className="text-right text-xs text-[#b9ae8d]">Nv {spell.level} · {spellCastSummary(spell)} · {isOpen ? "Cerrar" : "Ver más"}</p>
+                        <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · {isOpen ? "Cerrar" : "Ver más"} · Nv {spell.level}</p>
                       </button>
                       <button className={isPrepared ? "btn-primary" : "btn-secondary"} type="button" onClick={() => void togglePreparedSpell(spell)}>
                         {isAutoPrepared ? alwaysPreparedSource(spell) : isPrepared ? "Preparado" : "Preparar"}
