@@ -13,6 +13,271 @@ Aplicacion web para importar, consultar y usar fichas de personaje de D&D durant
 - Ficha reconstruida visualmente desde cero y dividida en pestañas.
 - Commit y push inmediato despues de cada cambio funcional o visual para verlo en Vercel.
 
+## Contexto Para PI/IA Que Continue El Proyecto
+
+Esta seccion resume el contexto operativo para que una PI/IA futura pueda continuar sin perder decisiones ni repetir errores.
+
+### Reglas De Conversacion Y Trabajo
+
+- Responder siempre en espanol.
+- El usuario quiere ver los cambios en Vercel, por eso cada cambio debe terminar con commit y push inmediato.
+- Antes de grandes cambios visuales conviene confirmar la intencion, pero si el usuario dice `ejecuta`, implementar directamente.
+- No tocar `/characters` salvo que el usuario lo pida explicitamente; el trabajo activo es la ficha `/characters/[id]`.
+- No revertir cambios ajenos ni cambios no relacionados del worktree.
+- Si se cambia SQL, aplicar `supabase db query --linked --file "supabase/home_entities.sql"` y commitear tambien el SQL.
+- Para cambios de codigo ejecutar `npm run lint` y `npm run build` antes del commit.
+- Para cambios solo de documentacion no hace falta `lint/build`.
+- Mantener la ficha practica, no sobrecargarla de texto abierto por defecto.
+- El diseno debe acabar siendo comodo tambien en movil.
+
+### Objetivo Del Producto
+
+La app debe servir para usar una ficha de D&D en partida real. No es solo un visor del PDF. La ficha debe separar claramente:
+
+- Informacion estable del personaje.
+- Herramientas de combate y roleo rapido.
+- Datos editables durante la sesion.
+- Texto largo cerrado por defecto y desplegable bajo demanda.
+
+Referencia visual deseada: Nivel20, especialmente la ficha publica `https://nivel20.com/games/dnd-5/characters/1505343-gravity-claymore`.
+
+### Datos De Ejemplo Del PDF Real
+
+El personaje de referencia importado desde PDF tiene estos valores esperados:
+
+- Nombre: `Gravity Claymore`.
+- Clase: `Paladin` o `Paladin` con tilde si el PDF la trae acentuada; en la UI debe verse solo la clase, no el nombre del personaje ni etiquetas cercanas.
+- Nivel: `7`.
+- Especie: `Draconido`.
+- Trasfondo: `Soldado (Sanador)`.
+- Alineamiento: `Legal bueno`.
+- CA: `19`.
+- HP max: `60`.
+- Velocidad: `30 pies`, `6 casillas`.
+- Fuerza: `18`, modificador `+4`.
+- Percepcion pasiva: `11`.
+
+Fragmento importante del PDF:
+
+```text
+Paladin 7
+CLASE Y NIVEL
+Soldado (Sanador)
+TRASFONDO
+GravedadMolon
+JUGADOR
+Draconido
+ESPECIE
+Legal bueno
+ALINEAMIENTO PUNTOS DE EXPERIENCIA
+FUERZA +4
+18
+DESTREZA -1
+8
+CONSTITUCION +2
+15
+INTELIGENCIA 0
+10
+SABIDURIA +1
+12
+CARISMA +2
+14
+```
+
+El parser debe evitar que `Clase`, `Especie` o `Trasfondo` capturen ruido como `Gravity Claymore NOMBRE DEL PERSONAJE`.
+
+### Reglas Importantes Del PDF Nivel20
+
+- Muchas etiquetas estan al final del bloque, no al principio.
+- Si un bloque termina en `EQUIPO`, el contenido anterior es equipo.
+- Si un bloque termina en `RASGOS Y ATRIBUTOS`, el contenido anterior son rasgos/atributos.
+- `ATAQUES Y LANZAMIENTO DE CONJUROS` no siempre contiene los ataques reales; en este PDF muchas veces va antes del equipo.
+- Los ataques reales estan bajo la tabla `NOMBRE BONIF. DANO/TIPO`, despues de `SALVACIONES DE MUERTE`.
+- `11 SABIDURIA (PERCEPCION) PASIVA` significa PP `11`, no que `Trato con Animales` tenga `+1 11`.
+
+### Tiradas De Salvacion Y Habilidades
+
+El icono raro del PDF indica competencia:
+
+- ` Inteligencia +2`: sin competencia.
+- `x Sabiduria +6`: con competencia.
+- `x Atletismo +7`: con competencia.
+
+Las 6 salvaciones son:
+
+- Fuerza.
+- Destreza.
+- Constitucion.
+- Inteligencia.
+- Sabiduria.
+- Carisma.
+
+Todo lo demas de esa lista son habilidades.
+
+La UI actual muestra habilidades en tarjetas individuales, en escritorio con filas de 4 y la ultima fila de 2 centrada.
+
+### Equipo
+
+El equipo se debe mostrar como objetos desplegables, no como texto plano.
+
+El parser debe separar casos como:
+
+```text
+- Paquete de sacerdote
+Un escarabajo muerto del tamano de mi mano
+EQUIPO
+```
+
+Resultado esperado:
+
+- `Paquete de sacerdote`.
+- `Un escarabajo muerto del tamano de mi mano`.
+
+Cada objeto de equipo puede tener:
+
+- `name`.
+- `detail`.
+- `kind`.
+- `quick_use`.
+
+De momento el `quick_use` se infiere por reglas simples, no por API.
+
+### Ataques
+
+Los ataques deben salir como tarjetas, no mezclados con equipo.
+
+Ejemplos reales del PDF:
+
+- `CasiClaymore +7 2d6 +4 cortante`.
+- `El clavito +7 1d8 +4 contunden...`.
+- `cuidado por la de... +7 1d6 +4 contunden...`.
+- `Daga exotica (Tr...) +7 1d4 perforante`.
+
+El OCR puede truncar textos con `...` o `…`; no asumir nombres perfectos.
+
+### Rasgos, Conjuros Y Trucos
+
+El bloque debe seguir siendo unico, pero cada elemento debe tener un identificador pequeno:
+
+- `Rasgo`.
+- `Rasgo personalizado`.
+- Futuro: `Conjuro`.
+- Futuro: `Truco`.
+- Futuro: `Accion`.
+- Futuro: `Accion adicional`.
+- Futuro: `Reaccion`.
+
+Los rasgos estan cerrados por defecto. Al abrir uno:
+
+- Mostrar descripcion.
+- Mostrar fuente.
+- Mostrar boton `Editar descripcion`.
+- El textarea de edicion manual debe estar oculto por defecto.
+
+Prioridad de descripcion:
+
+1. Manual (`source_payload.manual_trait_descriptions`).
+2. PDF limpio.
+3. API solo si devuelve texto en espanol.
+4. `Sin descripcion disponible en espanol.`
+
+No mostrar descripciones largas abiertas por defecto.
+
+### API Y Fuentes Externas
+
+El usuario ha sugerido usar Nivel20 y D&D Beyond mas adelante.
+
+Decision actual:
+
+- PDF + parser propio es la fuente principal.
+- Nivel20 se usa como referencia visual y puede investigarse como fuente futura.
+- D&D Beyond puede investigarse como API/fuente futura.
+- `dnd5eapi.co` solo se usa experimentalmente para rasgos, y solo si parece devolver espanol.
+- No depender de scraping de Nivel20 o D&D Beyond sin aprobacion explicita.
+
+Importante: si una API devuelve ingles, no mostrarlo al usuario. El usuario quiere la informacion en espanol.
+
+### UI Actual De La Ficha
+
+Archivo: `src/app/characters/[id]/page.tsx`.
+
+Cabecera:
+
+- Nombre.
+- Clase + nivel.
+- Especie + trasfondo.
+- Botones `Guardar` y `Borrar`.
+
+Pestanas:
+
+- `Informacion`.
+- `Combate`.
+
+`Informacion`:
+
+- Caracteristicas.
+- PP dentro de caracteristicas.
+- Tiradas de salvacion horizontales.
+- Habilidades horizontales.
+- Historia y notas.
+
+`Combate`:
+
+- Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia.
+- Durante la partida: HP actual y vida temporal.
+- Ataques y Equipo en horizontal desde `md`.
+- Rasgos, conjuros y trucos debajo a ancho completo.
+
+### Estado Persistente Actual
+
+Se guardan con `update_character_detail_for_user`:
+
+- HP actual.
+- Vida temporal.
+- Datos basicos de personaje.
+
+Se guarda con `update_character_source_payload_for_user`:
+
+- Descripciones manuales de rasgos en `source_payload.manual_trait_descriptions`.
+
+No se guardan todavia manualmente:
+
+- Descripciones manuales de equipo.
+- Clasificacion manual de acciones/conjuros/trucos.
+
+### Archivos Clave
+
+- `src/app/characters/[id]/page.tsx`: ficha visual, pestanas, contadores, desplegables.
+- `src/app/characters/page.tsx`: lista/importacion de personajes; no tocar salvo pedido.
+- `src/lib/character-import.ts`: parser principal del PDF.
+- `src/lib/pdf-import.ts`: extraccion de texto del PDF.
+- `src/lib/home-entities.ts`: cliente RPC de Supabase para campanas/personajes.
+- `src/lib/custom-auth.ts`: auth propia.
+- `src/components/app-header.tsx`: header compartido.
+- `supabase/home_entities.sql`: tablas/RPCs de personajes/campanas.
+- `supabase/custom_auth.sql`: tablas/RPCs de auth.
+
+### Cosas Que No Debe Romper Una PI/IA
+
+- No reintroducir `Escudos` en el visual; esta eliminado visualmente.
+- No limpiar `shields` sin hacerlo completo en SQL, tipos, RPC y UI.
+- No volver a mostrar `Competencias e idiomas` si esta vacio; se quito del visual.
+- No mostrar informacion en ingles al usuario.
+- No mezclar equipo con ataques.
+- No mostrar el editor manual de rasgos por defecto.
+- No tocar `/characters` si el usuario pide cambios de la ficha.
+- No depender de APIs no oficiales sin confirmacion.
+
+### Deuda Tecnica Concreta
+
+- `shields` sigue existiendo en BD y tipos por iteracion anterior.
+- `src/app/characters/page.tsx` puede tener cambios locales anteriores no relacionados; revisar antes de tocar.
+- `supabase/.temp/` puede aparecer como no trackeado; no commitearlo.
+- El parser sigue siendo heuristico y depende mucho del OCR del PDF.
+- Los ataques pueden quedar truncados por OCR.
+- Faltan tests del parser.
+- Falta revision responsive completa en movil.
+
 ## URLs
 
 - Supabase: `https://tu-proyecto.supabase.co`
