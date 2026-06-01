@@ -114,6 +114,10 @@ function shortText(value: string, max = 120): string {
   return `${clean.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function shortSpellDescription(spell: SpellEntry): string {
+  return shortText(spell.summary || spell.description || "Sin descripción", 160);
+}
+
 function numberFromUnknown(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -913,7 +917,7 @@ export default function CharacterDetailPage() {
                           <p className="text-xs text-[#b9ae8d]">Nv {spell.level}</p>
                         </div>
                         <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}</p>
-                        <p className="mt-2 text-sm text-[#d9c89e] whitespace-pre-wrap">{spell.summary || spell.description || "Sin descripción"}</p>
+                        <p className="mt-2 text-sm text-[#d9c89e]">{shortSpellDescription(spell)}</p>
                       </div>
                     ))}
                   </div>
@@ -953,7 +957,7 @@ export default function CharacterDetailPage() {
                     </div>
                     {isFixed ? <p className="mt-1 text-xs text-[#9f9578]">Conjuro fijo ({spell.label?.join(", ")})</p> : null}
                     <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"} · {spell.components || "-"}</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{spell.summary || spell.description || "Sin descripción"}</p>
+                    <p className="mt-2 text-sm text-[#d9c89e]">{shortSpellDescription(spell)}</p>
                   </div>
                 );
               })}

@@ -226,7 +226,7 @@ Pestanas:
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia.
 - Durante la partida: HP actual y vida temporal en bloques apilados.
 - Ataques y Equipo en bloques apilados.
-- Rasgos, conjuros y trucos en bloques apilados.
+- Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas.
 
 ### Estado Persistente Actual
 
