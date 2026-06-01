@@ -224,9 +224,9 @@ Pestanas:
 `Combate`:
 
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia.
-- Durante la partida: HP actual y vida temporal.
-- Ataques y Equipo en horizontal desde `md`.
-- Rasgos, conjuros y trucos debajo a ancho completo.
+- Durante la partida: HP actual y vida temporal en bloques apilados.
+- Ataques y Equipo en bloques apilados.
+- Rasgos, conjuros y trucos en bloques apilados.
 
 ### Estado Persistente Actual
 

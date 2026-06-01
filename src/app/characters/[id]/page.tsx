@@ -850,7 +850,7 @@ export default function CharacterDetailPage() {
               </div>
 
               <p className="mt-4 text-xs uppercase tracking-wide text-[#b9ae8d]">Durante la partida</p>
-              <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-3">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">HP actual</p>
                   <div className="mt-2 flex items-center gap-2">
@@ -880,7 +880,7 @@ export default function CharacterDetailPage() {
               </div>
             </section>
 
-            <section className="grid gap-4 md:grid-cols-2">
+            <section className="grid gap-4">
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ataques</p>
                 {renderAttackCards(attacks, sections.attacks)}
@@ -889,17 +889,17 @@ export default function CharacterDetailPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Equipo</p>
                 {renderEquipmentList(equipment, sections.equipment)}
               </div>
-              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos utiles para combate</p>
                 {!combatTraits.length ? <p className="mt-2 text-sm text-[#d9c89e]">Marca rasgos como &quot;Mostrar en combate&quot; desde la pestaña Rasgos.</p> : renderTraitList(combatTraits, sections.traits)}
               </div>
-              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4 md:col-span-2">
+              <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros y trucos preparados</p>
                 <p className="mt-2 text-xs text-[#9f9578]">Preparados: {preparedCount}{preparedLimit ? ` / ${preparedLimit}` : ""}</p>
                 {!preparedCombatSpells.length ? (
                   <p className="mt-2 text-sm text-[#d9c89e]">No hay conjuros preparados. Marca desde la pestaña Conjuros.</p>
                 ) : (
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  <div className="mt-3 grid gap-2">
                     {preparedCombatSpells.map((spell) => (
                       <div key={spell.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
                         <div className="flex items-start justify-between gap-2">
