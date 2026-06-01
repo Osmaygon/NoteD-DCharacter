@@ -124,6 +124,15 @@ function shortSpellDescription(spell: SpellEntry): string {
   return shortText(spellDescription(spell), 160);
 }
 
+function spellComponentSiglas(spell: SpellEntry): string {
+  return (spell.components ?? "")
+    .replace(/\bverbal\b/gi, "V")
+    .replace(/\bsom[aá]tico\b/gi, "S")
+    .replace(/\bmaterial\b/gi, "M")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isAlwaysPreparedSpell(spell: SpellEntry): boolean {
   return Boolean(spell.always_prepared) || Boolean(spell.label?.some((label) => /conjuros? de (juramento|dominio|artillero)/i.test(normalizeTraitKey(label))));
 }
@@ -1038,6 +1047,7 @@ export default function CharacterDetailPage() {
                             <p className="text-xs text-[#b9ae8d]">Nv {spell.level} · {isOpen ? "-" : "+"}</p>
                           </div>
                           <p className="mt-1 text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}</p>
+                          {spellComponentSiglas(spell) ? <p className="mt-1 text-xs text-[#b9ae8d]">Componentes: {spellComponentSiglas(spell)}</p> : null}
                           <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                           </p>
@@ -1106,7 +1116,8 @@ export default function CharacterDetailPage() {
                       type="button"
                       onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                     >
-                      <p className="text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"} · {spell.components || "-"}</p>
+                      <p className="text-xs text-[#b9ae8d]">{spell.casting_time || "-"} · {spell.range || "-"} · {spell.duration || "-"}</p>
+                      {spellComponentSiglas(spell) ? <p className="mt-1 text-xs text-[#b9ae8d]">Componentes: {spellComponentSiglas(spell)}</p> : null}
                       <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
                         {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                       </p>
