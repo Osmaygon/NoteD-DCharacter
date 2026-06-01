@@ -147,6 +147,16 @@ function normalizeNivel20Character(payload, sourcePath) {
     })),
   );
 
+  const perceptionSkill = (printable.skills ?? []).find((entry) =>
+    entry.slug === "percepcion" || normalizeName(entry.name) === "percepcion",
+  );
+  const rawPassivePerception = printable.fields?.perception?.total ?? printable.fields?.perception?.total_value;
+  const passivePerception = typeof rawPassivePerception === "number" && rawPassivePerception > 0
+    ? rawPassivePerception
+    : typeof perceptionSkill?.total === "number"
+      ? 10 + perceptionSkill.total
+      : rawPassivePerception ?? null;
+
   const sourcePayload = {
     external_source: "nivel20",
     external_id: String(info.id ?? ""),
@@ -157,7 +167,7 @@ function normalizeNivel20Character(payload, sourcePath) {
       player: info.player,
       campaign: info.campaign,
       proficiency_bonus: info.proficiency_bonus,
-      passive_perception: printable.fields?.perception?.total ?? null,
+      passive_perception: passivePerception,
       abilities: {
         fuerza: { score: abilities.fue?.total, modifier: abilities.fue?.mod },
         destreza: { score: abilities.des?.total, modifier: abilities.des?.mod },

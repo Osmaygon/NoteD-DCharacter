@@ -114,6 +114,15 @@ function shortText(value: string, max = 120): string {
   return `${clean.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function numberFromUnknown(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 async function fetchTraitFromApi(name: string): Promise<string> {
   const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
   for (const path of paths) {
@@ -169,6 +178,14 @@ export default function CharacterDetailPage() {
   const equipment = Array.isArray(summary.equipment) ? summary.equipment as EquipmentEntry[] : [];
   const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
   const spells = Array.isArray(summary.spells) ? summary.spells as SpellEntry[] : [];
+  const perceptionSkill = skills.find((entry) => normalizeTraitKey(entry.name) === "percepcion");
+  const rawPassivePerception = numberFromUnknown(summary.passive_perception);
+  const perceptionBonus = numberFromUnknown(perceptionSkill?.bonus);
+  const passivePerception = rawPassivePerception !== null && rawPassivePerception > 0
+    ? rawPassivePerception
+    : perceptionBonus !== null
+      ? 10 + perceptionBonus
+      : rawPassivePerception;
   const spellMeta = (summary.spell_meta as {
     ability?: string | null;
     save_dc?: number | null;
@@ -765,7 +782,7 @@ export default function CharacterDetailPage() {
                   })}
                   <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3 text-center">
                     <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">PP</p>
-                    <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{String(summary.passive_perception ?? "-")}</p>
+                    <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{passivePerception ?? "-"}</p>
                     <p className="text-sm text-[#d9c89e]">Percepción pasiva</p>
                   </div>
                 </div>

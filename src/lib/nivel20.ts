@@ -36,7 +36,7 @@ type Nivel20CharacterJson = {
     armor?: { normal?: number };
     ability?: Record<string, { total?: number; mod?: number }>;
     saving_throws?: Array<{ name: string; total?: number; proficiency?: string }>;
-    skills?: Array<{ name: string; total?: number; proficiency?: string }>;
+    skills?: Array<{ name: string; slug?: string; total?: number; proficiency?: string }>;
     attacks?: Array<{
       name: string;
       attack?: { to_hit?: { value?: number }; damage?: { value?: string; type?: string } };
@@ -55,7 +55,7 @@ type Nivel20CharacterJson = {
       edad?: string | null;
       idiomas?: string | null;
       notas?: string | null;
-      perception?: { total?: number };
+      perception?: { total?: number; total_value?: number };
     };
     background?: {
       name?: string;
@@ -103,6 +103,14 @@ function stripTags(value: string): string {
       .replace(/\s+/g, " ")
       .trim(),
   );
+}
+
+function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 export async function nivel20FetchText(path: string): Promise<string> {
@@ -213,6 +221,15 @@ export function normalizeNivel20Character(payload: Nivel20CharacterJson, sourceP
       school: spell.spell_school_name ?? "",
     })),
   );
+  const perceptionSkill = (printable.skills ?? []).find((entry) =>
+    entry.slug === "percepcion" || normalizeSearch(entry.name) === "percepcion",
+  );
+  const rawPassivePerception = printable.fields?.perception?.total ?? printable.fields?.perception?.total_value;
+  const passivePerception = typeof rawPassivePerception === "number" && rawPassivePerception > 0
+    ? rawPassivePerception
+    : typeof perceptionSkill?.total === "number"
+      ? 10 + perceptionSkill.total
+      : rawPassivePerception ?? null;
 
   return {
     name: info.name ?? "Personaje importado",
@@ -234,7 +251,7 @@ export function normalizeNivel20Character(payload: Nivel20CharacterJson, sourceP
         player: printable.info?.player,
         campaign: printable.info?.campaign,
         proficiency_bonus: printable.info?.proficiency_bonus,
-        passive_perception: printable.fields?.perception?.total ?? null,
+        passive_perception: passivePerception,
         abilities: {
           fuerza: { score: abilities.fue?.total, modifier: abilities.fue?.mod },
           destreza: { score: abilities.des?.total, modifier: abilities.des?.mod },
