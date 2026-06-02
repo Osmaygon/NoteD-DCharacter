@@ -227,7 +227,7 @@ Pestanas:
 
 `Combate`:
 
-- Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia, CD de conjuros y característica de lanzamiento.
+- Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Ataques y Equipo en bloques apilados.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. Accion, alcance, duracion y componentes (`V`, `S`, `M`) van en la cabecera y el nivel queda al final de esa linea. En la pestaña Conjuros, los espacios por nivel se muestran debajo de preparados en una sola fila como nivel y cantidad disponible. En Combate, esos espacios se pueden marcar/desmarcar como gastados por nivel.
@@ -421,8 +421,7 @@ Contiene informacion util para usar durante pelea o roleo activo:
   - HP max.
   - Velocidad en pies y casillas.
   - Competencia.
-  - CD de salvacion de conjuros.
-  - Caracteristica de lanzamiento de conjuros.
+  - CD de salvacion de conjuros con caracteristica de lanzamiento debajo.
 - Durante la partida:
   - HP actual con contador.
   - Vida temporal con contador.
