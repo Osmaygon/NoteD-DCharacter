@@ -78,6 +78,11 @@ type TraitDetail = {
   source: "manual" | "api" | "pdf" | "none";
 };
 
+type StorySection = {
+  title: string;
+  text: string;
+};
+
 type DndApiEntry = {
   desc?: string[];
 };
@@ -175,6 +180,36 @@ function slotMetaLabel(key: string): string {
   return key;
 }
 
+function textValue(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function storyText(value: string): string {
+  return value
+    .replace(/\r/g, "")
+    .replace(/\*\*/g, "")
+    .trim();
+}
+
+function addStorySection(sections: StorySection[], title: string, value: string) {
+  const text = storyText(value);
+  if (text) sections.push({ title, text });
+}
+
+function splitFeatureDescription(value: string): StorySection | null {
+  const text = storyText(value);
+  if (!text) return null;
+  const [firstLine = "", ...rest] = text.split("\n");
+  if (/^RASGO\s*:/i.test(firstLine)) {
+    return {
+      title: firstLine.replace(/^RASGO\s*:/i, "Rasgo:"),
+      text: rest.join("\n").trim() || text,
+    };
+  }
+  return { title: "Rasgo de trasfondo", text };
+}
+
 async function fetchTraitFromApi(name: string): Promise<string> {
   const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
   for (const path of paths) {
@@ -230,6 +265,27 @@ export default function CharacterDetailPage() {
   const equipment = Array.isArray(summary.equipment) ? summary.equipment as EquipmentEntry[] : [];
   const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
   const spells = Array.isArray(summary.spells) ? summary.spells as SpellEntry[] : [];
+  const raw = (rawPayload.raw as Record<string, unknown> | undefined) ?? {};
+  const backgroundStory = (raw.background && typeof raw.background === "object" && !Array.isArray(raw.background))
+    ? raw.background as Record<string, unknown>
+    : {};
+  const fieldStory = (raw.fields && typeof raw.fields === "object" && !Array.isArray(raw.fields))
+    ? raw.fields as Record<string, unknown>
+    : {};
+  const storySections: StorySection[] = [];
+  addStorySection(storySections, "Trasfondo", textValue(backgroundStory, "name") || form.background);
+  addStorySection(storySections, "Rasgos de personalidad", textValue(backgroundStory, "traits"));
+  addStorySection(storySections, "Ideales", textValue(backgroundStory, "ideals"));
+  addStorySection(storySections, "Vínculos", textValue(backgroundStory, "bonds"));
+  addStorySection(storySections, "Defectos", textValue(backgroundStory, "flaws"));
+  const featureSection = splitFeatureDescription(textValue(backgroundStory, "feat_description"));
+  if (featureSection) storySections.push(featureSection);
+  addStorySection(storySections, "Historia del personaje", textValue(fieldStory, "historia"));
+  addStorySection(storySections, "Apariencia", textValue(fieldStory, "apariencia"));
+  addStorySection(storySections, "Idiomas", textValue(fieldStory, "idiomas"));
+  addStorySection(storySections, "Alineamiento", textValue(fieldStory, "alineamiento"));
+  addStorySection(storySections, "Edad", textValue(fieldStory, "edad"));
+  addStorySection(storySections, "Notas adicionales", textValue(fieldStory, "notas"));
   const perceptionSkill = skills.find((entry) => normalizeTraitKey(entry.name) === "percepcion");
   const rawPassivePerception = numberFromUnknown(summary.passive_perception);
   const perceptionBonus = numberFromUnknown(perceptionSkill?.bonus);
@@ -940,14 +996,17 @@ export default function CharacterDetailPage() {
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Historia</p>
               <div className="mt-3 grid gap-3">
-                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Trasfondo narrativo</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.background || "-"}</p>
-                </div>
-                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                  <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin notas"}</p>
-                </div>
+                {storySections.length ? storySections.map((section) => (
+                  <div key={section.title} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{section.title}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{section.text}</p>
+                  </div>
+                )) : (
+                  <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin historia importada"}</p>
+                  </div>
+                )}
               </div>
             </section>
           </div>

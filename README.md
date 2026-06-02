@@ -223,7 +223,7 @@ Pestanas:
 - PP separado a la derecha de las caracteristicas en escritorio.
 - Tiradas de salvacion horizontales.
 - Habilidades horizontales.
-- Historia y notas en bloques apilados.
+- Historia importada desde Nivel20 en bloques apilados con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
 
 `Combate`:
 
@@ -408,7 +408,7 @@ Contiene datos de consulta del personaje:
 - `PP` como percepcion pasiva, separado a la derecha en escritorio.
 - Tiradas de salvacion en tarjetas individuales.
 - Habilidades en tarjetas individuales.
-- Historia y notas en bloques apilados.
+- Historia importada desde Nivel20 en bloques apilados con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
 
 El bloque de habilidades esta organizado para que en escritorio quede en 3 columnas.
 
