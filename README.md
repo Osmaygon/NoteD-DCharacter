@@ -537,7 +537,7 @@ Nota importante:
 
 Decisiones actuales:
 
-- Tema oscuro/dorado.
+- Tema oscuro/dorado con fondo global fijo para evitar cortes de gradiente al hacer scroll.
 - Cabecera con nombre, clase/nivel, especie y trasfondo.
 - `Guardar` y `Borrar` arriba.
 - Titulo del header siempre navega al dashboard.

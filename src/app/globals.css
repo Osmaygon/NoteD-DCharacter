@@ -16,11 +16,19 @@
   --font-sans: var(--font-body);
 }
 
+html {
+  background: var(--background);
+}
+
 body {
-  background:
-    radial-gradient(circle at 10% 0%, rgba(211, 168, 74, 0.2), transparent 35%),
-    radial-gradient(circle at 100% 100%, rgba(143, 106, 42, 0.28), transparent 40%),
-    var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(900px circle at 8% -12%, rgba(211, 168, 74, 0.22), transparent 62%),
+    radial-gradient(780px circle at 105% 110%, rgba(143, 106, 42, 0.24), transparent 64%),
+    radial-gradient(620px circle at 70% 18%, rgba(92, 65, 24, 0.12), transparent 68%),
+    linear-gradient(180deg, #08090d 0%, #0b0d14 45%, #08090d 100%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
 }
