@@ -1015,7 +1015,7 @@ export default function CharacterDetailPage() {
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
               <p className="mt-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Referencia rápida</p>
-              <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-6">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">CA</p>
                   <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.ac || "-"}</p>
@@ -1040,6 +1040,14 @@ export default function CharacterDetailPage() {
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">Competencia</p>
                   <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{String(summary.proficiency_bonus ?? "-")}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">CD conjuros</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{String(spellMeta.save_dc ?? "-")}</p>
+                </div>
+                <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                  <p className="text-xs text-[#b9ae8d]">Caract. conjuros</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{spellMeta.ability || "-"}</p>
                 </div>
               </div>
 
