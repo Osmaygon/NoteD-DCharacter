@@ -352,7 +352,7 @@ function inferInventoryItem(entry: EquipmentEntry, index: number): InventoryItem
 
 function itemArmorClass(item: InventoryItem, dexMod: number): number | null {
   if (item.category !== "armadura" || !item.armorBase) return null;
-  const dex = item.maxDex === 0
+  const dex = typeof item.maxDex === "number" && item.maxDex <= 0
     ? 0
     : item.maxDex === null || item.maxDex === undefined
       ? dexMod
