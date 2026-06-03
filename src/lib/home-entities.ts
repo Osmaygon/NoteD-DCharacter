@@ -7,6 +7,17 @@ export type HomeEntity = {
   created_at?: string;
 };
 
+export type StatusEffect = {
+  id: string;
+  name: string;
+  category: string;
+  source: string;
+  description: string;
+  rules: Record<string, unknown>;
+  note?: string;
+  created_at?: string;
+};
+
 export type CharacterDetail = {
   id: string;
   name: string;
@@ -162,6 +173,41 @@ export async function updateCharacterAmmunition(
     p_user_id: userId,
     p_character_id: characterId,
     p_ammunition: ammunition,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function searchStatusEffects(query: string): Promise<StatusEffect[]> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("search_status_effects", { p_query: query });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as StatusEffect[];
+}
+
+export async function listActiveStatusEffects(userId: string, characterId: string): Promise<StatusEffect[]> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("list_active_status_effects_for_character", {
+    p_user_id: userId,
+    p_character_id: characterId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as StatusEffect[];
+}
+
+export async function setCharacterStatusEffectActive(
+  userId: string,
+  characterId: string,
+  statusId: string,
+  active: boolean,
+  note = "",
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("set_character_status_effect_active", {
+    p_user_id: userId,
+    p_character_id: characterId,
+    p_status_id: statusId,
+    p_active: active,
+    p_note: note,
   });
   if (error) throw new Error(error.message);
 }

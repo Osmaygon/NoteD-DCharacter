@@ -631,3 +631,150 @@ grant execute on function public.get_character_detail_for_user(uuid, uuid) to an
 grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) to anon, authenticated;
 grant execute on function public.update_character_source_payload_for_user(uuid, uuid, jsonb) to anon, authenticated;
 grant execute on function public.delete_character_for_user(uuid, uuid) to anon, authenticated;
+
+create table if not exists public.app_status_effects (
+  id text primary key,
+  name text not null,
+  category text not null default 'estado',
+  source text not null default '5e 2014',
+  description text not null default '',
+  rules jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.app_character_active_statuses (
+  character_id uuid not null references public.app_characters(id) on delete cascade,
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  status_id text not null references public.app_status_effects(id) on delete cascade,
+  note text not null default '',
+  created_at timestamptz not null default now(),
+  primary key (character_id, user_id, status_id)
+);
+
+alter table public.app_status_effects enable row level security;
+alter table public.app_character_active_statuses enable row level security;
+
+drop policy if exists "no direct app_status_effects" on public.app_status_effects;
+drop policy if exists "no direct app_character_active_statuses" on public.app_character_active_statuses;
+create policy "no direct app_status_effects" on public.app_status_effects for all using (false) with check (false);
+create policy "no direct app_character_active_statuses" on public.app_character_active_statuses for all using (false) with check (false);
+
+insert into public.app_status_effects(id, name, category, source, description, rules) values
+('cegado','Cegado','Condición','5e 2014 / Nivel20','No puedes ver; fallas pruebas que dependan de la vista. Tus ataques tienen desventaja y los ataques contra ti tienen ventaja.','{"attack_disadvantage":true,"incoming_attack_advantage":true}'::jsonb),
+('hechizado','Hechizado','Condición','5e 2014 / Nivel20','No puedes atacar al encantador ni elegirlo como objetivo de efectos dañinos; el encantador tiene ventaja en pruebas sociales contra ti.','{}'::jsonb),
+('ensordecido','Ensordecido','Condición','5e 2014 / Nivel20','No puedes oír y fallas pruebas que dependan del oído.','{}'::jsonb),
+('asustado','Asustado','Condición','5e 2014 / Nivel20','Tienes desventaja en pruebas y ataques mientras la fuente del miedo esté a la vista; no puedes acercarte voluntariamente a ella.','{"attack_disadvantage_note":"Contra la fuente del miedo si está a la vista"}'::jsonb),
+('agarrado','Agarrado','Condición','5e 2014 / Nivel20','Tu velocidad pasa a 0. Termina si quien te agarra queda incapacitado o sales de su alcance.','{"speed_set":0}'::jsonb),
+('incapacitado','Incapacitado','Condición','5e 2014 / Nivel20','No puedes realizar acciones ni reacciones.','{}'::jsonb),
+('invisible','Invisible','Condición','5e 2014 / Nivel20','No se te puede ver sin magia o sentidos especiales. Tus ataques tienen ventaja y los ataques contra ti tienen desventaja.','{"attack_advantage":true,"incoming_attack_disadvantage":true}'::jsonb),
+('paralizado','Paralizado','Condición','5e 2014 / Nivel20','Estás incapacitado, no puedes moverte ni hablar; fallas salvaciones de Fuerza y Destreza. Ataques contra ti tienen ventaja y los impactos cuerpo a cuerpo cercanos son críticos.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('petrificado','Petrificado','Condición','5e 2014 / Nivel20','Transformado en sustancia sólida; incapacitado, no puedes moverte ni hablar. Resistencia a todo daño y fallas salvaciones de Fuerza y Destreza.','{"speed_set":0,"incoming_attack_advantage":true,"resistance_note":"Resistencia a todo daño"}'::jsonb),
+('envenenado','Envenenado','Condición','5e 2014 / Nivel20','Tienes desventaja en tiradas de ataque y pruebas de característica.','{"attack_disadvantage":true,"ability_check_disadvantage":true}'::jsonb),
+('derribado','Derribado','Condición','5e 2014 / Nivel20','Solo puedes moverte arrastrándote hasta levantarte. Tus ataques tienen desventaja; ataques cuerpo a cuerpo cercanos contra ti tienen ventaja y a distancia tienen desventaja.','{"attack_disadvantage":true,"incoming_melee_advantage":true,"incoming_ranged_disadvantage":true}'::jsonb),
+('apresado','Apresado','Condición','5e 2014 / Nivel20','Tu velocidad pasa a 0, tus ataques tienen desventaja y los ataques contra ti tienen ventaja; tienes desventaja en salvaciones de Destreza.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('aturdido','Aturdido','Condición','5e 2014 / Nivel20','Estás incapacitado, no puedes moverte y solo puedes hablar entrecortadamente. Fallas salvaciones de Fuerza y Destreza; ataques contra ti tienen ventaja.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('inconsciente','Inconsciente','Condición','5e 2014 / Nivel20','Estás incapacitado, no puedes moverte ni hablar, caes derribado y sueltas lo que lleves. Ataques contra ti tienen ventaja y los impactos cercanos son críticos.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('agotamiento-1','Agotamiento 1','Condición','5e 2014 / Nivel20','Nivel 1: desventaja en pruebas de característica.','{"ability_check_disadvantage":true}'::jsonb),
+('agotamiento-2','Agotamiento 2','Condición','5e 2014 / Nivel20','Nivel 2: velocidad reducida a la mitad.','{"speed_multiplier":0.5}'::jsonb),
+('agotamiento-3','Agotamiento 3','Condición','5e 2014 / Nivel20','Nivel 3: desventaja en ataques y tiradas de salvación.','{"attack_disadvantage":true,"saving_throw_disadvantage":true}'::jsonb),
+('agotamiento-4','Agotamiento 4','Condición','5e 2014 / Nivel20','Nivel 4: puntos de golpe máximos reducidos a la mitad.','{"hp_max_multiplier":0.5}'::jsonb),
+('agotamiento-5','Agotamiento 5','Condición','5e 2014 / Nivel20','Nivel 5: velocidad reducida a 0.','{"speed_set":0}'::jsonb),
+('bendecido','Bendecido','Conjuro/Efecto','5e 2014 / Nivel20','Añade 1d4 a ataques y tiradas de salvación mientras dure Bendición.','{"attack_bonus_die":"1d4","saving_throw_bonus_die":"1d4"}'::jsonb),
+('perdicion','Perdición','Conjuro/Efecto','5e 2014 / Nivel20','Resta 1d4 a ataques y tiradas de salvación mientras dure Perdición.','{"attack_penalty_die":"1d4","saving_throw_penalty_die":"1d4"}'::jsonb),
+('escudo-de-fe','Escudo de fe','Conjuro/Efecto','5e 2014 / Nivel20','Obtienes +2 a la CA mientras dure el conjuro.','{"ac_delta":2}'::jsonb),
+('escudo-conjuro','Escudo','Conjuro/Efecto','5e 2014 / Nivel20','Hasta el inicio de tu siguiente turno obtienes +5 a la CA, incluido contra el ataque desencadenante.','{"ac_delta":5}'::jsonb),
+('acelerado','Acelerado','Conjuro/Efecto','5e 2014 / Nivel20','Duplicas velocidad, +2 CA, ventaja en salvaciones de Destreza y una acción adicional limitada.','{"ac_delta":2,"speed_multiplier":2,"dex_save_advantage":true}'::jsonb),
+('ralentizado','Ralentizado','Conjuro/Efecto','5e 2014 / Nivel20','Velocidad reducida a la mitad, -2 CA y salvaciones de Destreza, y limitaciones de acciones/reacciones.','{"ac_delta":-2,"speed_multiplier":0.5,"dex_save_delta":-2}'::jsonb),
+('fuego-feerico','Fuego feérico','Conjuro/Efecto','5e 2014 / Nivel20','No puedes beneficiarte de invisibilidad y ataques contra ti tienen ventaja si el atacante puede verte.','{"incoming_attack_advantage":true}'::jsonb),
+('proteccion-bien-mal','Protección contra el bien y el mal','Conjuro/Efecto','5e 2014 / Nivel20','Ciertos tipos de criaturas tienen desventaja al atacarte y no pueden hechizarte, asustarte o poseerte.','{"incoming_attack_disadvantage_note":"Aberraciones, celestiales, elementales, feéricos, infernales y muertos vivientes"}'::jsonb),
+('ayuda','Ayuda','Conjuro/Efecto','5e 2014 / Nivel20','Aumenta temporalmente los PG máximos y actuales. Ajusta la cantidad en notas/HP si hace falta.','{}'::jsonb),
+('volando','Volando','Movimiento','Nivel20 / 5e 2014','Tienes velocidad de vuelo o estás en vuelo por efecto mágico.','{}'::jsonb),
+('concentracion','Concentración','Seguimiento','Nivel20 / 5e 2014','Recordatorio de concentración activa; al recibir daño debes salvar Constitución.','{}'::jsonb),
+('inspiracion-bardica','Inspiración bárdica','Recurso/Efecto','5e 2014 / Nivel20','Puedes añadir el dado de inspiración a una prueba, ataque o salvación según el rasgo.','{}'::jsonb),
+('furia','Furia','Rasgo/Efecto','5e 2014 / Nivel20','Ventaja en pruebas/salvaciones de Fuerza, bonus al daño cuerpo a cuerpo con Fuerza y resistencia a daño contundente, perforante y cortante.','{"resistance_note":"Contundente, perforante y cortante"}'::jsonb),
+('maleficio','Maleficio','Conjuro/Efecto','5e 2014 / Nivel20','Daño extra y desventaja en pruebas de una característica elegida.','{}'::jsonb),
+('marca-del-cazador','Marca del cazador','Conjuro/Efecto','5e 2014 / Nivel20','Daño extra al objetivo marcado y ventaja en rastreo/percepción para encontrarlo.','{}'::jsonb),
+('agrandado','Agrandado','Conjuro/Efecto','5e 2014 / Tasha compatible','Tamaño aumentado; ventaja en pruebas/salvaciones de Fuerza y daño extra según el conjuro.','{}'::jsonb),
+('reducido','Reducido','Conjuro/Efecto','5e 2014 / Tasha compatible','Tamaño reducido; desventaja en pruebas/salvaciones de Fuerza y daño reducido según el conjuro.','{}'::jsonb),
+('piel-petrea','Piel pétrea','Conjuro/Efecto','5e 2014 / Nivel20','Resistencia a daño contundente, perforante y cortante no mágico.','{"resistance_note":"Contundente, perforante y cortante no mágico"}'::jsonb),
+('levitando','Levitando','Conjuro/Efecto','5e 2014 / Nivel20','Te mueves verticalmente por levitación; el movimiento horizontal depende de empujarte o tirar de objetos/superficies.','{}'::jsonb),
+('mente-astillada','Mente astillada','Conjuro/Efecto','Tasha','Resta 1d4 a la siguiente tirada de salvación del objetivo antes del final de tu siguiente turno.','{"saving_throw_penalty_die":"1d4"}'::jsonb),
+('patron-protector','Protección de marca','Efecto','Eberron compatible','Estado genérico para efectos defensivos de marcas/rasgos de Eberron; ajusta el detalle según el rasgo concreto.','{}'::jsonb)
+on conflict (id) do update set
+  name = excluded.name,
+  category = excluded.category,
+  source = excluded.source,
+  description = excluded.description,
+  rules = excluded.rules;
+
+create or replace function public.search_status_effects(p_query text default '')
+returns table(id text, name text, category text, source text, description text, rules jsonb)
+language sql
+security definer
+set search_path = public
+as $$
+  select s.id, s.name, s.category, s.source, s.description, s.rules
+  from public.app_status_effects s
+  where coalesce(trim(p_query), '') = ''
+    or lower(s.name || ' ' || s.category || ' ' || s.source || ' ' || s.description) like '%' || lower(trim(p_query)) || '%'
+  order by case when lower(s.name) = lower(trim(p_query)) then 0 else 1 end, s.category, s.name
+  limit 50;
+$$;
+
+create or replace function public.list_active_status_effects_for_character(p_user_id uuid, p_character_id uuid)
+returns table(id text, name text, category text, source text, description text, rules jsonb, note text, created_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  select s.id, s.name, s.category, s.source, s.description, s.rules, a.note, a.created_at
+  from public.app_character_active_statuses a
+  join public.app_status_effects s on s.id = a.status_id
+  join public.app_character_members m on m.character_id = a.character_id and m.user_id = p_user_id
+  where a.user_id = p_user_id
+    and a.character_id = p_character_id
+  order by a.created_at desc, s.name;
+$$;
+
+create or replace function public.set_character_status_effect_active(
+  p_user_id uuid,
+  p_character_id uuid,
+  p_status_id text,
+  p_active boolean,
+  p_note text default ''
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_character_members m
+    where m.character_id = p_character_id and m.user_id = p_user_id
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  if coalesce(p_active, false) then
+    insert into public.app_character_active_statuses(character_id, user_id, status_id, note)
+    values (p_character_id, p_user_id, p_status_id, coalesce(p_note, ''))
+    on conflict (character_id, user_id, status_id) do update set
+      note = excluded.note,
+      created_at = now();
+  else
+    delete from public.app_character_active_statuses
+    where character_id = p_character_id
+      and user_id = p_user_id
+      and status_id = p_status_id;
+  end if;
+end;
+$$;
+
+grant execute on function public.search_status_effects(text) to anon, authenticated;
+grant execute on function public.list_active_status_effects_for_character(uuid, uuid) to anon, authenticated;
+grant execute on function public.set_character_status_effect_active(uuid, uuid, text, boolean, text) to anon, authenticated;

@@ -229,6 +229,7 @@ Pestanas:
 `Combate`:
 
 - Bloque `Descansos` encima de combate, cerrado por defecto en una sola línea; al abrir muestra botones `Corto` y `Largo` con recordatorios específicos leídos de los rasgos/clase del personaje.
+- Bloque `Estados` en combate para buscar estados del catálogo, aplicarlos/quitarles al personaje y modificar stats visibles como CA y velocidad.
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Munición opcional por usuario, visible/oculta según personaje, con bloques compactos ajustados a móvil: 1 columna en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
@@ -331,6 +332,8 @@ Tablas principales:
 - `app_character_members`
 - `app_character_profiles`
 - `app_character_user_state`
+- `app_status_effects`
+- `app_character_active_statuses`
 
 Campos relevantes de `app_character_profiles` como base compartida/default:
 
@@ -357,6 +360,11 @@ Campos relevantes de `app_character_user_state` como estado/overrides por cuenta
 - `profile_overrides`
 - `source_payload_overrides`
 
+Tablas de estados:
+
+- `app_status_effects`: catálogo por defecto con condiciones y efectos buscables (`Cegado`, `Acelerado`, `Escudo de fe`, etc.), con fuente y reglas JSON.
+- `app_character_active_statuses`: estados activos por personaje/cuenta.
+
 RPCs relevantes:
 
 - `import_character_from_payload`
@@ -366,6 +374,9 @@ RPCs relevantes:
 - `update_character_spell_slots_for_user`
 - `update_character_ammunition_for_user`
 - `update_character_inventory_for_user`
+- `search_status_effects`
+- `list_active_status_effects_for_character`
+- `set_character_status_effect_active`
 - `delete_character_for_user`
 
 ## Importacion Nivel20
@@ -460,6 +471,10 @@ Contiene informacion util para usar durante pelea o roleo activo:
   - Bloque desplegable cerrado por defecto.
   - `Descanso corto`: aplica recuperaciones automáticas cuando no hay elección pendiente, como espacios de brujo por Magia del pacto; muestra recordatorios para dados de golpe, Recuperación arcana, Ki, Canalizar Divinidad, Forma salvaje, Inspiración bárdica, etc.
   - `Descanso largo`: deja HP al máximo, vida temporal a 0 y recupera espacios de conjuro gastados; además recuerda recursos por personaje como Imponer las manos, conjuros raciales, Destello de Genio o Cañón Sobrenatural.
+- Estados:
+  - Catálogo en BD con condiciones oficiales 5e 2014 y efectos comunes usados en Nivel20/libros compatibles (`Tasha`, `Eberron`).
+  - Buscador en combate para aplicar/quitar estados.
+  - Reglas JSON aplican modificadores visibles: CA, velocidad, dados a ataques/salvaciones y recordatorios de ventaja/desventaja/resistencias.
 - Referencia rapida:
   - CA.
   - HP max.
@@ -487,6 +502,7 @@ Se guardan en base de datos al pulsar `Guardar`, por usuario en `app_character_u
 - `spell_slots_spent`: espacios de conjuro gastados por nivel; se limpian con descanso largo y con descanso corto en personajes de Magia del pacto.
 - `ammunition`: visibilidad y bloques editables de munición.
 - `inventory`: inventario equipable editable por usuario/personaje.
+- Estados activos: se guardan en `app_character_active_statuses` y se aplican a la ficha de esa cuenta/personaje.
 
 Reglas actuales:
 

@@ -7,8 +7,12 @@ import { parseImportedCharacter } from "@/lib/character-import";
 import { getCurrentAppUser } from "@/lib/custom-auth";
 import {
   CharacterDetail,
+  StatusEffect,
   deleteCharacter,
   getCharacterDetail,
+  listActiveStatusEffects,
+  searchStatusEffects,
+  setCharacterStatusEffectActive,
   updateCharacterAmmunition,
   updateCharacterDetail,
   updateCharacterInventory,
@@ -411,6 +415,53 @@ function calculateInventoryAc(input: {
   return { total, detail };
 }
 
+function statusRuleNumber(status: StatusEffect, key: string): number | null {
+  const value = status.rules?.[key];
+  return numberFromUnknown(value);
+}
+
+function statusRuleText(status: StatusEffect, key: string): string {
+  const value = status.rules?.[key];
+  return typeof value === "string" ? value : "";
+}
+
+function statusAcDelta(statuses: StatusEffect[]): number {
+  return statuses.reduce((total, status) => total + (statusRuleNumber(status, "ac_delta") ?? 0), 0);
+}
+
+function statusSpeedFeet(baseSpeed: number, statuses: StatusEffect[]): number {
+  if (!baseSpeed) return 0;
+  const forcedSpeed = statuses
+    .map((status) => statusRuleNumber(status, "speed_set"))
+    .filter((value): value is number => value !== null);
+  if (forcedSpeed.length) return Math.max(0, Math.min(...forcedSpeed));
+  const multiplier = statuses.reduce((current, status) => current * (statusRuleNumber(status, "speed_multiplier") ?? 1), 1);
+  return Math.max(0, Math.floor((baseSpeed * multiplier) / 5) * 5);
+}
+
+function statusModifierLabels(statuses: StatusEffect[]): string[] {
+  return statuses.flatMap((status) => {
+    const labels: string[] = [];
+    const ac = statusRuleNumber(status, "ac_delta");
+    const speedSet = statusRuleNumber(status, "speed_set");
+    const speedMultiplier = statusRuleNumber(status, "speed_multiplier");
+    const attackBonusDie = statusRuleText(status, "attack_bonus_die");
+    const attackPenaltyDie = statusRuleText(status, "attack_penalty_die");
+    const savingBonusDie = statusRuleText(status, "saving_throw_bonus_die");
+    const savingPenaltyDie = statusRuleText(status, "saving_throw_penalty_die");
+    const resistance = statusRuleText(status, "resistance_note");
+    if (ac) labels.push(`${status.name}: CA ${ac > 0 ? "+" : ""}${ac}`);
+    if (speedSet !== null) labels.push(`${status.name}: velocidad ${speedSet}`);
+    if (speedMultiplier !== null) labels.push(`${status.name}: velocidad x${speedMultiplier}`);
+    if (attackBonusDie) labels.push(`${status.name}: ataques +${attackBonusDie}`);
+    if (attackPenaltyDie) labels.push(`${status.name}: ataques -${attackPenaltyDie}`);
+    if (savingBonusDie) labels.push(`${status.name}: salvaciones +${savingBonusDie}`);
+    if (savingPenaltyDie) labels.push(`${status.name}: salvaciones -${savingPenaltyDie}`);
+    if (resistance) labels.push(`${status.name}: ${resistance}`);
+    return labels;
+  });
+}
+
 function autoEquipInventory(entries: InventoryItem[], targetAc: number, dexMod: number, className: string, raw: Record<string, unknown>, traits: TraitEntry[]): InventoryItem[] {
   const baseEntries = entries.map((item) => ({ ...item, equipped: false }));
   const armorOptions = [undefined, ...baseEntries.filter((item) => item.category === "armadura" && item.armorBase)];
@@ -646,7 +697,6 @@ export default function CharacterDetailPage() {
   const wisModifier = abilities.sabiduria?.modifier ?? 0;
   const conModifier = abilities.constitucion?.modifier ?? 0;
   const inventory = normalizeInventory(rawPayload.inventory, equipment, Number(form.ac || 0), dexModifier, form.class_name, raw, traits);
-  const calculatedAc = calculateInventoryAc({ inventory, dexMod: dexModifier, wisMod: wisModifier, conMod: conModifier, className: form.class_name, raw, traits });
   const backgroundStory = (raw.background && typeof raw.background === "object" && !Array.isArray(raw.background))
     ? raw.background as Record<string, unknown>
     : {};
@@ -699,6 +749,10 @@ export default function CharacterDetailPage() {
   const [openSpells, setOpenSpells] = useState<Record<number, boolean>>({});
   const [openStorySections, setOpenStorySections] = useState<Record<string, boolean>>({});
   const [openRestBlock, setOpenRestBlock] = useState(false);
+  const [openStatusBlock, setOpenStatusBlock] = useState(true);
+  const [statusSearch, setStatusSearch] = useState("");
+  const [statusResults, setStatusResults] = useState<StatusEffect[]>([]);
+  const [activeStatuses, setActiveStatuses] = useState<StatusEffect[]>([]);
   const [openInventoryForm, setOpenInventoryForm] = useState(false);
   const [editingInventory, setEditingInventory] = useState<Record<string, boolean>>({});
   const [inventoryDraft, setInventoryDraft] = useState<InventoryItem>({
@@ -717,6 +771,11 @@ export default function CharacterDetailPage() {
   const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
+
+  const calculatedAc = calculateInventoryAc({ inventory, dexMod: dexModifier, wisMod: wisModifier, conMod: conModifier, className: form.class_name, raw, traits });
+  const statusAc = statusAcDelta(activeStatuses);
+  const visibleAc = Math.max(0, calculatedAc.total + statusAc);
+  const activeStatusLabels = statusModifierLabels(activeStatuses);
 
   const numericSpellSlots = Object.entries(spellMeta.slots ?? {})
     .filter(([level]) => /^\d+$/.test(level))
@@ -852,8 +911,22 @@ export default function CharacterDetailPage() {
       }
       setUserId(user.user_id);
       await loadData(user.user_id, params.id);
+      setActiveStatuses(await listActiveStatusEffects(user.user_id, params.id));
     })();
   }, [loadData, params.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const results = await searchStatusEffects(statusSearch);
+        if (!cancelled) setStatusResults(results);
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : "No se pudieron buscar estados");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [statusSearch]);
 
   async function onSave() {
     if (!userId) return;
@@ -952,7 +1025,8 @@ export default function CharacterDetailPage() {
 
   const hpMax = Number(form.hp || 0);
   const speedFeet = Number(form.speed || 0);
-  const speedSquares = speedFeet > 0 ? Math.floor(speedFeet / 5) : null;
+  const visibleSpeedFeet = statusSpeedFeet(speedFeet, activeStatuses);
+  const speedSquares = visibleSpeedFeet > 0 ? Math.floor(visibleSpeedFeet / 5) : visibleSpeedFeet === 0 && speedFeet > 0 ? 0 : null;
 
   function renderCheckCards(
     entries: CheckEntry[],
@@ -1136,8 +1210,8 @@ export default function CharacterDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">CA por equipo</p>
-              <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{calculatedAc.total}</p>
-              <p className="text-xs text-[#b9ae8d]">{calculatedAc.detail}</p>
+              <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{visibleAc}</p>
+              <p className="text-xs text-[#b9ae8d]">{calculatedAc.detail}{statusAc ? ` · estados ${statusAc > 0 ? "+" : ""}${statusAc}` : ""}</p>
             </div>
             <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => setOpenInventoryForm((current) => !current)}>
               {openInventoryForm ? "Cerrar" : "Añadir equipo"}
@@ -1350,6 +1424,90 @@ export default function CharacterDetailPage() {
     await updateCharacterSpellSlots(userId, params.id, next);
     setRawPayload((current) => ({ ...current, spell_slots_spent: next }));
     setMessage("Espacios de conjuro actualizados.");
+  }
+
+  async function refreshActiveStatuses() {
+    if (!userId) return;
+    setActiveStatuses(await listActiveStatusEffects(userId, params.id));
+  }
+
+  async function toggleStatus(status: StatusEffect, active: boolean) {
+    if (!userId) return;
+    await setCharacterStatusEffectActive(userId, params.id, status.id, active);
+    await refreshActiveStatuses();
+    setMessage(active ? `Estado aplicado: ${status.name}.` : `Estado quitado: ${status.name}.`);
+  }
+
+  function renderStatusBlock() {
+    const activeIds = new Set(activeStatuses.map((status) => status.id));
+    const filteredResults = statusResults.filter((status) => !activeIds.has(status.id)).slice(0, 8);
+
+    return (
+      <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-3">
+        <button
+          className="flex w-full items-center justify-between gap-3 text-left"
+          type="button"
+          onClick={() => setOpenStatusBlock((current) => !current)}
+        >
+          <span className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Estados</span>
+          <span className="text-xs text-[#b9ae8d]">{activeStatuses.length ? `${activeStatuses.length} activos` : openStatusBlock ? "-" : "+"}</span>
+        </button>
+        {openStatusBlock ? (
+          <div className="mt-3 grid gap-3">
+            {activeStatuses.length ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {activeStatuses.map((status) => (
+                  <div key={status.id} className="rounded-xl border border-[#d3a84a66] bg-[#d3a84a18] p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#f3dfac]">{status.name}</p>
+                        <p className="text-xs text-[#b9ae8d]">{status.category} · {status.source}</p>
+                      </div>
+                      <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => void toggleStatus(status, false)}>Quitar</button>
+                    </div>
+                    <p className="mobile-detail mt-2 line-clamp-2 text-xs text-[#d9c89e]">{status.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-[#d9c89e]">Sin estados activos.</p>}
+
+            {activeStatusLabels.length ? (
+              <div className="rounded-xl border border-[#d3a84a44] bg-black/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Cambios visibles</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {activeStatusLabels.map((label) => <span key={label} className="rounded-full border border-[#d3a84a44] px-2 py-1 text-xs text-[#d9c89e]">{label}</span>)}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="rounded-xl border border-[#d3a84a44] bg-black/20 p-3">
+              <label className="text-xs uppercase tracking-wide text-[#b9ae8d]" htmlFor="status-search">Buscar estado</label>
+              <input
+                id="status-search"
+                className="field mt-2"
+                value={statusSearch}
+                placeholder="Cegado, Escudo de fe, Acelerado..."
+                onChange={(event) => setStatusSearch(event.target.value)}
+              />
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {filteredResults.map((status) => (
+                  <div key={status.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#f3dfac]">{status.name}</p>
+                        <p className="text-xs text-[#b9ae8d]">{status.category} · {status.source}</p>
+                      </div>
+                      <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => void toggleStatus(status, true)}>Aplicar</button>
+                    </div>
+                    <p className="mobile-detail mt-2 line-clamp-2 text-xs text-[#d9c89e]">{status.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    );
   }
 
   function renderRestBlock() {
@@ -1825,14 +1983,15 @@ export default function CharacterDetailPage() {
         ) : activeTab === "combate" ? (
           <div className="mt-4 grid gap-4">
             {renderRestBlock()}
+            {renderStatusBlock()}
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
               <p className="mt-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Referencia rápida</p>
               <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">CA</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{calculatedAc.total || form.ac || "-"}</p>
-                  <p className="mobile-detail text-[11px] text-[#b9ae8d]">{calculatedAc.detail}</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{visibleAc || form.ac || "-"}</p>
+                  <p className="mobile-detail text-[11px] text-[#b9ae8d]">{calculatedAc.detail}{statusAc ? ` · estados ${statusAc > 0 ? "+" : ""}${statusAc}` : ""}</p>
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">HP max</p>
@@ -1842,7 +2001,7 @@ export default function CharacterDetailPage() {
                   <p className="text-xs text-[#b9ae8d]">Velocidad</p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <div>
-                      <p className="text-2xl font-semibold text-[#f3dfac]">{form.speed || "-"}</p>
+                      <p className="text-2xl font-semibold text-[#f3dfac]">{speedFeet > 0 ? visibleSpeedFeet : form.speed || "-"}</p>
                       <p className="text-[11px] text-[#b9ae8d]">Pies</p>
                     </div>
                     <div>
