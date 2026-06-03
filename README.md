@@ -526,7 +526,7 @@ Reglas actuales:
 - Reglas de DES en armadura: ligera suma DES completo, media suma DES máximo +2 y pesada no suma DES (`Máx. DES = 0`).
 - Monje sin armadura usa `10 + DES + SAB`; bárbaro sin armadura usa `10 + DES + CON`.
 - Se pueden añadir objetos manuales desde el bloque de inventario.
-- Los valores editables del inventario se respetan como fuente visible; no se bloquean por reglas ocultas una vez cambiados manualmente.
+- Los valores editables del inventario se respetan como fuente visible; las correcciones de datos antiguos solo aplican si el campo no fue editado manualmente.
 
 Ejemplos:
 

@@ -63,6 +63,9 @@ type InventoryItem = {
   armorBase?: number | null;
   maxDex?: number | null;
   acBonus?: number | null;
+  armorBaseManual?: boolean;
+  maxDexManual?: boolean;
+  acBonusManual?: boolean;
   damage?: string;
   notes?: string;
 };
@@ -443,6 +446,11 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
           const storedArmorBase = numberFromUnknown(item.armorBase);
           const storedMaxDex = item.maxDex === null ? null : numberFromUnknown(item.maxDex);
           const storedAcBonus = numberFromUnknown(item.acBonus);
+          const armorBaseManual = Boolean(item.armorBaseManual);
+          const maxDexManual = Boolean(item.maxDexManual);
+          const acBonusManual = Boolean(item.acBonusManual);
+          const legacyProtecsaoArmorBase = id.startsWith("import-") && normalizeTraitKey(name).includes("protecsao") && storedArmorBase === 16 && !armorBaseManual;
+          const legacyJuramentoShieldBonus = id.startsWith("import-") && normalizeTraitKey(`${name} ${detail}`).includes("juramento") && storedAcBonus === 2 && !acBonusManual;
           return [{
             id,
             name,
@@ -450,9 +458,12 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
             detail,
             quantity: Math.max(1, Math.floor(numberFromUnknown(item.quantity) ?? 1)),
             equipped: Boolean(item.equipped),
-            armorBase: category === "armadura" ? (storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
-            maxDex: category === "armadura" ? (storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
-            acBonus: category === "escudo" ? (storedAcBonus ?? inferShieldBonus(name, detail)) : storedAcBonus,
+            armorBase: category === "armadura" ? (legacyProtecsaoArmorBase ? 17 : storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
+            maxDex: category === "armadura" ? (legacyProtecsaoArmorBase ? 0 : storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
+            acBonus: category === "escudo" ? (legacyJuramentoShieldBonus ? 1 : storedAcBonus ?? inferShieldBonus(name, detail)) : storedAcBonus,
+            armorBaseManual,
+            maxDexManual,
+            acBonusManual,
             damage: typeof item.damage === "string" ? item.damage : "",
             notes: typeof item.notes === "string" ? item.notes : "",
           }];
@@ -1006,11 +1017,16 @@ export default function CharacterDetailPage() {
         normalizedPatch.armorBase = patch.armorBase ?? (patch.category ? inferredArmor.armorBase : currentItem?.armorBase ?? inferredArmor.armorBase);
         normalizedPatch.maxDex = patch.maxDex ?? (patch.category ? inferredArmor.maxDex : currentItem?.maxDex ?? inferredArmor.maxDex);
         normalizedPatch.acBonus = null;
+        if (patch.category) {
+          normalizedPatch.armorBaseManual = false;
+          normalizedPatch.maxDexManual = false;
+        }
       }
       if (draftItem.category === "escudo") {
         normalizedPatch.acBonus = patch.acBonus ?? (patch.category ? inferShieldBonus(draftItem.name, draftItem.detail) : currentItem?.acBonus ?? inferShieldBonus(draftItem.name, draftItem.detail));
         normalizedPatch.armorBase = null;
         normalizedPatch.maxDex = null;
+        if (patch.category) normalizedPatch.acBonusManual = false;
       }
       if (draftItem.category !== "armadura" && draftItem.category !== "escudo") {
         normalizedPatch.armorBase = null;
@@ -1090,15 +1106,15 @@ export default function CharacterDetailPage() {
         </label>
         <label>
           CA base armadura
-          <input className="field mt-1" inputMode="numeric" value={item.armorBase ?? ""} onChange={(event) => void updateInventoryItem(item.id, { armorBase: event.target.value ? Number(event.target.value) : null })} />
+          <input className="field mt-1" inputMode="numeric" value={item.armorBase ?? ""} onChange={(event) => void updateInventoryItem(item.id, { armorBase: event.target.value ? Number(event.target.value) : null, armorBaseManual: true })} />
         </label>
         <label>
           Máx. DES
-          <input className="field mt-1" inputMode="numeric" placeholder="Vacío = sin límite, 0 = sin DES" value={item.maxDex ?? ""} onChange={(event) => void updateInventoryItem(item.id, { maxDex: event.target.value ? Number(event.target.value) : null })} />
+          <input className="field mt-1" inputMode="numeric" placeholder="Vacío = sin límite, 0 = sin DES" value={item.maxDex ?? ""} onChange={(event) => void updateInventoryItem(item.id, { maxDex: event.target.value ? Number(event.target.value) : null, maxDexManual: true })} />
         </label>
         <label>
           Bonus CA
-          <input className="field mt-1" inputMode="numeric" value={item.acBonus ?? ""} onChange={(event) => void updateInventoryItem(item.id, { acBonus: event.target.value ? Number(event.target.value) : null })} />
+          <input className="field mt-1" inputMode="numeric" value={item.acBonus ?? ""} onChange={(event) => void updateInventoryItem(item.id, { acBonus: event.target.value ? Number(event.target.value) : null, acBonusManual: true })} />
         </label>
         <label className="md:col-span-2">
           Detalle / notas
