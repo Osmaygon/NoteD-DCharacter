@@ -232,7 +232,7 @@ Pestanas:
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Munición opcional por usuario, visible/oculta según personaje, con bloques compactos ajustados a móvil: 1 columna en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
-- Inventario equipable por usuario: permite añadir, editar, eliminar, equipar y desequipar armas, armaduras, escudos, munición, herramientas y objetos. La CA visible se calcula desde la armadura/escudo equipados, DES y rasgos como Defensa.
+- Inventario equipable por usuario: permite añadir, editar, eliminar, equipar y desequipar armas, armaduras, escudos, herramientas y objetos. La munición se gestiona en su bloque propio. La CA visible se calcula desde la armadura/escudo equipados, DES según tipo de armadura y rasgos como Defensa.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. Accion, alcance, duracion y componentes (`V`, `S`, `M`) van en la cabecera y el nivel queda al final de esa linea. En la pestaña Conjuros, los espacios por nivel se muestran debajo de preparados en una sola fila como nivel y cantidad disponible. En Combate, esos espacios se pueden marcar/desmarcar como gastados por nivel.
 
 ### Estado Persistente Actual
@@ -498,7 +498,7 @@ El equipo importado se transforma en inventario por usuario. Se muestra como des
 Cada objeto puede tener:
 
 - nombre.
-- tipo (`Arma`, `Armadura`, `Escudo`, `Munición`, `Herramienta`, `Objeto`).
+- tipo (`Arma`, `Armadura`, `Escudo`, `Herramienta`, `Objeto`).
 - cantidad.
 - detalle detectado (`CA 2`, `1d4 perforante`, etc.).
 - daño/uso si es arma.
@@ -509,12 +509,14 @@ Reglas actuales:
 
 - Solo una armadura y un escudo quedan equipados a la vez.
 - La CA se calcula desde el inventario: armadura equipada o base `10 + DES`, escudo equipado y bonificadores detectados como estilo `Defensa`.
+- Reglas de DES en armadura: ligera suma DES completo, media suma DES máximo +2 y pesada no suma DES (`Máx. DES = 0`).
 - Monje sin armadura usa `10 + DES + SAB`; bárbaro sin armadura usa `10 + DES + CON`.
 - Se pueden añadir objetos manuales desde el bloque de inventario.
 
 Ejemplos:
 
 - `Escudo centinela` como escudo con bonus de CA.
+- `Escudo del juramento implacable` se trata como escudo +1.
 - `Cuero tachonado`, `Cota de escamas`, `Cota de malla`, etc. como armaduras con fórmula de CA.
 - `Simbolo Sagrado` como objeto/foco.
 - `Paquete de sacerdote` separado del objeto suelto posterior.

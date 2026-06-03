@@ -282,42 +282,54 @@ function normalizeAmmunition(value: unknown): AmmunitionState {
 
 function normalizeInventoryCategory(value: unknown): InventoryCategory {
   const key = normalizeTraitKey(String(value ?? ""));
-  if (key.includes("arma")) return "arma";
-  if (key.includes("armadura")) return "armadura";
   if (key.includes("escudo")) return "escudo";
+  if (key.includes("armadura")) return "armadura";
   if (key.includes("municion")) return "municion";
   if (key.includes("herramienta")) return "herramienta";
+  if (key.includes("arma")) return "arma";
   return "objeto";
+}
+
+function inferCategoryFromText(name: string, detail: string, kind = ""): InventoryCategory {
+  const normalizedKind = normalizeTraitKey(kind);
+  const text = normalizeTraitKey(`${name} ${detail}`);
+  if (text.includes("escudo")) return "escudo";
+  if (normalizedKind.includes("armadura") || /cuero|cota|coraza|armadura|placas|malla|escamas|anillas|peto|guanteletes/.test(text)) return "armadura";
+  if (normalizedKind.includes("herramienta") || text.includes("kit") || text.includes("utiles") || text.includes("herramientas")) return "herramienta";
+  if (normalizedKind.includes("arma")) return "arma";
+  return "objeto";
+}
+
+type ArmorStats = { armorBase: number | null; maxDex: number | null };
+
+function inferArmorStats(name: string, detail: string): ArmorStats {
+  const text = normalizeTraitKey(`${name} ${detail}`);
+  if (text.includes("cuero tachonado")) return { armorBase: 12, maxDex: null };
+  if (text.includes("cuero") || text.includes("acolchada")) return { armorBase: 11, maxDex: null };
+  if (text.includes("pieles")) return { armorBase: 12, maxDex: 2 };
+  if (text.includes("camisote")) return { armorBase: 13, maxDex: 2 };
+  if (text.includes("escamas")) return { armorBase: 14, maxDex: 2 };
+  if (text.includes("coraza")) return { armorBase: 14, maxDex: 2 };
+  if (text.includes("media armadura")) return { armorBase: 15, maxDex: 2 };
+  if (text.includes("anillas")) return { armorBase: 14, maxDex: 0 };
+  if (text.includes("cota de malla") || text.includes("malla") || text.includes("guanteletes")) return { armorBase: 16, maxDex: 0 };
+  if (text.includes("bandas")) return { armorBase: 17, maxDex: 0 };
+  if (text.includes("placas")) return { armorBase: 18, maxDex: 0 };
+  return { armorBase: null, maxDex: null };
+}
+
+function inferShieldBonus(name: string, detail: string): number {
+  const text = normalizeTraitKey(`${name} ${detail}`);
+  if (text.includes("juramento")) return 1;
+  return 2;
 }
 
 function inferInventoryItem(entry: EquipmentEntry, index: number): InventoryItem {
   const name = entry.name.trim() || "Objeto";
   const detail = entry.detail?.trim() ?? "";
-  const kind = normalizeTraitKey(entry.kind ?? "");
-  const text = normalizeTraitKey(`${name} ${detail}`);
-  let category: InventoryCategory = "objeto";
-  if (text.includes("escudo")) category = "escudo";
-  else if (kind.includes("arma")) category = "arma";
-  else if (kind.includes("herramienta") || text.includes("kit") || text.includes("utiles") || text.includes("herramientas")) category = "herramienta";
-  else if (kind.includes("armadura") || /cuero|cota|coraza|armadura|placas|malla|escamas|anillas|peto/.test(text)) category = "armadura";
-
-  let armorBase: number | null = null;
-  let maxDex: number | null = null;
-  let acBonus: number | null = null;
-  if (category === "escudo") acBonus = 2;
-  if (category === "armadura") {
-    if (text.includes("cuero tachonado")) armorBase = 12;
-    else if (text.includes("cuero")) armorBase = 11;
-    else if (text.includes("acolchada")) armorBase = 11;
-    else if (text.includes("pieles")) { armorBase = 12; maxDex = 2; }
-    else if (text.includes("camisote")) { armorBase = 13; maxDex = 2; }
-    else if (text.includes("escamas")) { armorBase = 14; maxDex = 2; }
-    else if (text.includes("coraza")) { armorBase = 14; maxDex = 2; }
-    else if (text.includes("media armadura")) { armorBase = 15; maxDex = 2; }
-    else if (text.includes("anillas")) armorBase = 14;
-    else if (text.includes("cota de malla") || text.includes("malla") || text.includes("guanteletes")) armorBase = 16;
-    else if (text.includes("placas")) armorBase = 18;
-  }
+  const category = inferCategoryFromText(name, detail, entry.kind ?? "");
+  const { armorBase, maxDex } = category === "armadura" ? inferArmorStats(name, detail) : { armorBase: null, maxDex: null };
+  const acBonus = category === "escudo" ? inferShieldBonus(name, detail) : null;
 
   return {
     id: `import-${normalizeTraitKey(name).replace(/[^a-z0-9]+/g, "-") || "objeto"}-${index}`,
@@ -338,6 +350,13 @@ function itemArmorClass(item: InventoryItem, dexMod: number): number | null {
   if (item.category !== "armadura" || !item.armorBase) return null;
   const dex = item.maxDex === null || item.maxDex === undefined ? dexMod : Math.min(dexMod, item.maxDex);
   return item.armorBase + dex;
+}
+
+function armorFormulaLabel(item: InventoryItem): string {
+  if (!item.armorBase) return "Sin CA base";
+  if (item.maxDex === 0) return `CA ${item.armorBase} sin DES`;
+  if (item.maxDex === null || item.maxDex === undefined) return `CA ${item.armorBase} + DES`;
+  return `CA ${item.armorBase} + DES máx ${item.maxDex}`;
 }
 
 function hasDefenseStyle(raw: Record<string, unknown>, traits: TraitEntry[]): boolean {
@@ -408,16 +427,28 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
         entries: record.entries.flatMap((entry, index) => {
           if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
           const item = entry as Record<string, unknown>;
+          const id = typeof item.id === "string" && item.id ? item.id : `inv-${index}`;
+          const name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Objeto";
+          const detail = typeof item.detail === "string" ? item.detail : "";
+          const storedCategory = normalizeInventoryCategory(item.category);
+          const inferredCategory = inferCategoryFromText(name, detail);
+          const category = id.startsWith("import-") && (inferredCategory === "armadura" || inferredCategory === "escudo") ? inferredCategory : storedCategory;
+          const inferredArmor = category === "armadura" ? inferArmorStats(name, detail) : { armorBase: null, maxDex: null };
+          const storedArmorBase = numberFromUnknown(item.armorBase);
+          const storedMaxDex = item.maxDex === null ? null : numberFromUnknown(item.maxDex);
+          const storedAcBonus = numberFromUnknown(item.acBonus);
           return [{
-            id: typeof item.id === "string" && item.id ? item.id : `inv-${index}`,
-            name: typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Objeto",
-            category: normalizeInventoryCategory(item.category),
-            detail: typeof item.detail === "string" ? item.detail : "",
+            id,
+            name,
+            category,
+            detail,
             quantity: Math.max(1, Math.floor(numberFromUnknown(item.quantity) ?? 1)),
             equipped: Boolean(item.equipped),
-            armorBase: numberFromUnknown(item.armorBase),
-            maxDex: item.maxDex === null ? null : numberFromUnknown(item.maxDex),
-            acBonus: numberFromUnknown(item.acBonus),
+            armorBase: category === "armadura" ? (storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
+            maxDex: category === "armadura" ? (storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
+            acBonus: category === "escudo"
+              ? (id.startsWith("import-") && normalizeTraitKey(`${name} ${detail}`).includes("juramento") && storedAcBonus === 2 ? 1 : storedAcBonus ?? inferShieldBonus(name, detail))
+              : storedAcBonus,
             damage: typeof item.damage === "string" ? item.damage : "",
             notes: typeof item.notes === "string" ? item.notes : "",
           }];
@@ -963,11 +994,32 @@ export default function CharacterDetailPage() {
 
   async function updateInventoryItem(itemId: string, patch: Partial<InventoryItem>) {
     const currentItem = inventory.entries.find((item) => item.id === itemId);
-    const nextEquipped = patch.equipped ?? currentItem?.equipped;
-    const nextCategory = patch.category ?? currentItem?.category;
+    const draftItem = currentItem ? { ...currentItem, ...patch } : null;
+    const inferredArmor = draftItem && draftItem.category === "armadura" ? inferArmorStats(draftItem.name, draftItem.detail) : { armorBase: null, maxDex: null };
+    const normalizedPatch: Partial<InventoryItem> = { ...patch };
+    if (draftItem && (patch.category || patch.name !== undefined || patch.detail !== undefined)) {
+      if (draftItem.category === "armadura") {
+        normalizedPatch.armorBase = patch.armorBase ?? currentItem?.armorBase ?? inferredArmor.armorBase;
+        normalizedPatch.maxDex = patch.maxDex ?? currentItem?.maxDex ?? inferredArmor.maxDex;
+        normalizedPatch.acBonus = null;
+      }
+      if (draftItem.category === "escudo") {
+        normalizedPatch.acBonus = patch.acBonus ?? currentItem?.acBonus ?? inferShieldBonus(draftItem.name, draftItem.detail);
+        normalizedPatch.armorBase = null;
+        normalizedPatch.maxDex = null;
+      }
+      if (draftItem.category !== "armadura" && draftItem.category !== "escudo") {
+        normalizedPatch.armorBase = null;
+        normalizedPatch.maxDex = null;
+        normalizedPatch.acBonus = patch.acBonus ?? null;
+      }
+    }
+
+    const nextEquipped = normalizedPatch.equipped ?? currentItem?.equipped;
+    const nextCategory = normalizedPatch.category ?? currentItem?.category;
     const nextEntries = inventory.entries.map((item) => {
       if (item.id === itemId) {
-        return { ...item, ...patch };
+        return { ...item, ...normalizedPatch };
       }
       if (nextEquipped && (nextCategory === "armadura" || nextCategory === "escudo") && item.category === nextCategory) {
         return { ...item, equipped: false };
@@ -999,7 +1051,7 @@ export default function CharacterDetailPage() {
       quantity: Math.max(1, Math.floor(inventoryDraft.quantity || 1)),
       armorBase: inventoryDraft.category === "armadura" ? inventoryDraft.armorBase : null,
       maxDex: inventoryDraft.category === "armadura" ? inventoryDraft.maxDex : null,
-      acBonus: inventoryDraft.category === "escudo" ? (inventoryDraft.acBonus ?? 2) : inventoryDraft.acBonus,
+      acBonus: inventoryDraft.category === "escudo" ? (inventoryDraft.acBonus ?? inferShieldBonus(name, inventoryDraft.detail)) : inventoryDraft.acBonus,
     };
     await persistInventory({ entries: [...inventory.entries, nextItem] });
     setInventoryDraft({ id: "", name: "", category: "objeto", detail: "", quantity: 1, equipped: false, armorBase: null, maxDex: null, acBonus: null, damage: "", notes: "" });
@@ -1020,7 +1072,6 @@ export default function CharacterDetailPage() {
             <option value="arma">Arma</option>
             <option value="armadura">Armadura</option>
             <option value="escudo">Escudo</option>
-            <option value="municion">Munición</option>
             <option value="herramienta">Herramienta</option>
             <option value="objeto">Objeto</option>
           </select>
@@ -1039,7 +1090,7 @@ export default function CharacterDetailPage() {
         </label>
         <label>
           Máx. DES
-          <input className="field mt-1" inputMode="numeric" placeholder="Vacío = sin límite" value={item.maxDex ?? ""} onChange={(event) => void updateInventoryItem(item.id, { maxDex: event.target.value ? Number(event.target.value) : null })} />
+          <input className="field mt-1" inputMode="numeric" placeholder="Vacío = sin límite, 0 = sin DES" value={item.maxDex ?? ""} onChange={(event) => void updateInventoryItem(item.id, { maxDex: event.target.value ? Number(event.target.value) : null })} />
         </label>
         <label>
           Bonus CA
@@ -1071,18 +1122,27 @@ export default function CharacterDetailPage() {
           {openInventoryForm ? (
             <div className="mt-3 grid gap-2 border-t border-[#d3a84a33] pt-3 text-xs text-[#b9ae8d] md:grid-cols-2">
               <input className="field" placeholder="Nombre" value={inventoryDraft.name} onChange={(event) => setInventoryDraft((current) => ({ ...current, name: event.target.value }))} />
-              <select className="field" value={inventoryDraft.category} onChange={(event) => setInventoryDraft((current) => ({ ...current, category: event.target.value as InventoryCategory, acBonus: event.target.value === "escudo" ? 2 : current.acBonus }))}>
+              <select className="field" value={inventoryDraft.category} onChange={(event) => setInventoryDraft((current) => {
+                const category = event.target.value as InventoryCategory;
+                const armor = category === "armadura" ? inferArmorStats(current.name, current.detail) : { armorBase: null, maxDex: null };
+                return {
+                  ...current,
+                  category,
+                  armorBase: category === "armadura" ? (current.armorBase ?? armor.armorBase) : null,
+                  maxDex: category === "armadura" ? (current.maxDex ?? armor.maxDex) : null,
+                  acBonus: category === "escudo" ? (current.acBonus ?? inferShieldBonus(current.name, current.detail)) : null,
+                };
+              })}>
                 <option value="arma">Arma</option>
                 <option value="armadura">Armadura</option>
                 <option value="escudo">Escudo</option>
-                <option value="municion">Munición</option>
                 <option value="herramienta">Herramienta</option>
                 <option value="objeto">Objeto</option>
               </select>
               <input className="field" inputMode="numeric" placeholder="Cantidad" value={inventoryDraft.quantity} onChange={(event) => setInventoryDraft((current) => ({ ...current, quantity: Math.max(1, Number(event.target.value) || 1) }))} />
               <input className="field" placeholder="Daño / uso" value={inventoryDraft.damage ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, damage: event.target.value }))} />
               <input className="field" inputMode="numeric" placeholder="CA base armadura" value={inventoryDraft.armorBase ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, armorBase: event.target.value ? Number(event.target.value) : null }))} />
-              <input className="field" inputMode="numeric" placeholder="Máx. DES" value={inventoryDraft.maxDex ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, maxDex: event.target.value ? Number(event.target.value) : null }))} />
+              <input className="field" inputMode="numeric" placeholder="Máx. DES, 0 = sin DES" value={inventoryDraft.maxDex ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, maxDex: event.target.value ? Number(event.target.value) : null }))} />
               <input className="field" inputMode="numeric" placeholder="Bonus CA" value={inventoryDraft.acBonus ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, acBonus: event.target.value ? Number(event.target.value) : null }))} />
               <textarea className="field min-h-20 md:col-span-2" placeholder="Detalle o notas" value={inventoryDraft.detail} onChange={(event) => setInventoryDraft((current) => ({ ...current, detail: event.target.value }))} />
               <button className="btn-primary md:w-fit" type="button" onClick={() => void addInventoryItem()}>Guardar objeto</button>
@@ -1118,7 +1178,7 @@ export default function CharacterDetailPage() {
                   {isOpen ? (
                     <div className="mt-3 border-t border-[#d3a84a33] pt-3 text-sm text-[#d9c89e]">
                       {item.damage ? <p><span className="text-[#b9ae8d]">Daño/uso:</span> {item.damage}</p> : null}
-                      {item.armorBase ? <p><span className="text-[#b9ae8d]">Armadura:</span> CA {item.armorBase}{item.maxDex === null || item.maxDex === undefined ? " + DES" : ` + DES máx ${item.maxDex}`}</p> : null}
+                      {item.category === "armadura" ? <p><span className="text-[#b9ae8d]">Armadura:</span> {armorFormulaLabel(item)}</p> : null}
                       {item.acBonus ? <p><span className="text-[#b9ae8d]">Bonus CA:</span> +{item.acBonus}</p> : null}
                       <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle"}</p>
                     </div>

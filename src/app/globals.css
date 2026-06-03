@@ -58,6 +58,12 @@ h3 {
   color: var(--muted);
 }
 
+select.field,
+.field option {
+  background: #0f1118;
+  color: var(--foreground);
+}
+
 .btn-primary {
   border-radius: 10px;
   padding: 0.65rem 1rem;
