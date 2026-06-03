@@ -209,8 +209,8 @@ Archivo: `src/app/characters/[id]/page.tsx`.
 Cabecera:
 
 - Nombre.
-- Clase + nivel.
-- Especie + trasfondo.
+- Clase + nivel visible también en móvil.
+- Especie + trasfondo visible también en móvil.
 - Botones `Guardar` y `Borrar`.
 
 Pestanas:

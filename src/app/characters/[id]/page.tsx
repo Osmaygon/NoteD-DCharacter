@@ -1085,8 +1085,8 @@ export default function CharacterDetailPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ficha de personaje</p>
             <h1 className="mt-1 text-3xl font-semibold text-[#f3dfac]">{form.name || "Personaje"}</h1>
-            <p className="mobile-detail mt-1 text-sm text-[#d9c89e]">{subtitle}</p>
-            <p className="mobile-detail text-sm text-[#b9ae8d]">{form.race || "Especie -"} - {form.background || "Trasfondo -"}</p>
+            <p className="mt-1 text-sm text-[#d9c89e]">{subtitle}</p>
+            <p className="text-sm text-[#b9ae8d]">{form.race || "Especie -"} - {form.background || "Trasfondo -"}</p>
           </div>
 
           <div className="flex gap-2">
