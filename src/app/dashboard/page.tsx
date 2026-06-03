@@ -45,7 +45,7 @@ export default function DashboardPage() {
           {campaigns.map((c) => (
             <Link key={c.id} href="/campaigns" className="rounded border border-[#d3a84a44] p-3 hover:bg-[#ffffff08]">
               <p className="font-semibold">{c.name}</p>
-              <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+              <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
             </Link>
           ))}
           {!campaigns.length ? <p className="text-sm text-[#b9ae8d]">No tienes campañas aun.</p> : null}
@@ -63,7 +63,7 @@ export default function DashboardPage() {
           {characters.map((c) => (
             <Link key={c.id} href={`/characters/${c.id}`} className="rounded border border-[#d3a84a44] p-3 hover:bg-[#ffffff08]">
               <p className="font-semibold">{c.name}</p>
-              <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+              <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
             </Link>
           ))}
           {!characters.length ? <p className="text-sm text-[#b9ae8d]">No tienes personajes aun.</p> : null}

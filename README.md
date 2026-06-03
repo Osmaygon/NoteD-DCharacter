@@ -30,7 +30,7 @@ Esta seccion resume el contexto operativo para que una PI/IA futura pueda contin
 - Para cambios de codigo ejecutar `npm run lint` y `npm run build` antes del commit.
 - Para cambios solo de documentacion no hace falta `lint/build`.
 - Mantener la ficha practica, no sobrecargarla de texto abierto por defecto.
-- El diseno debe acabar siendo comodo tambien en movil.
+- En móvil se conserva la colocación general pero se ocultan textos descriptivos largos para reducir ruido visual.
 
 ### Objetivo Del Producto
 
@@ -547,9 +547,10 @@ Decisiones actuales:
 - Evitar textos de estado innecesarios tipo `Listo` o `Sesion iniciada`.
 - Ficha pensada para escritorio ahora, pero debe quedar comoda en movil mas adelante.
 
-Pendiente importante de movil:
+Criterio de móvil:
 
-- Revisar todos los bloques en pantalla pequena.
+- Mantener la colocación general siempre que sea posible.
+- Ocultar textos descriptivos largos (`mobile-detail`) para que la ficha sea más rápida.
 - Botones `+` y `-` suficientemente grandes.
 - Evitar scroll horizontal.
 - Reorganizar tarjetas para lectura rapida en partida.

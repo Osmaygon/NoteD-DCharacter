@@ -616,7 +616,7 @@ export default function CharacterDetailPage() {
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-[#f3dfac]">{item.name}</span>
                   {detailPreview ? (
-                    <span className="block text-xs text-[#b9ae8d]">
+                    <span className="mobile-detail block text-xs text-[#b9ae8d]">
                       {detailPreview}{hasLongDetail && !isOpen ? " Pulsa para ver más." : ""}
                     </span>
                   ) : null}
@@ -624,7 +624,7 @@ export default function CharacterDetailPage() {
                 <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
               </button>
               {isOpen ? (
-                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
+                <div className="mobile-detail border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
                   <p><span className="text-[#b9ae8d]">Tipo:</span> {item.kind || "Objeto"}</p>
                   <p><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle detectado"}</p>
                   <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Uso rápido:</span> {item.quick_use || "Añade notas si necesitas recordar un uso concreto."}</p>
@@ -862,7 +862,7 @@ export default function CharacterDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Munición</p>
-              <p className="mt-1 text-sm text-[#d9c89e]">Oculta para este personaje.</p>
+              <p className="mobile-detail mt-1 text-sm text-[#d9c89e]">Oculta para este personaje.</p>
             </div>
             <button className="btn-secondary" type="button" onClick={() => void setAmmunitionVisible(true)}>Mostrar munición</button>
           </div>
@@ -875,7 +875,7 @@ export default function CharacterDetailPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Munición</p>
-            <p className="mt-1 text-sm text-[#d9c89e]">Contadores personalizables para flechas, virotes, balas u otros recursos.</p>
+            <p className="mobile-detail mt-1 text-sm text-[#d9c89e]">Contadores personalizables para flechas, virotes, balas u otros recursos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="btn-secondary" type="button" onClick={() => void addAmmunitionEntry()}>Añadir bloque</button>
@@ -921,7 +921,7 @@ export default function CharacterDetailPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[#f3dfac]">{entry.name}</p>
-                      {entry.description ? <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-[#b9ae8d]">{entry.description}</p> : null}
+                      {entry.description ? <p className="mobile-detail mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-[#b9ae8d]">{entry.description}</p> : null}
                     </div>
                     <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: true }))}>Editar</button>
                   </div>
@@ -1028,12 +1028,12 @@ export default function CharacterDetailPage() {
                     ) : null}
                   </div>
                 </div>
-                <button className="mt-2 block w-full text-left text-xs text-[#b9ae8d]" type="button" onClick={() => void toggleTrait(trait)}>
+                <button className="mobile-detail mt-2 block w-full text-left text-xs text-[#b9ae8d]" type="button" onClick={() => void toggleTrait(trait)}>
                   {shortDescription}
                 </button>
               </div>
               {isOpen ? (
-                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
+                <div className="mobile-detail border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
                   {detail?.status === "loading" ? (
                     <p>Buscando información...</p>
                   ) : (
@@ -1084,8 +1084,8 @@ export default function CharacterDetailPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ficha de personaje</p>
             <h1 className="mt-1 text-3xl font-semibold text-[#f3dfac]">{form.name || "Personaje"}</h1>
-            <p className="mt-1 text-sm text-[#d9c89e]">{subtitle}</p>
-            <p className="text-sm text-[#b9ae8d]">{form.race || "Especie -"} - {form.background || "Trasfondo -"}</p>
+            <p className="mobile-detail mt-1 text-sm text-[#d9c89e]">{subtitle}</p>
+            <p className="mobile-detail text-sm text-[#b9ae8d]">{form.race || "Especie -"} - {form.background || "Trasfondo -"}</p>
           </div>
 
           <div className="flex gap-2">
@@ -1174,12 +1174,12 @@ export default function CharacterDetailPage() {
                 {storySections.length ? storySections.map((section) => (
                   <div key={section.title} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                     <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{section.title}</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{section.text}</p>
+                    <p className="mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{section.text}</p>
                   </div>
                 )) : (
                   <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                     <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin historia importada"}</p>
+                    <p className="mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin historia importada"}</p>
                   </div>
                 )}
               </div>
@@ -1266,7 +1266,7 @@ export default function CharacterDetailPage() {
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos utiles para combate</p>
-                {!combatTraits.length ? <p className="mt-2 text-sm text-[#d9c89e]">Marca rasgos como &quot;Mostrar en combate&quot; desde la pestaña Rasgos.</p> : renderTraitList(combatTraits, sections.traits)}
+                {!combatTraits.length ? <p className="mobile-detail mt-2 text-sm text-[#d9c89e]">Marca rasgos como &quot;Mostrar en combate&quot; desde la pestaña Rasgos.</p> : renderTraitList(combatTraits, sections.traits)}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Conjuros y trucos preparados</p>
@@ -1276,7 +1276,7 @@ export default function CharacterDetailPage() {
                   {renderCombatSpellSlotTracker()}
                 </div>
                 {!preparedCombatSpells.length ? (
-                  <p className="mt-2 text-sm text-[#d9c89e]">No hay conjuros preparados. Marca desde la pestaña Conjuros.</p>
+                  <p className="mobile-detail mt-2 text-sm text-[#d9c89e]">No hay conjuros preparados. Marca desde la pestaña Conjuros.</p>
                 ) : (
                   <div className="mt-3 grid gap-2">
                     {preparedCombatSpells.map((spell) => {
@@ -1292,7 +1292,7 @@ export default function CharacterDetailPage() {
                             <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
                             <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · Nv {spell.level} {isOpen ? "-" : "+"}</p>
                           </div>
-                          <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
+                          <p className={isOpen ? "mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                           </p>
                         </button>
@@ -1360,7 +1360,7 @@ export default function CharacterDetailPage() {
                       type="button"
                       onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                     >
-                      <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mt-2 text-sm text-[#d9c89e]"}>
+                      <p className={isOpen ? "mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
                         {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                       </p>
                     </button>

@@ -147,8 +147,8 @@ export default function CharactersPage() {
 
       <section className="panel mb-4 p-4">
         <h1 className="mb-2 text-2xl">Personajes</h1>
-        <p className="mb-1 text-sm text-[#b9ae8d]">Primero ves tus personajes guardados en la BD. Despues se cargan los de Nivel20 para importar solo los que quieras.</p>
-        <p className="mb-4 text-xs text-[#9f9578]">Nivel20 se usa en modo solo lectura. Nunca se modifican datos remotos.</p>
+        <p className="mobile-detail mb-1 text-sm text-[#b9ae8d]">Primero ves tus personajes guardados en la BD. Despues se cargan los de Nivel20 para importar solo los que quieras.</p>
+        <p className="mobile-detail mb-4 text-xs text-[#9f9578]">Nivel20 se usa en modo solo lectura. Nunca se modifican datos remotos.</p>
 
         <div className="mb-4 grid gap-2 md:grid-cols-[auto_1fr_auto]">
           <button className="btn-secondary" type="button" disabled={nivel20Loading} onClick={() => void loadNivel20Characters()}>
@@ -202,7 +202,7 @@ export default function CharactersPage() {
       <section className="panel p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-xl">Tus personajes visibles</h2>
-          <p className="text-xs text-[#9f9578]">Ocultar no borra de la BD.</p>
+          <p className="mobile-detail text-xs text-[#9f9578]">Ocultar no borra de la BD.</p>
         </div>
         <div className="grid gap-2">
           {characters.map((c) => (
@@ -210,7 +210,7 @@ export default function CharactersPage() {
               <div className="flex items-start justify-between gap-3">
                 <Link href={`/characters/${c.id}`} className="block min-w-0 flex-1 hover:text-[#f5db95]">
                   <p className="font-semibold">{c.name}</p>
-                  <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+                  <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
                 </Link>
                 <button
                   type="button"
@@ -234,7 +234,7 @@ export default function CharactersPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{c.name}</p>
-                      <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+                      <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
                     </div>
                     <button
                       type="button"

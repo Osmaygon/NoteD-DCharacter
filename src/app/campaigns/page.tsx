@@ -75,7 +75,7 @@ export default function CampaignsPage() {
           {campaigns.map((c) => (
             <div key={c.id} className="rounded border border-[#d3a84a44] p-3">
               <p className="font-semibold">{c.name}</p>
-              <p className="text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+              <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
             </div>
           ))}
         </div>
