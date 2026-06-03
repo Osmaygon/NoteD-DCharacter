@@ -1,17 +1,18 @@
 # NoteD&DCharacter
 
-Aplicacion web para importar, consultar y usar fichas de personaje de D&D durante una partida. El objetivo actual es tener una ficha practica, visual y rapida, con importacion desde PDF y datos persistidos en Supabase.
+Aplicacion web para importar, consultar y usar fichas de personaje de D&D durante una partida. El objetivo actual es tener una ficha practica, visual y rapida, con importacion desde Nivel20/PDF y datos persistidos en Supabase.
 
 ## Estado Actual
 
 - App en Next.js con TypeScript.
 - Tema oscuro con acentos dorados.
 - Autenticacion propia en base de datos, no Supabase Auth.
+- Importacion de personajes desde Nivel20 en modo solo lectura mediante `scripts/import-nivel20-campaign.mjs`.
 - Importacion de personajes desde PDF usando `pdfjs-dist`.
-- Parser propio para extraer datos de hojas tipo Nivel20.
+- Parser propio para extraer datos de hojas tipo Nivel20/PDF.
 - Datos guardados en Supabase mediante RPCs.
 - Los personajes pueden ocultarse por usuario sin borrarse de la BD.
-- El estado de combate editable en partida se guarda por usuario para no pisar la vida de otras cuentas.
+- El estado editable de partida se guarda por usuario para no pisar vida, vida temporal, espacios de conjuro ni munición de otras cuentas.
 - Ficha reconstruida visualmente desde cero y dividida en pestañas.
 - Commit y push inmediato despues de cada cambio funcional o visual para verlo en Vercel.
 
@@ -193,11 +194,11 @@ El usuario ha sugerido usar Nivel20 y D&D Beyond mas adelante.
 
 Decision actual:
 
-- PDF + parser propio es la fuente principal.
-- Nivel20 se usa como referencia visual y puede investigarse como fuente futura.
+- Nivel20 se usa como fuente de importacion en modo solo lectura y como referencia visual.
+- PDF + parser propio sigue disponible como fuente alternativa.
 - D&D Beyond puede investigarse como API/fuente futura.
 - `dnd5eapi.co` solo se usa experimentalmente para rasgos, y solo si parece devolver espanol.
-- No depender de scraping de Nivel20 o D&D Beyond sin aprobacion explicita.
+- No modificar datos remotos de Nivel20; la app solo lee/importa y guarda en Supabase.
 
 Importante: si una API devuelve ingles, no mostrarlo al usuario. El usuario quiere la informacion en espanol.
 
@@ -237,9 +238,14 @@ Pestanas:
 
 Se guardan con `update_character_detail_for_user`:
 
+- Datos basicos de personaje.
+
+Se guarda por usuario en `app_character_user_state`:
+
 - HP actual.
 - Vida temporal.
-- Datos basicos de personaje.
+- Espacios de conjuro gastados.
+- Visibilidad y bloques de munición.
 
 Se guarda con `update_character_source_payload_for_user`:
 
@@ -344,6 +350,22 @@ RPCs relevantes:
 - `update_character_detail_for_user`
 - `update_character_source_payload_for_user`
 - `delete_character_for_user`
+
+## Importacion Nivel20
+
+El flujo actual de campaña es:
+
+1. El script `npm run import:nivel20 -- --user <app_user_id>` lee la campaña configurada de Nivel20.
+2. Nivel20 se trata como fuente de solo lectura.
+3. El parser clasifica datos, rasgos, equipo, historia y conjuros.
+4. Los personajes se guardan/actualizan en Supabase y se asocian al usuario indicado.
+5. La visibilidad posterior se gestiona por usuario desde `app_character_members.is_visible`.
+
+Reglas actuales:
+
+- No se escriben cambios en Nivel20.
+- Los bloques `Conjuros de juramento`, `Conjuros de dominio` y `Conjuros de artillero` se importan como conjuros siempre preparados.
+- La historia de Nivel20 se conserva en secciones desplegables dentro de `Informacion`.
 
 ## Importacion PDF
 
@@ -496,13 +518,11 @@ Tipos actuales:
 
 - `Rasgo`.
 - `Rasgo personalizado`.
-
-Los conjuros otorgados automaticamente por subclase/dominio/juramento se muestran en `Conjuros` con su origen (`Por juramento`, `Por dominio`, etc.), no en `Rasgos`.
-
-El plan es anadir mas adelante:
-
 - `Conjuro`.
 - `Truco`.
+- Origenes automaticos como `Por juramento`, `Por dominio` o `Por artillero`.
+
+Los conjuros otorgados automaticamente por subclase/dominio/juramento se muestran en `Conjuros` con su origen, no en `Rasgos`, no cuentan para el limite de preparados y siguen gastando espacios al lanzarse.
 
 Los rasgos se muestran cerrados por defecto. Al pulsar se despliega la descripcion.
 
@@ -545,7 +565,7 @@ Decisiones actuales:
 - `Guardar` y `Borrar` arriba.
 - Titulo del header siempre navega al dashboard.
 - Evitar textos de estado innecesarios tipo `Listo` o `Sesion iniciada`.
-- Ficha pensada para escritorio ahora, pero debe quedar comoda en movil mas adelante.
+- Ficha ya ajustada para movil: mantiene la estructura general, reduce texto visible y permite expandir bloques para consultar descripciones.
 
 Criterio de móvil:
 
@@ -569,7 +589,7 @@ Criterio de móvil:
 - Investigar Nivel20 como API/fuente, no solo como referencia visual.
 - Mejorar la importacion para PDFs con OCR desordenado.
 - Anadir tests unitarios del parser con texto real de ejemplo.
-- Hacer una revision completa de responsive movil.
+- Seguir refinando responsive movil con casos reales de partida.
 - Limpiar codigo muerto cuando el flujo quede cerrado.
 
 ## Comandos De Desarrollo
