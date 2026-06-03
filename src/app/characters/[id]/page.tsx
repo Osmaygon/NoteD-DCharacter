@@ -352,6 +352,7 @@ export default function CharacterDetailPage() {
   const [openTraitEditors, setOpenTraitEditors] = useState<Record<string, boolean>>({});
   const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
   const [openSpells, setOpenSpells] = useState<Record<number, boolean>>({});
+  const [openStorySections, setOpenStorySections] = useState<Record<string, boolean>>({});
   const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
@@ -624,7 +625,7 @@ export default function CharacterDetailPage() {
                 <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
               </button>
               {isOpen ? (
-                <div className="mobile-detail border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
+                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
                   <p><span className="text-[#b9ae8d]">Tipo:</span> {item.kind || "Objeto"}</p>
                   <p><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle detectado"}</p>
                   <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Uso rápido:</span> {item.quick_use || "Añade notas si necesitas recordar un uso concreto."}</p>
@@ -918,20 +919,20 @@ export default function CharacterDetailPage() {
                 </>
               ) : (
                 <>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-1.5">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#f3dfac]">{entry.name}</p>
+                      <p className="truncate text-sm font-semibold text-[#f3dfac]">{entry.name}</p>
                       {entry.description ? <p className="mobile-detail mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-[#b9ae8d]">{entry.description}</p> : null}
                     </div>
-                    <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: true }))}>Editar</button>
+                    <button className="btn-secondary shrink-0 px-1.5 py-1 text-[11px] md:px-2 md:text-xs" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: true }))}>Editar</button>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
-                    <div className="min-w-16 rounded-lg border border-[#d3a84a44] bg-black/25 px-2 py-1 text-center">
-                      <p className="text-xl font-semibold text-[#f3dfac]">{entry.current}</p>
-                      <p className="text-[11px] text-[#b9ae8d]">de {entry.max || "-"}</p>
+                  <div className="mt-2 flex min-w-0 items-center justify-center gap-1.5">
+                    <button className="btn-secondary shrink-0 px-2 py-1" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
+                    <div className="min-w-0 flex-1 rounded-lg border border-[#d3a84a44] bg-black/25 px-1.5 py-1 text-center">
+                      <p className="truncate text-lg font-semibold text-[#f3dfac] md:text-xl">{entry.current}</p>
+                      <p className="truncate text-[10px] text-[#b9ae8d] md:text-[11px]">de {entry.max || "-"}</p>
                     </div>
-                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
+                    <button className="btn-secondary shrink-0 px-2 py-1" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
                   </div>
                 </>
               )}
@@ -1033,7 +1034,7 @@ export default function CharacterDetailPage() {
                 </button>
               </div>
               {isOpen ? (
-                <div className="mobile-detail border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
+                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
                   {detail?.status === "loading" ? (
                     <p>Buscando información...</p>
                   ) : (
@@ -1171,15 +1172,33 @@ export default function CharacterDetailPage() {
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Historia</p>
               <div className="mt-3 grid gap-3">
-                {storySections.length ? storySections.map((section) => (
-                  <div key={section.title} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">{section.title}</p>
-                    <p className="mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{section.text}</p>
-                  </div>
-                )) : (
+                {storySections.length ? storySections.map((section) => {
+                  const storyKey = normalizeTraitKey(section.title);
+                  const isOpen = openStorySections[storyKey] ?? false;
+                  return (
+                    <div key={section.title} className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+                      <button
+                        className="flex w-full items-center justify-between gap-3 text-left"
+                        type="button"
+                        onClick={() => setOpenStorySections((current) => ({ ...current, [storyKey]: !isOpen }))}
+                      >
+                        <span className="text-xs uppercase tracking-wide text-[#b9ae8d]">{section.title}</span>
+                        <span className="text-xs text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
+                      </button>
+                      {isOpen ? <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{section.text}</p> : null}
+                    </div>
+                  );
+                }) : (
                   <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
-                    <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</p>
-                    <p className="mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin historia importada"}</p>
+                    <button
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                      type="button"
+                      onClick={() => setOpenStorySections((current) => ({ ...current, notas: !current.notas }))}
+                    >
+                      <span className="text-xs uppercase tracking-wide text-[#b9ae8d]">Notas</span>
+                      <span className="text-xs text-[#b9ae8d]">{openStorySections.notas ? "-" : "+"}</span>
+                    </button>
+                    {openStorySections.notas ? <p className="mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]">{form.notes || "Sin historia importada"}</p> : null}
                   </div>
                 )}
               </div>
@@ -1292,7 +1311,7 @@ export default function CharacterDetailPage() {
                             <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
                             <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · Nv {spell.level} {isOpen ? "-" : "+"}</p>
                           </div>
-                          <p className={isOpen ? "mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
+                          <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                           </p>
                         </button>
@@ -1360,7 +1379,7 @@ export default function CharacterDetailPage() {
                       type="button"
                       onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                     >
-                      <p className={isOpen ? "mobile-detail mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
+                      <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
                         {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
                       </p>
                     </button>

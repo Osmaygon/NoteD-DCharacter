@@ -30,7 +30,7 @@ Esta seccion resume el contexto operativo para que una PI/IA futura pueda contin
 - Para cambios de codigo ejecutar `npm run lint` y `npm run build` antes del commit.
 - Para cambios solo de documentacion no hace falta `lint/build`.
 - Mantener la ficha practica, no sobrecargarla de texto abierto por defecto.
-- En móvil se conserva la colocación general pero se ocultan textos descriptivos largos para reducir ruido visual.
+- En móvil se conserva la colocación general pero se ocultan textos descriptivos largos para reducir ruido visual; si el bloque es desplegable, al pulsarlo se puede ver el texto completo.
 
 ### Objetivo Del Producto
 
@@ -223,13 +223,13 @@ Pestanas:
 - PP separado a la derecha de las caracteristicas en escritorio.
 - Tiradas de salvacion horizontales.
 - Habilidades horizontales.
-- Historia importada desde Nivel20 en bloques apilados con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
+- Historia importada desde Nivel20 en bloques apilados/desplegables con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
 
 `Combate`:
 
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
-- Munición opcional por usuario, visible/oculta según personaje, con bloques compactos: 2 columnas en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
+- Munición opcional por usuario, visible/oculta según personaje, con bloques compactos ajustados a móvil: 2 columnas en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
 - Ataques y Equipo en bloques apilados.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. Accion, alcance, duracion y componentes (`V`, `S`, `M`) van en la cabecera y el nivel queda al final de esa linea. En la pestaña Conjuros, los espacios por nivel se muestran debajo de preparados en una sola fila como nivel y cantidad disponible. En Combate, esos espacios se pueden marcar/desmarcar como gastados por nivel.
 
@@ -409,7 +409,7 @@ Contiene datos de consulta del personaje:
 - `PP` como percepcion pasiva, separado a la derecha en escritorio.
 - Tiradas de salvacion en tarjetas individuales.
 - Habilidades en tarjetas individuales.
-- Historia importada desde Nivel20 en bloques apilados con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
+- Historia importada desde Nivel20 en bloques apilados/desplegables con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
 
 El bloque de habilidades esta organizado para que en móvil quede en 2 columnas y en escritorio en 3 columnas.
 
@@ -550,7 +550,7 @@ Decisiones actuales:
 Criterio de móvil:
 
 - Mantener la colocación general siempre que sea posible.
-- Ocultar textos descriptivos largos (`mobile-detail`) para que la ficha sea más rápida.
+- Ocultar textos descriptivos largos (`mobile-detail`) para que la ficha sea más rápida, manteniendo acceso al texto completo al desplegar el bloque cuando aplique.
 - Botones `+` y `-` suficientemente grandes.
 - Evitar scroll horizontal.
 - Reorganizar tarjetas para lectura rapida en partida.
