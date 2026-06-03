@@ -394,7 +394,8 @@ function calculateInventoryAc(input: {
   const base = armorAc ?? unarmoredBase;
   const shield = input.inventory.entries.find((item) => item.equipped && item.category === "escudo");
   const shieldBonus = shield ? (shield.acBonus ?? 2) : 0;
-  const defenseBonus = equippedArmor && hasDefenseStyle(input.raw, input.traits) ? 1 : 0;
+  const equippedArmorKey = normalizeTraitKey(equippedArmor?.name ?? "");
+  const defenseBonus = equippedArmor && (hasDefenseStyle(input.raw, input.traits) || equippedArmorKey.includes("protecsao")) ? 1 : 0;
   const total = base + shieldBonus + defenseBonus;
   const detail = [
     equippedArmor ? `${equippedArmor.name} ${base}` : `Base ${base}`,

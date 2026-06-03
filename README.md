@@ -530,7 +530,7 @@ Reglas actuales:
 
 Ejemplos:
 
-- `Protecsao` se trata como armadura personalizada de CA 17 sin DES.
+- `Protecsao` se trata como armadura personalizada de CA 17 sin DES y, para Gravity, se suma el estilo `Defensa +1` al llevarla equipada.
 - `Escudo centinela` como escudo con bonus de CA.
 - `Escudo del juramento implacable` se trata como escudo +1.
 - `Cuero tachonado`, `Cota de escamas`, `Cota de malla`, etc. como armaduras con fórmula de CA.
