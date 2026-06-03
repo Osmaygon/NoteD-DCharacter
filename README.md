@@ -504,6 +504,7 @@ Cada objeto puede tener:
 - daño/uso si es arma.
 - CA base, máximo de DES y bonus de CA si afecta a defensa.
 - estado `equipado`.
+- resumen visible de sus características principales (`CA`, `DES máx`, bonus de escudo o daño) que cambia inmediatamente al editar.
 
 Reglas actuales:
 
@@ -512,6 +513,7 @@ Reglas actuales:
 - Reglas de DES en armadura: ligera suma DES completo, media suma DES máximo +2 y pesada no suma DES (`Máx. DES = 0`).
 - Monje sin armadura usa `10 + DES + SAB`; bárbaro sin armadura usa `10 + DES + CON`.
 - Se pueden añadir objetos manuales desde el bloque de inventario.
+- Los valores editables del inventario se respetan como fuente visible; no se bloquean por reglas ocultas una vez cambiados manualmente.
 
 Ejemplos:
 

@@ -360,6 +360,13 @@ function armorFormulaLabel(item: InventoryItem): string {
   return `CA ${item.armorBase} + DES máx ${item.maxDex}`;
 }
 
+function inventoryItemStatsLabel(item: InventoryItem): string {
+  if (item.category === "armadura") return armorFormulaLabel(item);
+  if (item.category === "escudo") return `CA +${item.acBonus ?? 2}`;
+  if (item.category === "arma" && item.damage) return item.damage;
+  return "";
+}
+
 function hasDefenseStyle(raw: Record<string, unknown>, traits: TraitEntry[]): boolean {
   const text = normalizeTraitKey(collectRestTraitSources(raw, traits).map((source) => `${source.name} ${source.description}`).join("\n"));
   return /\bdefensa\b/.test(text) && /estilo de combate|armadura|ca/.test(text);
@@ -431,9 +438,7 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
           const id = typeof item.id === "string" && item.id ? item.id : `inv-${index}`;
           const name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Objeto";
           const detail = typeof item.detail === "string" ? item.detail : "";
-          const storedCategory = normalizeInventoryCategory(item.category);
-          const inferredCategory = inferCategoryFromText(name, detail);
-          const category = id.startsWith("import-") && (inferredCategory === "armadura" || inferredCategory === "escudo") ? inferredCategory : storedCategory;
+          const category = normalizeInventoryCategory(item.category);
           const inferredArmor = category === "armadura" ? inferArmorStats(name, detail) : { armorBase: null, maxDex: null };
           const storedArmorBase = numberFromUnknown(item.armorBase);
           const storedMaxDex = item.maxDex === null ? null : numberFromUnknown(item.maxDex);
@@ -445,13 +450,9 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
             detail,
             quantity: Math.max(1, Math.floor(numberFromUnknown(item.quantity) ?? 1)),
             equipped: Boolean(item.equipped),
-            armorBase: category === "armadura"
-              ? (id.startsWith("import-") && normalizeTraitKey(name).includes("protecsao") && storedArmorBase === 16 ? 17 : storedArmorBase ?? inferredArmor.armorBase)
-              : storedArmorBase,
+            armorBase: category === "armadura" ? (storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
             maxDex: category === "armadura" ? (storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
-            acBonus: category === "escudo"
-              ? (id.startsWith("import-") && normalizeTraitKey(`${name} ${detail}`).includes("juramento") && storedAcBonus === 2 ? 1 : storedAcBonus ?? inferShieldBonus(name, detail))
-              : storedAcBonus,
+            acBonus: category === "escudo" ? (storedAcBonus ?? inferShieldBonus(name, detail)) : storedAcBonus,
             damage: typeof item.damage === "string" ? item.damage : "",
             notes: typeof item.notes === "string" ? item.notes : "",
           }];
@@ -991,8 +992,8 @@ export default function CharacterDetailPage() {
   async function persistInventory(next: InventoryState) {
     if (!userId) return;
     const normalizedNext = { ...next, initialized: true };
-    await updateCharacterInventory(userId, params.id, normalizedNext);
     setRawPayload((current) => ({ ...current, inventory: normalizedNext }));
+    await updateCharacterInventory(userId, params.id, normalizedNext);
   }
 
   async function updateInventoryItem(itemId: string, patch: Partial<InventoryItem>) {
@@ -1002,12 +1003,12 @@ export default function CharacterDetailPage() {
     const normalizedPatch: Partial<InventoryItem> = { ...patch };
     if (draftItem && (patch.category || patch.name !== undefined || patch.detail !== undefined)) {
       if (draftItem.category === "armadura") {
-        normalizedPatch.armorBase = patch.armorBase ?? currentItem?.armorBase ?? inferredArmor.armorBase;
-        normalizedPatch.maxDex = patch.maxDex ?? currentItem?.maxDex ?? inferredArmor.maxDex;
+        normalizedPatch.armorBase = patch.armorBase ?? (patch.category ? inferredArmor.armorBase : currentItem?.armorBase ?? inferredArmor.armorBase);
+        normalizedPatch.maxDex = patch.maxDex ?? (patch.category ? inferredArmor.maxDex : currentItem?.maxDex ?? inferredArmor.maxDex);
         normalizedPatch.acBonus = null;
       }
       if (draftItem.category === "escudo") {
-        normalizedPatch.acBonus = patch.acBonus ?? currentItem?.acBonus ?? inferShieldBonus(draftItem.name, draftItem.detail);
+        normalizedPatch.acBonus = patch.acBonus ?? (patch.category ? inferShieldBonus(draftItem.name, draftItem.detail) : currentItem?.acBonus ?? inferShieldBonus(draftItem.name, draftItem.detail));
         normalizedPatch.armorBase = null;
         normalizedPatch.maxDex = null;
       }
@@ -1166,6 +1167,7 @@ export default function CharacterDetailPage() {
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold text-[#f3dfac]">{item.name}</span>
                       <span className="text-xs text-[#b9ae8d]">{item.category} · x{item.quantity}{item.equipped ? " · equipado" : ""}</span>
+                      {inventoryItemStatsLabel(item) ? <span className="block text-xs text-[#d9c89e]">{inventoryItemStatsLabel(item)}</span> : null}
                       {preview ? <span className="mobile-detail block text-xs text-[#b9ae8d]">{preview}</span> : null}
                     </span>
                     <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
