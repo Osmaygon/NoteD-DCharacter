@@ -394,8 +394,7 @@ function calculateInventoryAc(input: {
   const base = armorAc ?? unarmoredBase;
   const shield = input.inventory.entries.find((item) => item.equipped && item.category === "escudo");
   const shieldBonus = shield ? (shield.acBonus ?? 2) : 0;
-  const equippedArmorKey = normalizeTraitKey(equippedArmor?.name ?? "");
-  const defenseBonus = equippedArmor && (hasDefenseStyle(input.raw, input.traits) || equippedArmorKey.includes("protecsao")) ? 1 : 0;
+  const defenseBonus = equippedArmor && hasDefenseStyle(input.raw, input.traits) ? 1 : 0;
   const total = base + shieldBonus + defenseBonus;
   const detail = [
     equippedArmor ? `${equippedArmor.name} ${base}` : `Base ${base}`,
@@ -444,10 +443,6 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
           const storedArmorBase = numberFromUnknown(item.armorBase);
           const storedMaxDex = item.maxDex === null ? null : numberFromUnknown(item.maxDex);
           const storedAcBonus = numberFromUnknown(item.acBonus);
-          const normalizedName = normalizeTraitKey(name);
-          const normalizedText = normalizeTraitKey(`${name} ${detail}`);
-          const legacyProtecsaoArmorBase = id.startsWith("import-") && normalizedName.includes("protecsao") && storedArmorBase === 16;
-          const legacyJuramentoShieldBonus = id.startsWith("import-") && normalizedText.includes("juramento") && storedAcBonus === 2;
           return [{
             id,
             name,
@@ -455,9 +450,9 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
             detail,
             quantity: Math.max(1, Math.floor(numberFromUnknown(item.quantity) ?? 1)),
             equipped: Boolean(item.equipped),
-            armorBase: category === "armadura" ? (legacyProtecsaoArmorBase ? 17 : storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
-            maxDex: category === "armadura" ? (legacyProtecsaoArmorBase ? 0 : storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
-            acBonus: category === "escudo" ? (legacyJuramentoShieldBonus ? 1 : storedAcBonus ?? inferShieldBonus(name, detail)) : storedAcBonus,
+            armorBase: category === "armadura" ? (storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
+            maxDex: category === "armadura" ? (storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
+            acBonus: category === "escudo" ? (storedAcBonus ?? inferShieldBonus(name, detail)) : storedAcBonus,
             damage: typeof item.damage === "string" ? item.damage : "",
             notes: typeof item.notes === "string" ? item.notes : "",
           }];
