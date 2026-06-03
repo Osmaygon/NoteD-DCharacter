@@ -116,7 +116,7 @@ Las 6 salvaciones son:
 
 Todo lo demas de esa lista son habilidades.
 
-La UI actual muestra habilidades en tarjetas individuales, en escritorio con 3 columnas.
+La UI actual muestra habilidades en tarjetas individuales, en móvil con 2 columnas y en escritorio con 3 columnas.
 
 ### Equipo
 
@@ -411,7 +411,7 @@ Contiene datos de consulta del personaje:
 - Habilidades en tarjetas individuales.
 - Historia importada desde Nivel20 en bloques apilados con los mismos títulos del trasfondo (`Rasgos de personalidad`, `Ideales`, `Vínculos`, `Defectos`, `Historia del personaje`, etc.).
 
-El bloque de habilidades esta organizado para que en escritorio quede en 3 columnas.
+El bloque de habilidades esta organizado para que en móvil quede en 2 columnas y en escritorio en 3 columnas.
 
 ### Combate
 

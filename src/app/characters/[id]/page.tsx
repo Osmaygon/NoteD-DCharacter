@@ -1163,7 +1163,7 @@ export default function CharacterDetailPage() {
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">Habilidades</p>
-                  {renderCheckCards(skills, sections.skills, "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}
+                  {renderCheckCards(skills, sections.skills, "grid-cols-2 lg:grid-cols-3")}
                 </div>
               </div>
             </section>
