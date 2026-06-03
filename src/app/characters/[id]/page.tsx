@@ -9,6 +9,7 @@ import {
   CharacterDetail,
   deleteCharacter,
   getCharacterDetail,
+  updateCharacterAmmunition,
   updateCharacterDetail,
   updateCharacterSourcePayload,
   updateCharacterSpellSlots,
@@ -81,6 +82,19 @@ type TraitDetail = {
 type StorySection = {
   title: string;
   text: string;
+};
+
+type AmmunitionEntry = {
+  id: string;
+  name: string;
+  description: string;
+  current: number;
+  max: number;
+};
+
+type AmmunitionState = {
+  visible: boolean;
+  entries: AmmunitionEntry[];
 };
 
 type DndApiEntry = {
@@ -210,6 +224,27 @@ function splitFeatureDescription(value: string): StorySection | null {
   return { title: "Rasgo de trasfondo", text };
 }
 
+function normalizeAmmunition(value: unknown): AmmunitionState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { visible: false, entries: [] };
+  }
+  const record = value as Record<string, unknown>;
+  const entries = Array.isArray(record.entries) ? record.entries.flatMap((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const item = entry as Record<string, unknown>;
+    const max = Math.max(0, Math.floor(numberFromUnknown(item.max) ?? 0));
+    const current = Math.max(0, Math.min(max || Number.POSITIVE_INFINITY, Math.floor(numberFromUnknown(item.current) ?? max)));
+    return [{
+      id: typeof item.id === "string" && item.id ? item.id : `ammo-${index}`,
+      name: typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Munición",
+      description: typeof item.description === "string" ? item.description : "",
+      current,
+      max,
+    }];
+  }) : [];
+  return { visible: Boolean(record.visible), entries };
+}
+
 async function fetchTraitFromApi(name: string): Promise<string> {
   const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
   for (const path of paths) {
@@ -256,6 +291,7 @@ export default function CharacterDetailPage() {
     notes: "",
   });
 
+  const ammunition = normalizeAmmunition(rawPayload.ammunition);
   const summary = (rawPayload.summary as Record<string, unknown> | undefined) ?? {};
   const sections = (rawPayload.sections as Record<string, string> | undefined) ?? {};
   const abilities = (summary.abilities as Record<string, { score?: number; modifier?: number }> | undefined) ?? {};
@@ -378,6 +414,7 @@ export default function CharacterDetailPage() {
         prepared_spell_ids?: unknown[];
         combat_favorites?: unknown[];
         spell_slots_spent?: Record<string, number>;
+        ammunition?: Record<string, unknown>;
         summary?: Record<string, unknown>;
         sections?: Record<string, string>;
       };
@@ -393,12 +430,14 @@ export default function CharacterDetailPage() {
           prepared_spell_ids: payload.prepared_spell_ids ?? payload.source_payload.prepared_spell_ids,
           combat_favorites: payload.combat_favorites ?? payload.source_payload.combat_favorites,
           spell_slots_spent: detail.spell_slots_spent ?? payload.spell_slots_spent ?? payload.source_payload.spell_slots_spent,
+          ammunition: detail.ammunition ?? payload.ammunition ?? payload.source_payload.ammunition,
           summary: payload.summary ?? payload.source_payload.summary,
           sections: payload.sections ?? payload.source_payload.sections,
         }
       : {
           ...payload,
           spell_slots_spent: detail.spell_slots_spent ?? payload.spell_slots_spent,
+          ammunition: detail.ammunition ?? payload.ammunition,
         };
 
     const reparsed = normalizedPayload.raw_text ? parseImportedCharacter(normalizedPayload.raw_text) : null;
@@ -769,6 +808,116 @@ export default function CharacterDetailPage() {
     );
   }
 
+  async function persistAmmunition(next: AmmunitionState) {
+    if (!userId) return;
+    await updateCharacterAmmunition(userId, params.id, next);
+    setRawPayload((current) => ({ ...current, ammunition: next }));
+  }
+
+  async function setAmmunitionVisible(visible: boolean) {
+    await persistAmmunition({ ...ammunition, visible });
+    setMessage(visible ? "Munición visible en combate." : "Munición oculta en combate.");
+  }
+
+  async function addAmmunitionEntry() {
+    let index = ammunition.entries.length + 1;
+    let id = `ammo-${index}`;
+    while (ammunition.entries.some((entry) => entry.id === id)) {
+      index += 1;
+      id = `ammo-${index}`;
+    }
+    await persistAmmunition({
+      visible: true,
+      entries: [
+        ...ammunition.entries,
+        { id, name: "Munición", description: "", current: 20, max: 20 },
+      ],
+    });
+  }
+
+  async function updateAmmunitionEntry(id: string, patch: Partial<AmmunitionEntry>) {
+    const entries = ammunition.entries.map((entry) => {
+      if (entry.id !== id) return entry;
+      const next = { ...entry, ...patch };
+      const max = Math.max(0, Math.floor(numberFromUnknown(next.max) ?? 0));
+      const current = Math.max(0, Math.min(max || Number.POSITIVE_INFINITY, Math.floor(numberFromUnknown(next.current) ?? 0)));
+      return { ...next, max, current };
+    });
+    await persistAmmunition({ ...ammunition, entries });
+  }
+
+  async function removeAmmunitionEntry(id: string) {
+    await persistAmmunition({
+      ...ammunition,
+      entries: ammunition.entries.filter((entry) => entry.id !== id),
+    });
+  }
+
+  function renderAmmunitionBlock() {
+    if (!ammunition.visible) {
+      return (
+        <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Munición</p>
+              <p className="mt-1 text-sm text-[#d9c89e]">Oculta para este personaje.</p>
+            </div>
+            <button className="btn-secondary" type="button" onClick={() => void setAmmunitionVisible(true)}>Mostrar munición</button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Munición</p>
+            <p className="mt-1 text-sm text-[#d9c89e]">Contadores personalizables para flechas, virotes, balas u otros recursos.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-secondary" type="button" onClick={() => void addAmmunitionEntry()}>Añadir bloque</button>
+            <button className="btn-secondary" type="button" onClick={() => void setAmmunitionVisible(false)}>Ocultar</button>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {ammunition.entries.map((entry) => (
+            <div key={entry.id} className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
+              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                <input
+                  className="field"
+                  value={entry.name}
+                  placeholder="Nombre del bloque"
+                  onChange={(event) => void updateAmmunitionEntry(entry.id, { name: event.target.value })}
+                />
+                <button className="rounded border border-red-400/60 px-2 text-xs text-red-300 hover:bg-red-900/30" type="button" onClick={() => void removeAmmunitionEntry(entry.id)}>Quitar</button>
+              </div>
+              <textarea
+                className="field mt-2 min-h-20"
+                value={entry.description}
+                placeholder="Descripción o notas de uso"
+                onChange={(event) => void updateAmmunitionEntry(entry.id, { description: event.target.value })}
+              />
+              <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
+                <label className="text-xs text-[#b9ae8d]">
+                  Actual
+                  <input className="field mt-1" inputMode="numeric" value={entry.current} onChange={(event) => void updateAmmunitionEntry(entry.id, { current: Number(event.target.value) })} />
+                </label>
+                <label className="text-xs text-[#b9ae8d]">
+                  Máximo
+                  <input className="field mt-1" inputMode="numeric" value={entry.max} onChange={(event) => void updateAmmunitionEntry(entry.id, { max: Number(event.target.value) })} />
+                </label>
+                <button className="btn-secondary self-end px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
+                <button className="btn-secondary self-end px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
+              </div>
+            </div>
+          ))}
+          {!ammunition.entries.length ? <p className="text-sm text-[#d9c89e]">Aún no hay bloques de munición. Añade uno para empezar.</p> : null}
+        </div>
+      </div>
+    );
+  }
+
   function findTraitDescriptionInRawPayload(traitName: string): string {
     const raw = (rawPayload.raw as Record<string, unknown> | undefined) ?? {};
     const key = normalizeTraitKey(traitName);
@@ -1080,6 +1229,7 @@ export default function CharacterDetailPage() {
             </section>
 
             <section className="grid gap-4">
+              {renderAmmunitionBlock()}
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Ataques</p>
                 {renderAttackCards(attacks, sections.attacks)}

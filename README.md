@@ -229,6 +229,7 @@ Pestanas:
 
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
+- Munición opcional por usuario, visible/oculta según personaje, con bloques editables de nombre, descripción y contador.
 - Ataques y Equipo en bloques apilados.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. Accion, alcance, duracion y componentes (`V`, `S`, `M`) van en la cabecera y el nivel queda al final de esa linea. En la pestaña Conjuros, los espacios por nivel se muestran debajo de preparados en una sola fila como nivel y cantidad disponible. En Combate, esos espacios se pueden marcar/desmarcar como gastados por nivel.
 
@@ -441,13 +442,14 @@ Se guardan en base de datos al pulsar `Guardar`, por usuario en `app_character_u
 - `current_hp`: HP actual.
 - `temp_hp`: vida temporal.
 - `spell_slots_spent`: espacios de conjuro gastados por nivel.
+- `ammunition`: visibilidad y bloques editables de munición.
 
 Reglas actuales:
 
 - `current_hp` no baja de `0`.
 - `current_hp` no sube por encima de `hp` maximo.
 - `temp_hp` no baja de `0`.
-- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida y espacios gastados son independientes.
+- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida, espacios gastados y munición son independientes.
 
 `shields` existe en la base de datos por una iteracion anterior, pero se quito del visual. Hay que limpiarlo mas adelante si se confirma que no se va a usar.
 

@@ -24,6 +24,7 @@ export type CharacterDetail = {
   notes: string | null;
   source_payload: Record<string, unknown>;
   spell_slots_spent: Record<string, number> | null;
+  ammunition: Record<string, unknown> | null;
 };
 
 export async function listCampaigns(userId: string): Promise<HomeEntity[]> {
@@ -146,6 +147,20 @@ export async function updateCharacterDetail(
     p_ac: input.ac,
     p_speed: input.speed,
     p_notes: input.notes,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function updateCharacterAmmunition(
+  userId: string,
+  characterId: string,
+  ammunition: Record<string, unknown>,
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("update_character_ammunition_for_user", {
+    p_user_id: userId,
+    p_character_id: characterId,
+    p_ammunition: ammunition,
   });
   if (error) throw new Error(error.message);
 }

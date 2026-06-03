@@ -54,6 +54,7 @@ create table if not exists public.app_character_user_state (
   temp_hp int not null default 0,
   shields int not null default 0,
   spell_slots_spent jsonb not null default '{}'::jsonb,
+  ammunition jsonb not null default '{"visible": false, "entries": []}'::jsonb,
   updated_at timestamptz not null default now(),
   primary key (character_id, user_id)
 );
@@ -63,6 +64,7 @@ alter table public.app_character_profiles add column if not exists current_hp in
 alter table public.app_character_profiles add column if not exists temp_hp int not null default 0;
 alter table public.app_character_profiles add column if not exists shields int not null default 0;
 alter table public.app_character_user_state add column if not exists spell_slots_spent jsonb not null default '{}'::jsonb;
+alter table public.app_character_user_state add column if not exists ammunition jsonb not null default '{"visible": false, "entries": []}'::jsonb;
 
 alter table public.app_campaigns enable row level security;
 alter table public.app_campaign_members enable row level security;
@@ -276,7 +278,8 @@ returns table(
   speed int,
   notes text,
   source_payload jsonb,
-  spell_slots_spent jsonb
+  spell_slots_spent jsonb,
+  ammunition jsonb
 )
 language sql
 security definer
@@ -298,7 +301,8 @@ as $$
     p.speed,
     p.notes,
     p.source_payload,
-    coalesce(s.spell_slots_spent, '{}'::jsonb)
+    coalesce(s.spell_slots_spent, '{}'::jsonb),
+    coalesce(s.ammunition, '{"visible": false, "entries": []}'::jsonb)
   from public.app_characters c
   join public.app_character_members m on m.character_id = c.id and m.user_id = p_user_id
   left join public.app_character_profiles p on p.character_id = c.id
@@ -558,6 +562,36 @@ begin
 end;
 $$;
 
+create or replace function public.update_character_ammunition_for_user(
+  p_user_id uuid,
+  p_character_id uuid,
+  p_ammunition jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_character_members m
+    where m.character_id = p_character_id and m.user_id = p_user_id
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  insert into public.app_character_user_state(character_id, user_id, ammunition)
+  values (p_character_id, p_user_id, coalesce(p_ammunition, '{"visible": false, "entries": []}'::jsonb))
+  on conflict (character_id, user_id) do update set
+    ammunition = excluded.ammunition,
+    updated_at = now();
+end;
+$$;
+
 grant execute on function public.create_campaign_for_user(uuid, text) to anon, authenticated;
 grant execute on function public.join_campaign_by_code(uuid, text) to anon, authenticated;
 grant execute on function public.list_campaigns_for_user(uuid) to anon, authenticated;
@@ -568,6 +602,7 @@ grant execute on function public.list_all_characters_for_user(uuid) to anon, aut
 grant execute on function public.list_hidden_characters_for_user(uuid) to anon, authenticated;
 grant execute on function public.set_character_visibility_for_user(uuid, uuid, boolean) to anon, authenticated;
 grant execute on function public.update_character_spell_slots_for_user(uuid, uuid, jsonb) to anon, authenticated;
+grant execute on function public.update_character_ammunition_for_user(uuid, uuid, jsonb) to anon, authenticated;
 grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) to anon, authenticated;
