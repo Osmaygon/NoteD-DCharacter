@@ -307,7 +307,7 @@ type ArmorStats = { armorBase: number | null; maxDex: number | null };
 
 function inferArmorStats(name: string, detail: string): ArmorStats {
   const text = normalizeTraitKey(`${name} ${detail}`);
-  if (text.includes("protecsao")) return { armorBase: 18, maxDex: 0 };
+  if (text.includes("protecsao")) return { armorBase: 17, maxDex: 0 };
   if (text.includes("cuero tachonado")) return { armorBase: 12, maxDex: null };
   if (text.includes("cuero") || text.includes("acolchada")) return { armorBase: 11, maxDex: null };
   if (text.includes("pieles")) return { armorBase: 12, maxDex: 2 };
