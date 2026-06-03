@@ -717,8 +717,7 @@ as $$
   from public.app_status_effects s
   where coalesce(trim(p_query), '') = ''
     or lower(s.name || ' ' || s.category || ' ' || s.source || ' ' || s.description) like '%' || lower(trim(p_query)) || '%'
-  order by case when lower(s.name) = lower(trim(p_query)) then 0 else 1 end, s.category, s.name
-  limit 50;
+  order by case when lower(s.name) = lower(trim(p_query)) then 0 else 1 end, s.category, s.name;
 $$;
 
 create or replace function public.list_active_status_effects_for_character(p_user_id uuid, p_character_id uuid)

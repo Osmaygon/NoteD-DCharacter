@@ -473,7 +473,7 @@ Contiene informacion util para usar durante pelea o roleo activo:
   - `Descanso largo`: deja HP al máximo, vida temporal a 0 y recupera espacios de conjuro gastados; además recuerda recursos por personaje como Imponer las manos, conjuros raciales, Destello de Genio o Cañón Sobrenatural.
 - Estados:
   - Catálogo en BD con condiciones oficiales 5e 2014 y efectos comunes usados en Nivel20/libros compatibles (`Tasha`, `Eberron`).
-  - Buscador en combate para aplicar/quitar estados.
+  - Buscador en combate para aplicar/quitar estados; no muestra sugerencias iniciales, solo coincidencias cuando se escribe una búsqueda.
   - Reglas JSON aplican modificadores visibles: CA, velocidad, dados a ataques/salvaciones y recordatorios de ventaja/desventaja/resistencias.
 - Referencia rapida:
   - CA.

@@ -919,6 +919,10 @@ export default function CharacterDetailPage() {
     let cancelled = false;
     void (async () => {
       try {
+        if (!statusSearch.trim()) {
+          if (!cancelled) setStatusResults([]);
+          return;
+        }
         const results = await searchStatusEffects(statusSearch);
         if (!cancelled) setStatusResults(results);
       } catch (error) {
@@ -1440,7 +1444,8 @@ export default function CharacterDetailPage() {
 
   function renderStatusBlock() {
     const activeIds = new Set(activeStatuses.map((status) => status.id));
-    const filteredResults = statusResults.filter((status) => !activeIds.has(status.id)).slice(0, 8);
+    const hasStatusSearch = Boolean(statusSearch.trim());
+    const filteredResults = statusResults.filter((status) => !activeIds.has(status.id));
 
     return (
       <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-3">
@@ -1469,7 +1474,7 @@ export default function CharacterDetailPage() {
                   </div>
                 ))}
               </div>
-            ) : <p className="text-sm text-[#d9c89e]">Sin estados activos.</p>}
+            ) : null}
 
             {activeStatusLabels.length ? (
               <div className="rounded-xl border border-[#d3a84a44] bg-black/20 p-3">
@@ -1489,20 +1494,23 @@ export default function CharacterDetailPage() {
                 placeholder="Cegado, Escudo de fe, Acelerado..."
                 onChange={(event) => setStatusSearch(event.target.value)}
               />
-              <div className="mt-3 grid gap-2 md:grid-cols-2">
-                {filteredResults.map((status) => (
-                  <div key={status.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[#f3dfac]">{status.name}</p>
-                        <p className="text-xs text-[#b9ae8d]">{status.category} · {status.source}</p>
+              {hasStatusSearch ? (
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {filteredResults.map((status) => (
+                    <div key={status.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[#f3dfac]">{status.name}</p>
+                          <p className="text-xs text-[#b9ae8d]">{status.category} · {status.source}</p>
+                        </div>
+                        <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => void toggleStatus(status, true)}>Aplicar</button>
                       </div>
-                      <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => void toggleStatus(status, true)}>Aplicar</button>
+                      <p className="mobile-detail mt-2 line-clamp-2 text-xs text-[#d9c89e]">{status.description}</p>
                     </div>
-                    <p className="mobile-detail mt-2 line-clamp-2 text-xs text-[#d9c89e]">{status.description}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                  {!filteredResults.length ? <p className="text-sm text-[#d9c89e]">Sin coincidencias.</p> : null}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
