@@ -352,6 +352,7 @@ export default function CharacterDetailPage() {
   const [openTraitEditors, setOpenTraitEditors] = useState<Record<string, boolean>>({});
   const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
   const [openSpells, setOpenSpells] = useState<Record<number, boolean>>({});
+  const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
 
@@ -833,6 +834,7 @@ export default function CharacterDetailPage() {
         { id, name: "Munición", description: "", current: 20, max: 20 },
       ],
     });
+    setEditingAmmunition((current) => ({ ...current, [id]: true }));
   }
 
   async function updateAmmunitionEntry(id: string, patch: Partial<AmmunitionEntry>) {
@@ -881,37 +883,61 @@ export default function CharacterDetailPage() {
           </div>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {ammunition.entries.map((entry) => (
+          {ammunition.entries.map((entry) => {
+            const isEditing = editingAmmunition[entry.id] ?? false;
+            return (
             <div key={entry.id} className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
-              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                <input
-                  className="field"
-                  value={entry.name}
-                  placeholder="Nombre del bloque"
-                  onChange={(event) => void updateAmmunitionEntry(entry.id, { name: event.target.value })}
-                />
-                <button className="rounded border border-red-400/60 px-2 text-xs text-red-300 hover:bg-red-900/30" type="button" onClick={() => void removeAmmunitionEntry(entry.id)}>Quitar</button>
-              </div>
-              <textarea
-                className="field mt-2 min-h-20"
-                value={entry.description}
-                placeholder="Descripción o notas de uso"
-                onChange={(event) => void updateAmmunitionEntry(entry.id, { description: event.target.value })}
-              />
-              <div className="mt-2 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto]">
-                <label className="text-xs text-[#b9ae8d]">
-                  Actual
-                  <input className="field mt-1" inputMode="numeric" value={entry.current} onChange={(event) => void updateAmmunitionEntry(entry.id, { current: Number(event.target.value) })} />
-                </label>
-                <label className="text-xs text-[#b9ae8d]">
-                  Máximo
-                  <input className="field mt-1" inputMode="numeric" value={entry.max} onChange={(event) => void updateAmmunitionEntry(entry.id, { max: Number(event.target.value) })} />
-                </label>
-                <button className="btn-secondary self-end px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
-                <button className="btn-secondary self-end px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
-              </div>
+              {isEditing ? (
+                <>
+                  <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
+                    <input
+                      className="field"
+                      value={entry.name}
+                      placeholder="Nombre del bloque"
+                      onChange={(event) => void updateAmmunitionEntry(entry.id, { name: event.target.value })}
+                    />
+                    <button className="btn-secondary px-3 py-2" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: false }))}>Listo</button>
+                    <button className="rounded border border-red-400/60 px-2 text-xs text-red-300 hover:bg-red-900/30" type="button" onClick={() => void removeAmmunitionEntry(entry.id)}>Quitar</button>
+                  </div>
+                  <textarea
+                    className="field mt-2 min-h-20"
+                    value={entry.description}
+                    placeholder="Descripción o notas de uso"
+                    onChange={(event) => void updateAmmunitionEntry(entry.id, { description: event.target.value })}
+                  />
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <label className="text-xs text-[#b9ae8d]">
+                      Actual
+                      <input className="field mt-1" inputMode="numeric" value={entry.current} onChange={(event) => void updateAmmunitionEntry(entry.id, { current: Number(event.target.value) })} />
+                    </label>
+                    <label className="text-xs text-[#b9ae8d]">
+                      Máximo
+                      <input className="field mt-1" inputMode="numeric" value={entry.max} onChange={(event) => void updateAmmunitionEntry(entry.id, { max: Number(event.target.value) })} />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[#f3dfac]">{entry.name}</p>
+                      {entry.description ? <p className="mt-1 whitespace-pre-wrap text-xs text-[#b9ae8d]">{entry.description}</p> : null}
+                    </div>
+                    <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: true }))}>Editar</button>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <button className="btn-secondary px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
+                    <div className="min-w-20 rounded-lg border border-[#d3a84a44] bg-black/25 px-3 py-2 text-center">
+                      <p className="text-2xl font-semibold text-[#f3dfac]">{entry.current}</p>
+                      <p className="text-xs text-[#b9ae8d]">de {entry.max || "-"}</p>
+                    </div>
+                    <button className="btn-secondary px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
+                  </div>
+                </>
+              )}
             </div>
-          ))}
+            );
+          })}
           {!ammunition.entries.length ? <p className="text-sm text-[#d9c89e]">Aún no hay bloques de munición. Añade uno para empezar.</p> : null}
         </div>
       </div>
