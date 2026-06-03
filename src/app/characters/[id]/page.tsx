@@ -886,7 +886,7 @@ export default function CharacterDetailPage() {
           {ammunition.entries.map((entry) => {
             const isEditing = editingAmmunition[entry.id] ?? false;
             return (
-            <div key={entry.id} className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
+            <div key={entry.id} className="rounded-lg border border-[#d3a84a44] bg-black/25 p-2.5">
               {isEditing ? (
                 <>
                   <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
@@ -918,20 +918,20 @@ export default function CharacterDetailPage() {
                 </>
               ) : (
                 <>
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[#f3dfac]">{entry.name}</p>
-                      {entry.description ? <p className="mt-1 whitespace-pre-wrap text-xs text-[#b9ae8d]">{entry.description}</p> : null}
+                      {entry.description ? <p className="mt-0.5 line-clamp-2 whitespace-pre-wrap text-xs text-[#b9ae8d]">{entry.description}</p> : null}
                     </div>
-                    <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: true }))}>Editar</button>
+                    <button className="btn-secondary px-2 py-1 text-xs" type="button" onClick={() => setEditingAmmunition((current) => ({ ...current, [entry.id]: true }))}>Editar</button>
                   </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <button className="btn-secondary px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
-                    <div className="min-w-20 rounded-lg border border-[#d3a84a44] bg-black/25 px-3 py-2 text-center">
-                      <p className="text-2xl font-semibold text-[#f3dfac]">{entry.current}</p>
-                      <p className="text-xs text-[#b9ae8d]">de {entry.max || "-"}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current - 1 })}>-</button>
+                    <div className="min-w-16 rounded-lg border border-[#d3a84a44] bg-black/25 px-2 py-1 text-center">
+                      <p className="text-xl font-semibold text-[#f3dfac]">{entry.current}</p>
+                      <p className="text-[11px] text-[#b9ae8d]">de {entry.max || "-"}</p>
                     </div>
-                    <button className="btn-secondary px-3 py-2" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
+                    <button className="btn-secondary px-2 py-1" type="button" onClick={() => void updateAmmunitionEntry(entry.id, { current: entry.current + 1 })}>+</button>
                   </div>
                 </>
               )}
