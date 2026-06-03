@@ -882,7 +882,7 @@ export default function CharacterDetailPage() {
             <button className="btn-secondary" type="button" onClick={() => void setAmmunitionVisible(false)}>Ocultar</button>
           </div>
         </div>
-        <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
           {ammunition.entries.map((entry) => {
             const isEditing = editingAmmunition[entry.id] ?? false;
             return (
