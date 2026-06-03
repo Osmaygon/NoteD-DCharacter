@@ -11,6 +11,7 @@ import {
   getCharacterDetail,
   updateCharacterAmmunition,
   updateCharacterDetail,
+  updateCharacterInventory,
   updateCharacterSourcePayload,
   updateCharacterSpellSlots,
 } from "@/lib/home-entities";
@@ -48,6 +49,27 @@ type EquipmentEntry = {
   detail?: string;
   kind?: string;
   quick_use?: string;
+};
+
+type InventoryCategory = "arma" | "armadura" | "escudo" | "municion" | "herramienta" | "objeto";
+
+type InventoryItem = {
+  id: string;
+  name: string;
+  category: InventoryCategory;
+  detail: string;
+  quantity: number;
+  equipped: boolean;
+  armorBase?: number | null;
+  maxDex?: number | null;
+  acBonus?: number | null;
+  damage?: string;
+  notes?: string;
+};
+
+type InventoryState = {
+  initialized?: boolean;
+  entries: InventoryItem[];
 };
 
 type TraitEntry = {
@@ -258,6 +280,156 @@ function normalizeAmmunition(value: unknown): AmmunitionState {
   return { visible: Boolean(record.visible), entries };
 }
 
+function normalizeInventoryCategory(value: unknown): InventoryCategory {
+  const key = normalizeTraitKey(String(value ?? ""));
+  if (key.includes("arma")) return "arma";
+  if (key.includes("armadura")) return "armadura";
+  if (key.includes("escudo")) return "escudo";
+  if (key.includes("municion")) return "municion";
+  if (key.includes("herramienta")) return "herramienta";
+  return "objeto";
+}
+
+function inferInventoryItem(entry: EquipmentEntry, index: number): InventoryItem {
+  const name = entry.name.trim() || "Objeto";
+  const detail = entry.detail?.trim() ?? "";
+  const kind = normalizeTraitKey(entry.kind ?? "");
+  const text = normalizeTraitKey(`${name} ${detail}`);
+  let category: InventoryCategory = "objeto";
+  if (text.includes("escudo")) category = "escudo";
+  else if (kind.includes("arma")) category = "arma";
+  else if (kind.includes("herramienta") || text.includes("kit") || text.includes("utiles") || text.includes("herramientas")) category = "herramienta";
+  else if (kind.includes("armadura") || /cuero|cota|coraza|armadura|placas|malla|escamas|anillas|peto/.test(text)) category = "armadura";
+
+  let armorBase: number | null = null;
+  let maxDex: number | null = null;
+  let acBonus: number | null = null;
+  if (category === "escudo") acBonus = 2;
+  if (category === "armadura") {
+    if (text.includes("cuero tachonado")) armorBase = 12;
+    else if (text.includes("cuero")) armorBase = 11;
+    else if (text.includes("acolchada")) armorBase = 11;
+    else if (text.includes("pieles")) { armorBase = 12; maxDex = 2; }
+    else if (text.includes("camisote")) { armorBase = 13; maxDex = 2; }
+    else if (text.includes("escamas")) { armorBase = 14; maxDex = 2; }
+    else if (text.includes("coraza")) { armorBase = 14; maxDex = 2; }
+    else if (text.includes("media armadura")) { armorBase = 15; maxDex = 2; }
+    else if (text.includes("anillas")) armorBase = 14;
+    else if (text.includes("cota de malla") || text.includes("malla") || text.includes("guanteletes")) armorBase = 16;
+    else if (text.includes("placas")) armorBase = 18;
+  }
+
+  return {
+    id: `import-${normalizeTraitKey(name).replace(/[^a-z0-9]+/g, "-") || "objeto"}-${index}`,
+    name,
+    category,
+    detail,
+    quantity: 1,
+    equipped: false,
+    armorBase,
+    maxDex,
+    acBonus,
+    damage: category === "arma" ? detail : "",
+    notes: entry.quick_use ?? "",
+  };
+}
+
+function itemArmorClass(item: InventoryItem, dexMod: number): number | null {
+  if (item.category !== "armadura" || !item.armorBase) return null;
+  const dex = item.maxDex === null || item.maxDex === undefined ? dexMod : Math.min(dexMod, item.maxDex);
+  return item.armorBase + dex;
+}
+
+function hasDefenseStyle(raw: Record<string, unknown>, traits: TraitEntry[]): boolean {
+  const text = normalizeTraitKey(collectRestTraitSources(raw, traits).map((source) => `${source.name} ${source.description}`).join("\n"));
+  return /\bdefensa\b/.test(text) && /estilo de combate|armadura|ca/.test(text);
+}
+
+function calculateInventoryAc(input: {
+  inventory: InventoryState;
+  dexMod: number;
+  wisMod: number;
+  conMod: number;
+  className: string;
+  raw: Record<string, unknown>;
+  traits: TraitEntry[];
+}): { total: number; detail: string } {
+  const classKey = normalizeTraitKey(input.className);
+  const equippedArmor = input.inventory.entries
+    .filter((item) => item.equipped && item.category === "armadura" && item.armorBase)
+    .sort((a, b) => (itemArmorClass(b, input.dexMod) ?? 0) - (itemArmorClass(a, input.dexMod) ?? 0))[0];
+  const armorAc = equippedArmor ? itemArmorClass(equippedArmor, input.dexMod) : null;
+  const unarmoredBase = classKey.includes("monje") && !equippedArmor
+    ? 10 + input.dexMod + input.wisMod
+    : classKey.includes("barbaro") && !equippedArmor
+      ? 10 + input.dexMod + input.conMod
+      : 10 + input.dexMod;
+  const base = armorAc ?? unarmoredBase;
+  const shield = input.inventory.entries.find((item) => item.equipped && item.category === "escudo");
+  const shieldBonus = shield ? (shield.acBonus ?? 2) : 0;
+  const defenseBonus = equippedArmor && hasDefenseStyle(input.raw, input.traits) ? 1 : 0;
+  const total = base + shieldBonus + defenseBonus;
+  const detail = [
+    equippedArmor ? `${equippedArmor.name} ${base}` : `Base ${base}`,
+    shieldBonus ? `escudo +${shieldBonus}` : "",
+    defenseBonus ? "Defensa +1" : "",
+  ].filter(Boolean).join(" · ");
+  return { total, detail };
+}
+
+function autoEquipInventory(entries: InventoryItem[], targetAc: number, dexMod: number, className: string, raw: Record<string, unknown>, traits: TraitEntry[]): InventoryItem[] {
+  const baseEntries = entries.map((item) => ({ ...item, equipped: false }));
+  const armorOptions = [undefined, ...baseEntries.filter((item) => item.category === "armadura" && item.armorBase)];
+  const shieldOptions = [undefined, ...baseEntries.filter((item) => item.category === "escudo")];
+  let best = baseEntries;
+  let bestDiff = Number.POSITIVE_INFINITY;
+
+  for (const armor of armorOptions) {
+    for (const shield of shieldOptions) {
+      const candidate = baseEntries.map((item) => ({ ...item, equipped: item.id === armor?.id || item.id === shield?.id }));
+      const ac = calculateInventoryAc({ inventory: { entries: candidate }, dexMod, wisMod: 0, conMod: 0, className, raw, traits }).total;
+      const diff = Math.abs(ac - targetAc);
+      if (diff < bestDiff) {
+        best = candidate;
+        bestDiff = diff;
+      }
+    }
+  }
+
+  return best;
+}
+
+function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[], targetAc: number, dexMod: number, className: string, raw: Record<string, unknown>, traits: TraitEntry[]): InventoryState {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (Array.isArray(record.entries) && (record.initialized || record.entries.length > 0)) {
+      return {
+        initialized: Boolean(record.initialized),
+        entries: record.entries.flatMap((entry, index) => {
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+          const item = entry as Record<string, unknown>;
+          return [{
+            id: typeof item.id === "string" && item.id ? item.id : `inv-${index}`,
+            name: typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Objeto",
+            category: normalizeInventoryCategory(item.category),
+            detail: typeof item.detail === "string" ? item.detail : "",
+            quantity: Math.max(1, Math.floor(numberFromUnknown(item.quantity) ?? 1)),
+            equipped: Boolean(item.equipped),
+            armorBase: numberFromUnknown(item.armorBase),
+            maxDex: item.maxDex === null ? null : numberFromUnknown(item.maxDex),
+            acBonus: numberFromUnknown(item.acBonus),
+            damage: typeof item.damage === "string" ? item.damage : "",
+            notes: typeof item.notes === "string" ? item.notes : "",
+          }];
+        }),
+      };
+    }
+  }
+
+  const inferred = importedEquipment.map((entry, index) => inferInventoryItem(entry, index));
+  return { initialized: false, entries: autoEquipInventory(inferred, targetAc, dexMod, className, raw, traits) };
+}
+
 function pushUnique(list: string[], value: string) {
   if (!list.includes(value)) list.push(value);
 }
@@ -420,6 +592,11 @@ export default function CharacterDetailPage() {
   const traits = Array.isArray(summary.traits) ? summary.traits as TraitEntry[] : [];
   const spells = Array.isArray(summary.spells) ? summary.spells as SpellEntry[] : [];
   const raw = (rawPayload.raw as Record<string, unknown> | undefined) ?? {};
+  const dexModifier = abilities.destreza?.modifier ?? 0;
+  const wisModifier = abilities.sabiduria?.modifier ?? 0;
+  const conModifier = abilities.constitucion?.modifier ?? 0;
+  const inventory = normalizeInventory(rawPayload.inventory, equipment, Number(form.ac || 0), dexModifier, form.class_name, raw, traits);
+  const calculatedAc = calculateInventoryAc({ inventory, dexMod: dexModifier, wisMod: wisModifier, conMod: conModifier, className: form.class_name, raw, traits });
   const backgroundStory = (raw.background && typeof raw.background === "object" && !Array.isArray(raw.background))
     ? raw.background as Record<string, unknown>
     : {};
@@ -472,6 +649,21 @@ export default function CharacterDetailPage() {
   const [openSpells, setOpenSpells] = useState<Record<number, boolean>>({});
   const [openStorySections, setOpenStorySections] = useState<Record<string, boolean>>({});
   const [openRestBlock, setOpenRestBlock] = useState(false);
+  const [openInventoryForm, setOpenInventoryForm] = useState(false);
+  const [editingInventory, setEditingInventory] = useState<Record<string, boolean>>({});
+  const [inventoryDraft, setInventoryDraft] = useState<InventoryItem>({
+    id: "",
+    name: "",
+    category: "objeto",
+    detail: "",
+    quantity: 1,
+    equipped: false,
+    armorBase: null,
+    maxDex: null,
+    acBonus: null,
+    damage: "",
+    notes: "",
+  });
   const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
@@ -543,6 +735,7 @@ export default function CharacterDetailPage() {
         combat_favorites?: unknown[];
         spell_slots_spent?: Record<string, number>;
         ammunition?: Record<string, unknown>;
+        inventory?: Record<string, unknown>;
         summary?: Record<string, unknown>;
         sections?: Record<string, string>;
       };
@@ -559,6 +752,7 @@ export default function CharacterDetailPage() {
           combat_favorites: payload.combat_favorites ?? payload.source_payload.combat_favorites,
           spell_slots_spent: detail.spell_slots_spent ?? payload.spell_slots_spent ?? payload.source_payload.spell_slots_spent,
           ammunition: detail.ammunition ?? payload.ammunition ?? payload.source_payload.ammunition,
+          inventory: detail.inventory ?? payload.inventory ?? payload.source_payload.inventory,
           summary: payload.summary ?? payload.source_payload.summary,
           sections: payload.sections ?? payload.source_payload.sections,
         }
@@ -566,6 +760,7 @@ export default function CharacterDetailPage() {
           ...payload,
           spell_slots_spent: detail.spell_slots_spent ?? payload.spell_slots_spent,
           ammunition: detail.ammunition ?? payload.ammunition,
+          inventory: detail.inventory ?? payload.inventory,
         };
 
     const reparsed = normalizedPayload.raw_text ? parseImportedCharacter(normalizedPayload.raw_text) : null;
@@ -759,45 +954,182 @@ export default function CharacterDetailPage() {
     );
   }
 
-  function renderEquipmentList(entries: EquipmentEntry[], fallback: string) {
-    if (!entries.length) {
-      return <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">{fallback || "Sin equipo importado todavía."}</p>;
-    }
+  async function persistInventory(next: InventoryState) {
+    if (!userId) return;
+    const normalizedNext = { ...next, initialized: true };
+    await updateCharacterInventory(userId, params.id, normalizedNext);
+    setRawPayload((current) => ({ ...current, inventory: normalizedNext }));
+  }
 
+  async function updateInventoryItem(itemId: string, patch: Partial<InventoryItem>) {
+    const currentItem = inventory.entries.find((item) => item.id === itemId);
+    const nextEquipped = patch.equipped ?? currentItem?.equipped;
+    const nextCategory = patch.category ?? currentItem?.category;
+    const nextEntries = inventory.entries.map((item) => {
+      if (item.id === itemId) {
+        return { ...item, ...patch };
+      }
+      if (nextEquipped && (nextCategory === "armadura" || nextCategory === "escudo") && item.category === nextCategory) {
+        return { ...item, equipped: false };
+      }
+      return item;
+    });
+    await persistInventory({ entries: nextEntries });
+    setMessage("Inventario actualizado.");
+  }
+
+  async function removeInventoryItem(itemId: string) {
+    await persistInventory({ entries: inventory.entries.filter((item) => item.id !== itemId) });
+    setMessage("Objeto eliminado del inventario.");
+  }
+
+  async function addInventoryItem() {
+    const name = inventoryDraft.name.trim();
+    if (!name) {
+      setMessage("Pon un nombre al objeto.");
+      return;
+    }
+    const nextIdBase = `manual-${normalizeTraitKey(name).replace(/[^a-z0-9]+/g, "-") || "objeto"}`;
+    const nextId = `${nextIdBase}-${inventory.entries.filter((item) => item.id.startsWith(nextIdBase)).length + 1}`;
+    const nextItem: InventoryItem = {
+      ...inventoryDraft,
+      id: nextId,
+      name,
+      detail: inventoryDraft.detail.trim(),
+      quantity: Math.max(1, Math.floor(inventoryDraft.quantity || 1)),
+      armorBase: inventoryDraft.category === "armadura" ? inventoryDraft.armorBase : null,
+      maxDex: inventoryDraft.category === "armadura" ? inventoryDraft.maxDex : null,
+      acBonus: inventoryDraft.category === "escudo" ? (inventoryDraft.acBonus ?? 2) : inventoryDraft.acBonus,
+    };
+    await persistInventory({ entries: [...inventory.entries, nextItem] });
+    setInventoryDraft({ id: "", name: "", category: "objeto", detail: "", quantity: 1, equipped: false, armorBase: null, maxDex: null, acBonus: null, damage: "", notes: "" });
+    setOpenInventoryForm(false);
+    setMessage("Objeto añadido al inventario.");
+  }
+
+  function renderInventoryItemEditor(item: InventoryItem) {
     return (
-      <div className="mt-3 grid gap-2 md:grid-cols-2">
-        {entries.map((item) => {
-          const key = normalizeTraitKey(`${item.name}-${item.detail ?? ""}`);
-          const isOpen = openEquipment[key] ?? false;
-          const detailPreview = item.detail ? shortText(item.detail, 90) : "";
-          const hasLongDetail = Boolean(item.detail && detailPreview !== item.detail);
-          return (
-            <div key={key} className="rounded-lg border border-[#d3a84a44] bg-black/25">
-              <button
-                className="flex w-full items-center justify-between gap-3 p-3 text-left"
-                type="button"
-                onClick={() => setOpenEquipment((current) => ({ ...current, [key]: !isOpen }))}
-              >
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-[#f3dfac]">{item.name}</span>
-                  {detailPreview ? (
-                    <span className="mobile-detail block text-xs text-[#b9ae8d]">
-                      {detailPreview}{hasLongDetail && !isOpen ? " Pulsa para ver más." : ""}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
-              </button>
-              {isOpen ? (
-                <div className="border-t border-[#d3a84a33] p-3 text-sm text-[#d9c89e]">
-                  <p><span className="text-[#b9ae8d]">Tipo:</span> {item.kind || "Objeto"}</p>
-                  <p><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle detectado"}</p>
-                  <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Uso rápido:</span> {item.quick_use || "Añade notas si necesitas recordar un uso concreto."}</p>
-                </div>
-              ) : null}
+      <div className="mt-3 grid gap-2 border-t border-[#d3a84a33] pt-3 text-xs text-[#b9ae8d] md:grid-cols-2">
+        <label>
+          Nombre
+          <input className="field mt-1" value={item.name} onChange={(event) => void updateInventoryItem(item.id, { name: event.target.value })} />
+        </label>
+        <label>
+          Tipo
+          <select className="field mt-1" value={item.category} onChange={(event) => void updateInventoryItem(item.id, { category: event.target.value as InventoryCategory })}>
+            <option value="arma">Arma</option>
+            <option value="armadura">Armadura</option>
+            <option value="escudo">Escudo</option>
+            <option value="municion">Munición</option>
+            <option value="herramienta">Herramienta</option>
+            <option value="objeto">Objeto</option>
+          </select>
+        </label>
+        <label>
+          Cantidad
+          <input className="field mt-1" inputMode="numeric" value={item.quantity} onChange={(event) => void updateInventoryItem(item.id, { quantity: Math.max(1, Number(event.target.value) || 1) })} />
+        </label>
+        <label>
+          Daño / uso de arma
+          <input className="field mt-1" value={item.damage ?? ""} onChange={(event) => void updateInventoryItem(item.id, { damage: event.target.value })} />
+        </label>
+        <label>
+          CA base armadura
+          <input className="field mt-1" inputMode="numeric" value={item.armorBase ?? ""} onChange={(event) => void updateInventoryItem(item.id, { armorBase: event.target.value ? Number(event.target.value) : null })} />
+        </label>
+        <label>
+          Máx. DES
+          <input className="field mt-1" inputMode="numeric" placeholder="Vacío = sin límite" value={item.maxDex ?? ""} onChange={(event) => void updateInventoryItem(item.id, { maxDex: event.target.value ? Number(event.target.value) : null })} />
+        </label>
+        <label>
+          Bonus CA
+          <input className="field mt-1" inputMode="numeric" value={item.acBonus ?? ""} onChange={(event) => void updateInventoryItem(item.id, { acBonus: event.target.value ? Number(event.target.value) : null })} />
+        </label>
+        <label className="md:col-span-2">
+          Detalle / notas
+          <textarea className="field mt-1 min-h-20" value={item.detail} onChange={(event) => void updateInventoryItem(item.id, { detail: event.target.value })} />
+        </label>
+        <button className="rounded border border-red-400/60 px-2 py-2 text-xs text-red-300 hover:bg-red-900/30 md:w-fit" type="button" onClick={() => void removeInventoryItem(item.id)}>Eliminar objeto</button>
+      </div>
+    );
+  }
+
+  function renderInventoryBlock() {
+    return (
+      <div>
+        <div className="mt-3 rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-[#b9ae8d]">CA por equipo</p>
+              <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{calculatedAc.total}</p>
+              <p className="text-xs text-[#b9ae8d]">{calculatedAc.detail}</p>
             </div>
-          );
-        })}
+            <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => setOpenInventoryForm((current) => !current)}>
+              {openInventoryForm ? "Cerrar" : "Añadir equipo"}
+            </button>
+          </div>
+          {openInventoryForm ? (
+            <div className="mt-3 grid gap-2 border-t border-[#d3a84a33] pt-3 text-xs text-[#b9ae8d] md:grid-cols-2">
+              <input className="field" placeholder="Nombre" value={inventoryDraft.name} onChange={(event) => setInventoryDraft((current) => ({ ...current, name: event.target.value }))} />
+              <select className="field" value={inventoryDraft.category} onChange={(event) => setInventoryDraft((current) => ({ ...current, category: event.target.value as InventoryCategory, acBonus: event.target.value === "escudo" ? 2 : current.acBonus }))}>
+                <option value="arma">Arma</option>
+                <option value="armadura">Armadura</option>
+                <option value="escudo">Escudo</option>
+                <option value="municion">Munición</option>
+                <option value="herramienta">Herramienta</option>
+                <option value="objeto">Objeto</option>
+              </select>
+              <input className="field" inputMode="numeric" placeholder="Cantidad" value={inventoryDraft.quantity} onChange={(event) => setInventoryDraft((current) => ({ ...current, quantity: Math.max(1, Number(event.target.value) || 1) }))} />
+              <input className="field" placeholder="Daño / uso" value={inventoryDraft.damage ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, damage: event.target.value }))} />
+              <input className="field" inputMode="numeric" placeholder="CA base armadura" value={inventoryDraft.armorBase ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, armorBase: event.target.value ? Number(event.target.value) : null }))} />
+              <input className="field" inputMode="numeric" placeholder="Máx. DES" value={inventoryDraft.maxDex ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, maxDex: event.target.value ? Number(event.target.value) : null }))} />
+              <input className="field" inputMode="numeric" placeholder="Bonus CA" value={inventoryDraft.acBonus ?? ""} onChange={(event) => setInventoryDraft((current) => ({ ...current, acBonus: event.target.value ? Number(event.target.value) : null }))} />
+              <textarea className="field min-h-20 md:col-span-2" placeholder="Detalle o notas" value={inventoryDraft.detail} onChange={(event) => setInventoryDraft((current) => ({ ...current, detail: event.target.value }))} />
+              <button className="btn-primary md:w-fit" type="button" onClick={() => void addInventoryItem()}>Guardar objeto</button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {inventory.entries.map((item) => {
+            const isOpen = openEquipment[item.id] ?? false;
+            const isEditing = editingInventory[item.id] ?? false;
+            const preview = item.detail ? shortText(item.detail, 90) : item.damage ? shortText(item.damage, 90) : "";
+            const equippedClass = item.equipped ? "border-[#d3a84aaa] bg-[#d3a84a18]" : "border-[#d3a84a44] bg-black/25";
+            return (
+              <div key={item.id} className={`rounded-lg border ${equippedClass}`}>
+                <div className="p-3">
+                  <button className="flex w-full items-start justify-between gap-3 text-left" type="button" onClick={() => setOpenEquipment((current) => ({ ...current, [item.id]: !isOpen }))}>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-[#f3dfac]">{item.name}</span>
+                      <span className="text-xs text-[#b9ae8d]">{item.category} · x{item.quantity}{item.equipped ? " · equipado" : ""}</span>
+                      {preview ? <span className="mobile-detail block text-xs text-[#b9ae8d]">{preview}</span> : null}
+                    </span>
+                    <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
+                  </button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(item.category === "arma" || item.category === "armadura" || item.category === "escudo") ? (
+                      <button className={item.equipped ? "btn-primary px-3 py-2 text-xs" : "btn-secondary px-3 py-2 text-xs"} type="button" onClick={() => void updateInventoryItem(item.id, { equipped: !item.equipped })}>
+                        {item.equipped ? "Desequipar" : "Equipar"}
+                      </button>
+                    ) : null}
+                    <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => setEditingInventory((current) => ({ ...current, [item.id]: !isEditing }))}>{isEditing ? "Listo" : "Editar"}</button>
+                  </div>
+                  {isOpen ? (
+                    <div className="mt-3 border-t border-[#d3a84a33] pt-3 text-sm text-[#d9c89e]">
+                      {item.damage ? <p><span className="text-[#b9ae8d]">Daño/uso:</span> {item.damage}</p> : null}
+                      {item.armorBase ? <p><span className="text-[#b9ae8d]">Armadura:</span> CA {item.armorBase}{item.maxDex === null || item.maxDex === undefined ? " + DES" : ` + DES máx ${item.maxDex}`}</p> : null}
+                      {item.acBonus ? <p><span className="text-[#b9ae8d]">Bonus CA:</span> +{item.acBonus}</p> : null}
+                      <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle"}</p>
+                    </div>
+                  ) : null}
+                  {isEditing ? renderInventoryItemEditor(item) : null}
+                </div>
+              </div>
+            );
+          })}
+          {!inventory.entries.length ? <p className="mt-3 whitespace-pre-wrap text-sm text-[#d9c89e]">Sin equipo importado todavía.</p> : null}
+        </div>
       </div>
     );
   }
@@ -1414,7 +1746,8 @@ export default function CharacterDetailPage() {
               <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">CA</p>
-                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{form.ac || "-"}</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#f3dfac]">{calculatedAc.total || form.ac || "-"}</p>
+                  <p className="mobile-detail text-[11px] text-[#b9ae8d]">{calculatedAc.detail}</p>
                 </div>
                 <div className="rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
                   <p className="text-xs text-[#b9ae8d]">HP max</p>
@@ -1482,8 +1815,8 @@ export default function CharacterDetailPage() {
                 {renderAttackCards(attacks, sections.attacks)}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Equipo</p>
-                {renderEquipmentList(equipment, sections.equipment)}
+                <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Inventario</p>
+                {renderInventoryBlock()}
               </div>
               <div className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Rasgos utiles para combate</p>

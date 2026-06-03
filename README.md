@@ -232,7 +232,7 @@ Pestanas:
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Munición opcional por usuario, visible/oculta según personaje, con bloques compactos ajustados a móvil: 1 columna en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
-- Ataques y Equipo en bloques apilados.
+- Inventario equipable por usuario: permite añadir, editar, eliminar, equipar y desequipar armas, armaduras, escudos, munición, herramientas y objetos. La CA visible se calcula desde la armadura/escudo equipados, DES y rasgos como Defensa.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. Accion, alcance, duracion y componentes (`V`, `S`, `M`) van en la cabecera y el nivel queda al final de esa linea. En la pestaña Conjuros, los espacios por nivel se muestran debajo de preparados en una sola fila como nivel y cantidad disponible. En Combate, esos espacios se pueden marcar/desmarcar como gastados por nivel.
 
 ### Estado Persistente Actual
@@ -350,6 +350,9 @@ RPCs relevantes:
 - `get_character_detail_for_user`
 - `update_character_detail_for_user`
 - `update_character_source_payload_for_user`
+- `update_character_spell_slots_for_user`
+- `update_character_ammunition_for_user`
+- `update_character_inventory_for_user`
 - `delete_character_for_user`
 
 ## Importacion Nivel20
@@ -470,13 +473,14 @@ Se guardan en base de datos al pulsar `Guardar`, por usuario en `app_character_u
 - `temp_hp`: vida temporal.
 - `spell_slots_spent`: espacios de conjuro gastados por nivel; se limpian con descanso largo y con descanso corto en personajes de Magia del pacto.
 - `ammunition`: visibilidad y bloques editables de munición.
+- `inventory`: inventario equipable editable por usuario/personaje.
 
 Reglas actuales:
 
 - `current_hp` no baja de `0`.
 - `current_hp` no sube por encima de `hp` maximo.
 - `temp_hp` no baja de `0`.
-- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida, espacios gastados y munición son independientes.
+- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida, espacios gastados, munición e inventario equipado son independientes.
 
 `shields` existe en la base de datos por una iteracion anterior, pero se quito del visual. Hay que limpiarlo mas adelante si se confirma que no se va a usar.
 
@@ -487,23 +491,33 @@ Reglas actuales:
 - No se muestran los iconos raros del PDF.
 - El parser separa automaticamente salvaciones de habilidades.
 
-## Equipo
+## Inventario Y Equipo
 
-El equipo se parsea como objetos individuales y se muestra como desplegable en 2 columnas desde escritorio, con descripcion corta cerrada y detalle completo al abrir.
+El equipo importado se transforma en inventario por usuario. Se muestra como desplegable en 2 columnas desde escritorio, con descripcion corta cerrada y detalle completo al abrir.
 
 Cada objeto puede tener:
 
 - nombre.
+- tipo (`Arma`, `Armadura`, `Escudo`, `Munición`, `Herramienta`, `Objeto`).
+- cantidad.
 - detalle detectado (`CA 2`, `1d4 perforante`, etc.).
-- tipo estimado (`Escudo`, `Arma`, `Foco`, `Paquete`, `Herramienta`, `Vestimenta`, `Defensa`, `Objeto`).
-- uso rapido en espanol.
+- daño/uso si es arma.
+- CA base, máximo de DES y bonus de CA si afecta a defensa.
+- estado `equipado`.
+
+Reglas actuales:
+
+- Solo una armadura y un escudo quedan equipados a la vez.
+- La CA se calcula desde el inventario: armadura equipada o base `10 + DES`, escudo equipado y bonificadores detectados como estilo `Defensa`.
+- Monje sin armadura usa `10 + DES + SAB`; bárbaro sin armadura usa `10 + DES + CON`.
+- Se pueden añadir objetos manuales desde el bloque de inventario.
 
 Ejemplos:
 
-- `Escudo centinela` con `CA 2`.
-- `Simbolo Sagrado` como foco.
+- `Escudo centinela` como escudo con bonus de CA.
+- `Cuero tachonado`, `Cota de escamas`, `Cota de malla`, etc. como armaduras con fórmula de CA.
+- `Simbolo Sagrado` como objeto/foco.
 - `Paquete de sacerdote` separado del objeto suelto posterior.
-- `Un escarabajo muerto del tamano de mi mano` como objeto independiente.
 
 ## Ataques
 
@@ -588,7 +602,7 @@ Criterio de móvil:
 - Mejorar parser de ataques truncados por OCR (`contunden…`, nombres cortados, etc.).
 - Parsear conjuros y trucos como elementos separados.
 - Diferenciar `Rasgo`, `Rasgo personalizado`, `Conjuro`, `Truco`, `Accion`, `Accion adicional` y `Reaccion`.
-- Permitir descripcion manual tambien en equipo, si hace falta.
+- Mejorar más el inventario con categorías especiales, peso, monedas y consumibles si hace falta.
 - Cachear respuestas de API en Supabase si se usa API de forma estable.
 - Investigar D&D Beyond como posible API/fuente.
 - Investigar Nivel20 como API/fuente, no solo como referencia visual.
