@@ -339,7 +339,7 @@ function inferInventoryItem(entry: EquipmentEntry, index: number): InventoryItem
     id: `import-${normalizeTraitKey(name).replace(/[^a-z0-9]+/g, "-") || "objeto"}-${index}`,
     name,
     category,
-    detail,
+    detail: normalizeTraitKey(name).includes("protecsao") ? "Armadura laminada. Armadura pesada: CA 17, no suma DES." : detail,
     quantity: 1,
     equipped: false,
     armorBase,
