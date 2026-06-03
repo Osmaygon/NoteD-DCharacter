@@ -523,7 +523,7 @@ Reglas actuales:
 
 - Solo una armadura y un escudo quedan equipados a la vez.
 - La CA se calcula desde el inventario: armadura equipada o base `10 + DES`, escudo equipado y bonificadores detectados como estilo `Defensa`.
-- Reglas de DES en armadura: ligera suma DES completo, media suma DES máximo +2 y pesada no suma DES (`Máx. DES = 0`).
+- Reglas de DES en armadura: ligera suma DES completo, media suma DES máximo +2 y pesada no suma DES ni positiva ni negativa (`Máx. DES = 0`).
 - Monje sin armadura usa `10 + DES + SAB`; bárbaro sin armadura usa `10 + DES + CON`.
 - Se pueden añadir objetos manuales desde el bloque de inventario.
 - Los valores editables del inventario se respetan como fuente visible; las correcciones de datos antiguos solo aplican si el campo no fue editado manualmente.
