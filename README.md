@@ -237,20 +237,23 @@ Pestanas:
 
 ### Estado Persistente Actual
 
-Se guardan con `update_character_detail_for_user`:
+Los personajes importados funcionan como base compartida/default. Las ediciones hechas desde una cuenta se guardan como overrides por usuario en `app_character_user_state`, para que otra cuenta pueda usar el mismo personaje sin pisar esos cambios.
 
-- Datos basicos de personaje.
+Se guardan con `update_character_detail_for_user`, por usuario:
+
+- Datos basicos editados del personaje (`name`, `class_name`, `level`, `race`, `background`, `hp`, `ac`, `speed`, `notes`) en `profile_overrides`.
+- HP actual.
+- Vida temporal.
 
 Se guarda por usuario en `app_character_user_state`:
 
-- HP actual.
-- Vida temporal.
 - Espacios de conjuro gastados.
 - Visibilidad y bloques de munición.
+- Inventario/equipo equipado.
 
-Se guarda con `update_character_source_payload_for_user`:
+Se guarda con `update_character_source_payload_for_user`, por usuario:
 
-- Descripciones manuales de rasgos en `source_payload.manual_trait_descriptions`.
+- Preparados/favoritos/manuales y otros cambios de `source_payload` en `source_payload_overrides`, incluyendo `manual_trait_descriptions`.
 
 No se guardan todavia manualmente:
 
@@ -329,7 +332,7 @@ Tablas principales:
 - `app_character_profiles`
 - `app_character_user_state`
 
-Campos relevantes de `app_character_profiles`:
+Campos relevantes de `app_character_profiles` como base compartida/default:
 
 - `class_name`
 - `level`
@@ -343,6 +346,16 @@ Campos relevantes de `app_character_profiles`:
 - `speed`
 - `notes`
 - `source_payload`
+
+Campos relevantes de `app_character_user_state` como estado/overrides por cuenta:
+
+- `current_hp`
+- `temp_hp`
+- `spell_slots_spent`
+- `ammunition`
+- `inventory`
+- `profile_overrides`
+- `source_payload_overrides`
 
 RPCs relevantes:
 
@@ -480,7 +493,7 @@ Reglas actuales:
 - `current_hp` no baja de `0`.
 - `current_hp` no sube por encima de `hp` maximo.
 - `temp_hp` no baja de `0`.
-- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida, espacios gastados, munición e inventario equipado son independientes.
+- Si otra cuenta tiene acceso al mismo personaje, sus contadores de vida, espacios gastados, munición, inventario equipado, datos básicos editados y cambios de `source_payload` son independientes.
 
 `shields` existe en la base de datos por una iteracion anterior, pero se quito del visual. Hay que limpiarlo mas adelante si se confirma que no se va a usar.
 

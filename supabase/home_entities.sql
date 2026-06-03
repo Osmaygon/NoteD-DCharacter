@@ -56,6 +56,8 @@ create table if not exists public.app_character_user_state (
   spell_slots_spent jsonb not null default '{}'::jsonb,
   ammunition jsonb not null default '{"visible": false, "entries": []}'::jsonb,
   inventory jsonb not null default '{"entries": []}'::jsonb,
+  profile_overrides jsonb not null default '{}'::jsonb,
+  source_payload_overrides jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now(),
   primary key (character_id, user_id)
 );
@@ -67,6 +69,8 @@ alter table public.app_character_profiles add column if not exists shields int n
 alter table public.app_character_user_state add column if not exists spell_slots_spent jsonb not null default '{}'::jsonb;
 alter table public.app_character_user_state add column if not exists ammunition jsonb not null default '{"visible": false, "entries": []}'::jsonb;
 alter table public.app_character_user_state add column if not exists inventory jsonb not null default '{"entries": []}'::jsonb;
+alter table public.app_character_user_state add column if not exists profile_overrides jsonb not null default '{}'::jsonb;
+alter table public.app_character_user_state add column if not exists source_payload_overrides jsonb not null default '{}'::jsonb;
 
 alter table public.app_campaigns enable row level security;
 alter table public.app_campaign_members enable row level security;
@@ -290,20 +294,20 @@ set search_path = public
 as $$
   select
     c.id,
-    c.name,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'name' then s.profile_overrides->>'name' else c.name end,
     c.join_code,
-    p.class_name,
-    p.level,
-    p.race,
-    p.background,
-    p.hp,
-    coalesce(s.current_hp, p.current_hp, p.hp, 0),
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'class_name' then nullif(s.profile_overrides->>'class_name', '') else p.class_name end,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'level' then nullif(s.profile_overrides->>'level', '')::int else p.level end,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'race' then nullif(s.profile_overrides->>'race', '') else p.race end,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'background' then nullif(s.profile_overrides->>'background', '') else p.background end,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'hp' then nullif(s.profile_overrides->>'hp', '')::int else p.hp end,
+    coalesce(s.current_hp, p.current_hp, case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'hp' then nullif(s.profile_overrides->>'hp', '')::int else p.hp end, 0),
     coalesce(s.temp_hp, p.temp_hp, 0),
     coalesce(s.shields, p.shields, 0),
-    p.ac,
-    p.speed,
-    p.notes,
-    p.source_payload,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'ac' then nullif(s.profile_overrides->>'ac', '')::int else p.ac end,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'speed' then nullif(s.profile_overrides->>'speed', '')::int else p.speed end,
+    case when coalesce(s.profile_overrides, '{}'::jsonb) ? 'notes' then s.profile_overrides->>'notes' else p.notes end,
+    coalesce(p.source_payload, '{}'::jsonb) || coalesce(s.source_payload_overrides, '{}'::jsonb),
     coalesce(s.spell_slots_spent, '{}'::jsonb),
     coalesce(s.ammunition, '{"visible": false, "entries": []}'::jsonb),
     coalesce(s.inventory, '{"entries": []}'::jsonb)
@@ -350,49 +354,30 @@ begin
     raise exception 'No autorizado';
   end if;
 
-  update public.app_characters
-  set name = coalesce(nullif(trim(p_name), ''), name)
-  where id = p_character_id;
-
-  insert into public.app_character_profiles(character_id, class_name, level, race, background, hp, current_hp, temp_hp, shields, ac, speed, notes, source_payload)
-  values (
-    p_character_id,
-    nullif(trim(p_class_name), ''),
-    p_level,
-    nullif(trim(p_race), ''),
-    nullif(trim(p_background), ''),
-    p_hp,
-    greatest(coalesce(p_hp, 0), 0),
-    0,
-    0,
-    p_ac,
-    p_speed,
-    nullif(trim(p_notes), ''),
-    '{}'::jsonb
-  )
-  on conflict (character_id) do update set
-    class_name = excluded.class_name,
-    level = excluded.level,
-    race = excluded.race,
-    background = excluded.background,
-    hp = excluded.hp,
-    ac = excluded.ac,
-    speed = excluded.speed,
-    notes = excluded.notes,
-    updated_at = now();
-
-  insert into public.app_character_user_state(character_id, user_id, current_hp, temp_hp, shields)
+  insert into public.app_character_user_state(character_id, user_id, current_hp, temp_hp, shields, profile_overrides)
   values (
     p_character_id,
     p_user_id,
     greatest(coalesce(p_current_hp, p_hp, 0), 0),
     greatest(coalesce(p_temp_hp, 0), 0),
-    greatest(coalesce(p_shields, 0), 0)
+    greatest(coalesce(p_shields, 0), 0),
+    jsonb_build_object(
+      'name', coalesce(p_name, ''),
+      'class_name', coalesce(p_class_name, ''),
+      'level', p_level,
+      'race', coalesce(p_race, ''),
+      'background', coalesce(p_background, ''),
+      'hp', p_hp,
+      'ac', p_ac,
+      'speed', p_speed,
+      'notes', coalesce(p_notes, '')
+    )
   )
   on conflict (character_id, user_id) do update set
     current_hp = excluded.current_hp,
     temp_hp = excluded.temp_hp,
     shields = excluded.shields,
+    profile_overrides = excluded.profile_overrides,
     updated_at = now();
 end;
 $$;
@@ -443,10 +428,10 @@ begin
     raise exception 'No autorizado';
   end if;
 
-  insert into public.app_character_profiles(character_id, source_payload)
-  values (p_character_id, coalesce(p_source_payload, '{}'::jsonb))
-  on conflict (character_id) do update set
-    source_payload = excluded.source_payload,
+  insert into public.app_character_user_state(character_id, user_id, source_payload_overrides)
+  values (p_character_id, p_user_id, coalesce(p_source_payload, '{}'::jsonb))
+  on conflict (character_id, user_id) do update set
+    source_payload_overrides = excluded.source_payload_overrides,
     updated_at = now();
 end;
 $$;
@@ -480,9 +465,10 @@ language sql
 security definer
 set search_path = public
 as $$
-  select c.id, c.name, c.join_code, c.created_at
+  select c.id, coalesce(s.profile_overrides->>'name', c.name), c.join_code, c.created_at
   from public.app_character_members m
   join public.app_characters c on c.id = m.character_id
+  left join public.app_character_user_state s on s.character_id = c.id and s.user_id = p_user_id
   where m.user_id = p_user_id
     and coalesce(m.is_visible, true)
   order by c.created_at desc;
@@ -494,9 +480,10 @@ language sql
 security definer
 set search_path = public
 as $$
-  select c.id, c.name, c.join_code, c.created_at
+  select c.id, coalesce(s.profile_overrides->>'name', c.name), c.join_code, c.created_at
   from public.app_character_members m
   join public.app_characters c on c.id = m.character_id
+  left join public.app_character_user_state s on s.character_id = c.id and s.user_id = p_user_id
   where m.user_id = p_user_id
   order by c.created_at desc;
 $$;
@@ -507,9 +494,10 @@ language sql
 security definer
 set search_path = public
 as $$
-  select c.id, c.name, c.join_code, c.created_at
+  select c.id, coalesce(s.profile_overrides->>'name', c.name), c.join_code, c.created_at
   from public.app_character_members m
   join public.app_characters c on c.id = m.character_id
+  left join public.app_character_user_state s on s.character_id = c.id and s.user_id = p_user_id
   where m.user_id = p_user_id
     and not coalesce(m.is_visible, true)
   order by c.created_at desc;
