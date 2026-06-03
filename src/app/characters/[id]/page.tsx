@@ -304,6 +304,7 @@ type ArmorStats = { armorBase: number | null; maxDex: number | null };
 
 function inferArmorStats(name: string, detail: string): ArmorStats {
   const text = normalizeTraitKey(`${name} ${detail}`);
+  if (text.includes("protecsao")) return { armorBase: 17, maxDex: 0 };
   if (text.includes("cuero tachonado")) return { armorBase: 12, maxDex: null };
   if (text.includes("cuero") || text.includes("acolchada")) return { armorBase: 11, maxDex: null };
   if (text.includes("pieles")) return { armorBase: 12, maxDex: 2 };
@@ -444,7 +445,9 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
             detail,
             quantity: Math.max(1, Math.floor(numberFromUnknown(item.quantity) ?? 1)),
             equipped: Boolean(item.equipped),
-            armorBase: category === "armadura" ? (storedArmorBase ?? inferredArmor.armorBase) : storedArmorBase,
+            armorBase: category === "armadura"
+              ? (id.startsWith("import-") && normalizeTraitKey(name).includes("protecsao") && storedArmorBase === 16 ? 17 : storedArmorBase ?? inferredArmor.armorBase)
+              : storedArmorBase,
             maxDex: category === "armadura" ? (storedMaxDex ?? inferredArmor.maxDex) : storedMaxDex,
             acBonus: category === "escudo"
               ? (id.startsWith("import-") && normalizeTraitKey(`${name} ${detail}`).includes("juramento") && storedAcBonus === 2 ? 1 : storedAcBonus ?? inferShieldBonus(name, detail))

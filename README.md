@@ -515,6 +515,7 @@ Reglas actuales:
 
 Ejemplos:
 
+- `Protecsao` se trata como armadura personalizada de CA 17 sin DES.
 - `Escudo centinela` como escudo con bonus de CA.
 - `Escudo del juramento implacable` se trata como escudo +1.
 - `Cuero tachonado`, `Cota de escamas`, `Cota de malla`, etc. como armaduras con fórmula de CA.
