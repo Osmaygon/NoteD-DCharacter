@@ -97,6 +97,19 @@ type AmmunitionState = {
   entries: AmmunitionEntry[];
 };
 
+type RestKind = "short" | "long";
+
+type RestRules = {
+  shortNotes: string[];
+  longNotes: string[];
+  shortResetsSpellSlots: boolean;
+};
+
+type RestTraitSource = {
+  name: string;
+  description: string;
+};
+
 type DndApiEntry = {
   desc?: string[];
 };
@@ -245,6 +258,111 @@ function normalizeAmmunition(value: unknown): AmmunitionState {
   return { visible: Boolean(record.visible), entries };
 }
 
+function pushUnique(list: string[], value: string) {
+  if (!list.includes(value)) list.push(value);
+}
+
+function pushTraitSources(list: RestTraitSource[], value: unknown) {
+  if (!Array.isArray(value)) return;
+  for (const entry of value) {
+    if (typeof entry === "string") {
+      list.push({ name: entry, description: "" });
+      continue;
+    }
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    list.push({
+      name: typeof record.name === "string" ? record.name : typeof record.title === "string" ? record.title : "",
+      description: typeof record.description === "string"
+        ? record.description
+        : typeof record.pdf_description === "string"
+          ? record.pdf_description
+          : "",
+    });
+  }
+}
+
+function collectRestTraitSources(raw: Record<string, unknown>, traits: TraitEntry[]): RestTraitSource[] {
+  const sources: RestTraitSource[] = traits.map((trait) => ({ name: trait.name, description: trait.pdf_description ?? "" }));
+  pushTraitSources(sources, raw.custom_feats);
+  pushTraitSources(sources, raw.race_feats);
+  if (Array.isArray(raw.professions)) {
+    for (const profession of raw.professions) {
+      if (!profession || typeof profession !== "object" || Array.isArray(profession)) continue;
+      pushTraitSources(sources, (profession as Record<string, unknown>).feats);
+    }
+  }
+  return sources;
+}
+
+function buildRestRules(input: {
+  className: string;
+  level: number;
+  hasSpellSlots: boolean;
+  raw: Record<string, unknown>;
+  traits: TraitEntry[];
+}): RestRules {
+  const classKey = normalizeTraitKey(input.className);
+  const sources = collectRestTraitSources(input.raw, input.traits);
+  const combined = normalizeTraitKey(sources.map((source) => `${source.name} ${source.description}`).join("\n"));
+  const has = (value: string | RegExp) => typeof value === "string" ? combined.includes(value) : value.test(combined);
+  const shortNotes = ["Puedes gastar dados de golpe para curarte; ajusta el HP manualmente si lo haces."];
+  const longNotes = ["HP actual al máximo y vida temporal a 0."];
+  const longRestCaster = input.hasSpellSlots || /mago|bardo|paladin|paladin|druida|explorador|clerigo|artifice|brujo/.test(classKey);
+  let shortResetsSpellSlots = false;
+
+  if (longRestCaster) pushUnique(longNotes, "Recuperas todos los espacios de conjuro gastados.");
+  if (has("recuperacion arcana") || classKey.includes("mago")) {
+    const recoverLevels = Math.max(1, Math.ceil(input.level / 2));
+    pushUnique(shortNotes, `Recuperación arcana: una vez al día puedes recuperar espacios con niveles combinados hasta ${recoverLevels} (máx. nivel 5); desmarca los espacios elegidos manualmente.`);
+    pushUnique(longNotes, "Recuperas el uso diario de Recuperación arcana.");
+  }
+  if (has("cancion de descanso")) pushUnique(shortNotes, "Canción de descanso: si alguien gasta dados de golpe, suma el dado extra de bardo.");
+  if (has("fuente de inspiracion")) {
+    pushUnique(shortNotes, "Recuperas todos los usos de Inspiración bárdica.");
+    pushUnique(longNotes, "Recuperas todos los usos de Inspiración bárdica.");
+  }
+  if (has("canalizar divinidad") || /paladin|clerigo/.test(classKey)) {
+    pushUnique(shortNotes, "Recuperas Canalizar Divinidad.");
+    pushUnique(longNotes, "Recuperas Canalizar Divinidad.");
+  }
+  if (has("imponer las manos") || classKey.includes("paladin")) pushUnique(longNotes, "Imponer las manos vuelve a su reserva completa.");
+  if (has("forma salvaje") || classKey.includes("druida")) {
+    pushUnique(shortNotes, "Recuperas los usos de Forma salvaje.");
+    pushUnique(longNotes, "Recuperas los usos de Forma salvaje.");
+  }
+  if (has(/\bki\b/) || classKey.includes("monje")) {
+    pushUnique(shortNotes, "Recuperas todos los puntos de ki.");
+    pushUnique(longNotes, "Recuperas todos los puntos de ki.");
+  }
+  if (has("magia del pacto") || classKey.includes("brujo")) {
+    shortResetsSpellSlots = true;
+    pushUnique(shortNotes, "Magia del pacto: recuperas todos tus espacios de brujo.");
+    pushUnique(longNotes, "Magia del pacto: recuperas todos tus espacios de brujo.");
+  }
+  if (has("maldicion del filo malefico")) {
+    pushUnique(shortNotes, "Recuperas Maldición del Filo Maléfico.");
+    pushUnique(longNotes, "Recuperas Maldición del Filo Maléfico.");
+  }
+  if (has("ataque de aliento")) {
+    pushUnique(shortNotes, "Recuperas Ataque de aliento.");
+    pushUnique(longNotes, "Recuperas Ataque de aliento.");
+  }
+  if (has("linaje celestial") || has("legado infernal") || has("magia drow")) {
+    pushUnique(longNotes, "Recuperas los conjuros raciales de uso diario.");
+  }
+  if (has("guerrero malefico")) pushUnique(longNotes, "Puedes reasignar el arma vinculada de Guerrero Maléfico.");
+  if (has("destello de genio")) pushUnique(longNotes, "Recuperas todos los usos de Destello de Genio.");
+  if (has("canon sobrenatural")) pushUnique(longNotes, "Recuperas la creación gratuita del Cañón Sobrenatural.");
+  if (has("arma de fuego arcana")) pushUnique(longNotes, "Puedes rehacer o cambiar tu Arma de Fuego Arcana tras el descanso largo.");
+  if (has("la herramienta adecuada para la tarea")) {
+    pushUnique(shortNotes, "Puedes crear la herramienta adecuada durante 1 hora que puede coincidir con este descanso.");
+    pushUnique(longNotes, "Puedes crear la herramienta adecuada durante 1 hora que puede coincidir con este descanso.");
+  }
+
+  return { shortNotes, longNotes, shortResetsSpellSlots };
+}
+
 async function fetchTraitFromApi(name: string): Promise<string> {
   const paths = traitApiPaths[normalizeTraitKey(name)] ?? [];
   for (const path of paths) {
@@ -353,6 +471,7 @@ export default function CharacterDetailPage() {
   const [openEquipment, setOpenEquipment] = useState<Record<string, boolean>>({});
   const [openSpells, setOpenSpells] = useState<Record<number, boolean>>({});
   const [openStorySections, setOpenStorySections] = useState<Record<string, boolean>>({});
+  const [openRestBlock, setOpenRestBlock] = useState(false);
   const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
@@ -373,6 +492,13 @@ export default function CharacterDetailPage() {
         .map(([level, count]) => [level, Math.max(0, Math.floor(numberFromUnknown(count) ?? 0))]),
     ) as Record<string, number> : {};
 
+  const restRules = buildRestRules({
+    className: form.class_name,
+    level: Number(form.level || 0),
+    hasSpellSlots: numericSpellSlots.length > 0,
+    raw,
+    traits,
+  });
   const preparedLimit = typeof spellMeta.prepared_limit === "number" ? spellMeta.prepared_limit : 0;
   const preparedSpellSet = new Set(preparedSpellIds);
   const preparedCount = spells.filter((spell) => preparedSpellSet.has(spell.id) && !isAlwaysPreparedSpell(spell)).length;
@@ -506,6 +632,44 @@ export default function CharacterDetailPage() {
       setMessage("Guardado.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No se pudo guardar");
+    }
+  }
+
+  async function applyRest(kind: RestKind) {
+    if (!userId) return;
+    const resetSpellSlots = kind === "long" || (kind === "short" && restRules.shortResetsSpellSlots);
+    const nextForm = kind === "long"
+      ? { ...form, current_hp: String(hpMax || 0), temp_hp: "0" }
+      : form;
+
+    try {
+      setMessage("");
+      if (kind === "long") {
+        await updateCharacterDetail(userId, params.id, {
+          name: nextForm.name,
+          class_name: nextForm.class_name,
+          level: nextForm.level ? Number(nextForm.level) : null,
+          race: nextForm.race,
+          background: nextForm.background,
+          hp: nextForm.hp ? Number(nextForm.hp) : null,
+          current_hp: nextForm.current_hp ? Number(nextForm.current_hp) : 0,
+          temp_hp: nextForm.temp_hp ? Number(nextForm.temp_hp) : 0,
+          shields: nextForm.shields ? Number(nextForm.shields) : 0,
+          ac: nextForm.ac ? Number(nextForm.ac) : null,
+          speed: nextForm.speed ? Number(nextForm.speed) : null,
+          notes: nextForm.notes,
+        });
+        setForm(nextForm);
+      }
+      if (resetSpellSlots) {
+        await updateCharacterSpellSlots(userId, params.id, {});
+        setRawPayload((current) => ({ ...current, spell_slots_spent: {} }));
+      }
+      setMessage(kind === "long"
+        ? "Descanso largo aplicado. Revisa los recordatorios específicos."
+        : "Descanso corto aplicado. Revisa los recordatorios específicos.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo aplicar el descanso");
     }
   }
 
@@ -769,6 +933,43 @@ export default function CharacterDetailPage() {
     await updateCharacterSpellSlots(userId, params.id, next);
     setRawPayload((current) => ({ ...current, spell_slots_spent: next }));
     setMessage("Espacios de conjuro actualizados.");
+  }
+
+  function renderRestBlock() {
+    return (
+      <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-3">
+        <button
+          className="flex w-full items-center justify-between gap-3 text-left"
+          type="button"
+          onClick={() => setOpenRestBlock((current) => !current)}
+        >
+          <span className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Descansos</span>
+          <span className="text-xs text-[#b9ae8d]">{openRestBlock ? "-" : "+"}</span>
+        </button>
+        {openRestBlock ? (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[#f3dfac]">Descanso corto</p>
+                <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => void applyRest("short")}>Corto</button>
+              </div>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-[#d9c89e]">
+                {restRules.shortNotes.map((note) => <li key={`short-${note}`}>{note}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-[#d3a84a44] bg-black/25 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[#f3dfac]">Descanso largo</p>
+                <button className="btn-primary px-3 py-2 text-xs" type="button" onClick={() => void applyRest("long")}>Largo</button>
+              </div>
+              <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-[#d9c89e]">
+                {restRules.longNotes.map((note) => <li key={`long-${note}`}>{note}</li>)}
+              </ul>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    );
   }
 
   function renderCombatSpellSlotTracker() {
@@ -1206,6 +1407,7 @@ export default function CharacterDetailPage() {
           </div>
         ) : activeTab === "combate" ? (
           <div className="mt-4 grid gap-4">
+            {renderRestBlock()}
             <section className="rounded-2xl border border-[#d3a84a66] bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[#b9ae8d]">Combate</p>
               <p className="mt-3 text-xs uppercase tracking-wide text-[#b9ae8d]">Referencia rápida</p>

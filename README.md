@@ -228,6 +228,7 @@ Pestanas:
 
 `Combate`:
 
+- Bloque `Descansos` encima de combate, cerrado por defecto en una sola línea; al abrir muestra botones `Corto` y `Largo` con recordatorios específicos leídos de los rasgos/clase del personaje.
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Munición opcional por usuario, visible/oculta según personaje, con bloques compactos ajustados a móvil: 1 columna en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
@@ -439,6 +440,10 @@ El bloque de habilidades esta organizado para que en móvil quede en 2 columnas 
 
 Contiene informacion util para usar durante pelea o roleo activo:
 
+- Descansos:
+  - Bloque desplegable cerrado por defecto.
+  - `Descanso corto`: aplica recuperaciones automáticas cuando no hay elección pendiente, como espacios de brujo por Magia del pacto; muestra recordatorios para dados de golpe, Recuperación arcana, Ki, Canalizar Divinidad, Forma salvaje, Inspiración bárdica, etc.
+  - `Descanso largo`: deja HP al máximo, vida temporal a 0 y recupera espacios de conjuro gastados; además recuerda recursos por personaje como Imponer las manos, conjuros raciales, Destello de Genio o Cañón Sobrenatural.
 - Referencia rapida:
   - CA.
   - HP max.
@@ -463,7 +468,7 @@ Se guardan en base de datos al pulsar `Guardar`, por usuario en `app_character_u
 
 - `current_hp`: HP actual.
 - `temp_hp`: vida temporal.
-- `spell_slots_spent`: espacios de conjuro gastados por nivel.
+- `spell_slots_spent`: espacios de conjuro gastados por nivel; se limpian con descanso largo y con descanso corto en personajes de Magia del pacto.
 - `ammunition`: visibilidad y bloques editables de munición.
 
 Reglas actuales:
