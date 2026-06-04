@@ -280,6 +280,37 @@ function sectionAfter(text: string, startLabel: string, maxLength = 900): string
   return text.slice(start + startLabel.length, start + startLabel.length + maxLength).trim();
 }
 
+function sectionAfterAny(text: string, startLabels: string[], endLabels: string[], maxLength = 1800): string {
+  const upper = normalizeSearch(text);
+  const starts = startLabels
+    .map((label) => ({ label, index: upper.indexOf(normalizeSearch(label)) }))
+    .filter((entry) => entry.index !== -1)
+    .sort((a, b) => a.index - b.index);
+  const start = starts[0];
+  if (!start) return "";
+
+  const contentStart = start.index + start.label.length;
+  const nearestEnd = endLabels
+    .map((label) => upper.indexOf(normalizeSearch(label), contentStart))
+    .filter((index) => index !== -1)
+    .sort((a, b) => a - b)[0];
+  const contentEnd = nearestEnd ?? Math.min(text.length, contentStart + maxLength);
+  return dedupeLineBreaks(text.slice(contentStart, contentEnd));
+}
+
+function signedNumber(value: string): number | null {
+  const match = value.match(/[+-]?\d+/);
+  return match ? toInt(match[0]) : null;
+}
+
+function parseCheckTotal(value: string): number | null {
+  return signedNumber(value);
+}
+
+function parseAge(text: string): string {
+  return cleanText(firstMatch(text, /(\d{1,4})\s+EDAD/i) || firstMatch(text, /EDAD\s*[:\-]?\s*(\d{1,4})/i));
+}
+
 function parseCheckEntries(text: string, names: string[]): ParsedCheck[] {
   return names.flatMap((name) => {
     const regex = new RegExp(`(?:^|\\s)([x\\s]{0,8})${escapeRegExp(name)}\\s+([+-]?\\d{1,2}|0)\\b`, "i");
@@ -476,7 +507,66 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
   const parsedAttacks = parseAttackEntries(text);
   const parsedEquipment = parseEquipmentEntries(equipment);
   const parsedTraits = parseTraitEntries(text);
-  const notes = sectionBetween(text, "NOTAS ADICIONALES", "HISTORIA DEL PERSONAJE") || "Importado desde PDF";
+  const storyEndLabels = [
+    "RASGOS DE PERSONALIDAD",
+    "IDEALES",
+    "VÍNCULOS",
+    "VINCULOS",
+    "DEFECTOS",
+    "HISTORIA DEL PERSONAJE",
+    "APARIENCIA",
+    "NOTAS ADICIONALES",
+    "OTRAS COMPETENCIAS E IDIOMAS",
+    "ATAQUES Y LANZAMIENTO DE CONJUROS",
+    "EQUIPO",
+    "RASGOS Y ATRIBUTOS",
+  ];
+  const backgroundTraits = sectionAfterAny(text, ["RASGOS DE PERSONALIDAD"], storyEndLabels.filter((label) => label !== "RASGOS DE PERSONALIDAD"));
+  const ideals = sectionAfterAny(text, ["IDEALES"], storyEndLabels.filter((label) => label !== "IDEALES"));
+  const bonds = sectionAfterAny(text, ["VÍNCULOS", "VINCULOS"], storyEndLabels.filter((label) => label !== "VÍNCULOS" && label !== "VINCULOS"));
+  const flaws = sectionAfterAny(text, ["DEFECTOS"], storyEndLabels.filter((label) => label !== "DEFECTOS"));
+  const history = sectionAfterAny(text, ["HISTORIA DEL PERSONAJE"], storyEndLabels.filter((label) => label !== "HISTORIA DEL PERSONAJE"));
+  const appearance = sectionAfterAny(text, ["APARIENCIA"], storyEndLabels.filter((label) => label !== "APARIENCIA"));
+  const additionalNotes = sectionAfterAny(text, ["NOTAS ADICIONALES"], storyEndLabels.filter((label) => label !== "NOTAS ADICIONALES"));
+  const notes = additionalNotes || history || "Importado desde PDF";
+  const ac = parseAc(text);
+  const hp = parseHp(text);
+  const speed = parseSpeed(text);
+  const proficiencyBonus = toInt(proficiency);
+  const passivePerceptionNumber = toInt(passivePerception);
+  const rawAbility = {
+    fue: { total: abilities.fuerza.score, mod: abilities.fuerza.modifier },
+    des: { total: abilities.destreza.score, mod: abilities.destreza.modifier },
+    con: { total: abilities.constitucion.score, mod: abilities.constitucion.modifier },
+    int: { total: abilities.inteligencia.score, mod: abilities.inteligencia.modifier },
+    sab: { total: abilities.sabiduria.score, mod: abilities.sabiduria.modifier },
+    car: { total: abilities.carisma.score, mod: abilities.carisma.modifier },
+  };
+  const rawSavingThrows = parsedSavingThrows.map((entry) => ({
+    name: entry.name,
+    total: parseCheckTotal(entry.bonus),
+    proficiency: entry.proficient ? "proficient" : "",
+  }));
+  const rawSkills = parsedSkills.map((entry) => ({
+    name: entry.name,
+    slug: normalizeSearch(entry.name).toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    total: parseCheckTotal(entry.bonus),
+    proficiency: entry.proficient ? "proficient" : "",
+  }));
+  const rawAttacks = parsedAttacks.map((entry) => ({
+    name: entry.name,
+    attack: {
+      to_hit: { value: signedNumber(entry.bonus) },
+      damage: { value: entry.damage, type: entry.damageType },
+    },
+  }));
+  const rawEquipment = parsedEquipment.map((entry) => ({
+    name: entry.name,
+    description: entry.detail,
+    tags: [entry.kind, entry.quick_use].filter(Boolean),
+    location: null,
+  }));
+  const rawClassFeats = parsedTraits.map((entry) => ({ name: entry.name, description: entry.pdf_description }));
 
   return {
     name,
@@ -484,23 +574,72 @@ export function parseImportedCharacter(rawText: string): ParsedCharacter {
     level,
     race,
     background,
-    hp: parseHp(text),
-    ac: parseAc(text),
-    speed: parseSpeed(text),
+    hp,
+    ac,
+    speed,
     notes: cleanText(notes),
     source_payload: {
+      external_source: "pdf",
+      imported_at: new Date().toISOString(),
       raw_text: rawText,
+      raw: {
+        info: {
+          name,
+          race,
+          level,
+          level_desc: `${className}${level ? ` ${level}` : ""}`.trim(),
+          speed,
+          player,
+          hit_points: hp,
+          proficiency_bonus: proficiencyBonus,
+        },
+        armor: { normal: ac },
+        ability: rawAbility,
+        saving_throws: rawSavingThrows,
+        skills: rawSkills,
+        attacks: rawAttacks,
+        items: { Equipo: rawEquipment },
+        race_feats: [],
+        custom_feats: [],
+        professions: [{ name: className || "PDF", feats: rawClassFeats }],
+        fields: {
+          historia: history,
+          apariencia: appearance,
+          alineamiento: alignment,
+          edad: parseAge(text),
+          idiomas: dedupeLineBreaks(competencies),
+          notas: additionalNotes,
+          perception: { total: passivePerceptionNumber, total_value: passivePerceptionNumber },
+        },
+        background: {
+          name: background,
+          traits: backgroundTraits,
+          ideals,
+          bonds,
+          flaws,
+          feat_description: "",
+        },
+        spell_books: [],
+      },
       summary: {
         player,
         alignment,
-        proficiency_bonus: toInt(proficiency),
-        passive_perception: toInt(passivePerception),
+        proficiency_bonus: proficiencyBonus,
+        passive_perception: passivePerceptionNumber,
         abilities,
         saving_throws: parsedSavingThrows,
         skills: parsedSkills,
         attacks: parsedAttacks,
         equipment: parsedEquipment,
         traits: parsedTraits,
+        spells: [],
+        spell_meta: {
+          ability: null,
+          save_dc: null,
+          attack_bonus: null,
+          prepared_limit: null,
+          slots: {},
+        },
       },
       sections: {
         saving_throws: formatCheckEntries(parsedSavingThrows) || dedupeLineBreaks(savingThrowsChunk),

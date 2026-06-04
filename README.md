@@ -121,7 +121,7 @@ La UI actual muestra habilidades en tarjetas individuales, en móvil con 2 colum
 
 ### Equipo
 
-El equipo se debe mostrar como objetos desplegables, no como texto plano. La vista cerrada usa una descripcion corta; la descripcion completa aparece al abrir el objeto.
+El equipo se debe mostrar como objetos desplegables, no como texto plano. La vista cerrada no debe mostrar descripciones por defecto; el detalle real aparece solo al abrir el objeto.
 
 El parser debe separar casos como:
 
@@ -233,7 +233,7 @@ Pestanas:
 - Referencia rapida: CA, HP max, velocidad en pies/casillas, competencia y CD de conjuros con característica debajo.
 - Durante la partida: HP actual y vida temporal uno al lado del otro desde `md`.
 - Munición opcional por usuario, visible/oculta según personaje, con bloques compactos ajustados a móvil: 1 columna en móvil y 3 columnas en pantallas; solo son editables al crearlos o al pulsar `Editar`; en modo normal solo muestran contador con `+`/`-`.
-- Inventario equipable por usuario: permite añadir, editar, eliminar, equipar y desequipar armas, armaduras, escudos, herramientas y objetos. La munición se gestiona en su bloque propio. La CA visible se calcula desde la armadura/escudo equipados, DES según tipo de armadura y rasgos como Defensa.
+- Inventario equipable por usuario: permite añadir, editar, eliminar, equipar y desequipar armas, armaduras, escudos, herramientas y objetos. La munición se gestiona en su bloque propio. Arriba tiene cartera con cobre, plata, oro y platino, sin electrum; permite editar cantidades directas, sumar/restar un numero concreto y convertir 10:1 por boton. La CA visible se calcula desde la armadura/escudo equipados, DES según tipo de armadura y rasgos como Defensa.
 - Rasgos, conjuros y trucos en bloques apilados; las descripciones de conjuros se muestran resumidas y se amplian al pulsarlas. Accion, alcance, duracion y componentes (`V`, `S`, `M`) van en la cabecera y el nivel queda al final de esa linea. En la pestaña Conjuros, los espacios por nivel se muestran debajo de preparados en una sola fila como nivel y cantidad disponible. En Combate, esos espacios se pueden marcar/desmarcar como gastados por nivel.
 
 ### Estado Persistente Actual
@@ -419,9 +419,39 @@ Datos que se intentan extraer:
 - Percepcion pasiva.
 - Tiradas de salvacion.
 - Habilidades.
+- Competencias e idiomas.
 - Equipo.
 - Ataques reales.
 - Rasgos y atributos.
+- Historia, apariencia, notas adicionales, rasgos de personalidad, ideales, vinculos y defectos cuando el PDF trae esos bloques.
+
+### Mapeo Interno Del PDF
+
+El parser de PDF debe colocar los datos en las mismas claves que usa la ficha al leer datos de Nivel20. No se debe cambiar la UI para mostrar campos nuevos; la UI ya consume estas rutas:
+
+- Datos base del perfil: `name`, `class_name`, `level`, `race`, `background`, `hp`, `ac`, `speed`, `notes`.
+- Texto original del PDF: `source_payload.raw_text` y, si aplica, paginas en `source_payload.pages`.
+- Metadatos de origen: `source_payload.external_source = "pdf"` e `source_payload.imported_at`.
+- Resumen visual de ficha: `source_payload.summary`.
+  - `summary.abilities`: `fuerza`, `destreza`, `constitucion`, `inteligencia`, `sabiduria`, `carisma` con `score` y `modifier`.
+  - `summary.saving_throws`: array de `{ name, bonus, proficient }`.
+  - `summary.skills`: array de `{ name, bonus, proficient }`.
+  - `summary.attacks`: tarjetas de ataque `{ name, bonus, damage, damageType }`.
+  - `summary.equipment`: inventario base `{ name, detail, kind, quick_use }`.
+  - `summary.traits`: rasgos `{ name, pdf_description, kind }`.
+  - `summary.spells` y `summary.spell_meta`: estructura compatible con Nivel20, aunque el PDF todavia no extraiga conjuros completos.
+- Secciones de respaldo: `source_payload.sections` para texto plano formateado si una lista estructurada no se pudo construir.
+- Estructura compatible con Nivel20: `source_payload.raw`.
+  - `raw.info`: nombre, raza, nivel, clase+nivel, velocidad, jugador, HP y competencia.
+  - `raw.armor.normal`: CA.
+  - `raw.ability`: claves cortas `fue`, `des`, `con`, `int`, `sab`, `car`.
+  - `raw.saving_throws` y `raw.skills`: total numerico y competencia en formato Nivel20.
+  - `raw.attacks`: ataques en formato `attack.to_hit.value` y `attack.damage`.
+  - `raw.items.Equipo`: equipo del PDF como items.
+  - `raw.professions[].feats`: rasgos del PDF para que los recordatorios de descansos y busquedas internas puedan encontrarlos.
+  - `raw.background`: trasfondo, rasgos de personalidad, ideales, vinculos, defectos y rasgo de trasfondo si existe.
+  - `raw.fields`: historia, apariencia, alineamiento, edad, idiomas, notas y percepcion pasiva.
+  - `raw.spell_books`: reservado para que el PDF pueda acabar usando el mismo formato de conjuros que Nivel20.
 
 ## Parser Actual
 
@@ -522,7 +552,7 @@ Reglas actuales:
 
 ## Inventario Y Equipo
 
-El equipo importado se transforma en inventario por usuario. Se muestra como desplegable en 2 columnas desde escritorio, con descripcion corta cerrada y detalle completo al abrir.
+El equipo importado se transforma en inventario por usuario. Se muestra como desplegable en 2 columnas desde escritorio, sin descripcion visible por defecto y con detalle completo al abrir si existe.
 
 Cada objeto puede tener:
 
