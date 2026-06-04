@@ -265,6 +265,9 @@ No se guardan todavia manualmente:
 
 - `src/app/characters/[id]/page.tsx`: ficha visual, pestanas, contadores, desplegables.
 - `src/app/characters/page.tsx`: lista/importacion de personajes; no tocar salvo pedido.
+- `src/app/campaigns/page.tsx`: campañas, diario compartido, bitácoras y permisos.
+- `src/app/api/nivel20/import-campaign-journal/route.ts`: importación del diario de campaña desde Nivel20.
+- `src/lib/nivel20.ts`: importación/normalización de Nivel20 para personajes y diario de campaña.
 - `src/lib/character-import.ts`: parser principal del PDF.
 - `src/lib/pdf-import.ts`: extraccion de texto del PDF.
 - `src/lib/home-entities.ts`: cliente RPC de Supabase para campanas/personajes.
@@ -282,6 +285,7 @@ No se guardan todavia manualmente:
 - No mezclar equipo con ataques.
 - No mostrar el editor manual de rasgos por defecto.
 - No tocar `/characters` si el usuario pide cambios de la ficha.
+- En `/campaigns`, todos pueden leer el diario de una campaña si son miembros; solo `owner/admin/editor` editan.
 - No depender de APIs no oficiales sin confirmacion.
 
 ### Deuda Tecnica Concreta
@@ -293,6 +297,7 @@ No se guardan todavia manualmente:
 - Los ataques pueden quedar truncados por OCR.
 - Faltan tests del parser.
 - Falta revision responsive completa en movil.
+- La importación de diario Nivel20 parsea HTML de `/log`; si Nivel20 cambia su marcado, puede requerir ajuste.
 
 ## URLs
 
@@ -306,7 +311,7 @@ No se guardan todavia manualmente:
 - `/dashboard`: pantalla principal tras iniciar sesion; los personajes visibles mostrados enlazan directamente a su ficha.
 - `/characters`: lista de personajes visibles, personajes ocultos e importacion desde Nivel20/PDF.
 - `/characters/[id]`: ficha del personaje.
-- `/campaigns`: campanas.
+- `/campaigns`: campanas y diario compartido por sesión.
 - `/user`: usuario.
 - `/reset-password`: pantalla placeholder.
 
@@ -328,6 +333,7 @@ Tablas principales:
 
 - `app_campaigns`
 - `app_campaign_members`
+- `app_campaign_journal_entries`
 - `app_characters`
 - `app_character_members`
 - `app_character_profiles`
@@ -374,10 +380,32 @@ RPCs relevantes:
 - `update_character_spell_slots_for_user`
 - `update_character_ammunition_for_user`
 - `update_character_inventory_for_user`
+- `get_campaign_detail_for_user`
+- `update_campaign_story_for_user`
+- `list_campaign_members_for_user`
+- `set_campaign_member_role_for_user`
+- `list_campaign_journal_entries_for_user`
+- `upsert_campaign_journal_entry_for_user`
+- `delete_campaign_journal_entry_for_user`
 - `search_status_effects`
 - `list_active_status_effects_for_character`
 - `set_character_status_effect_active`
 - `delete_character_for_user`
+
+## Diario De Campaña
+
+La ruta `/campaigns` funciona como diario compartido estilo Nivel20:
+
+- Cada campaña tiene una historia general (`app_campaigns.description`).
+- Cada partida/sesión se guarda como bitácora en `app_campaign_journal_entries`.
+- Cada bitácora tiene `title`, `session_date` y `blocks` en JSONB.
+- Cada bloque tiene `title` y `content`, para poder separar escenas, resumen, botín, NPCs, pistas, etc.
+- Todos los miembros de la campaña pueden leer el diario.
+- Solo pueden editar `owner`, `admin` y `editor`.
+- El creador de la campaña queda como `owner`; para el caso actual, la cuenta de Osmaygon debe crear/importar Reino de Chatelenz y queda como admin/propietario.
+- `owner` y `admin` pueden cambiar permisos de otros miembros entre `Lector`, `Editor` y `Admin`. El propietario no se puede degradar desde la UI/RPC.
+- La importación desde Nivel20 usa `/games/dnd-5/campaigns/110040-reino-de-chatelenz/log` por defecto y guarda el resultado en la campaña seleccionada o crea/localiza una campaña por nombre/ruta.
+- Nivel20 se mantiene como solo lectura: se importa hacia Supabase, no se escribe de vuelta en Nivel20.
 
 ## Importacion Nivel20
 

@@ -4,6 +4,28 @@ export type Nivel20CharacterListEntry = {
   path: string;
 };
 
+export type Nivel20JournalBlock = {
+  title: string;
+  content: string;
+};
+
+export type Nivel20JournalEntry = {
+  externalId: string;
+  title: string;
+  sessionDate: string | null;
+  blocks: Nivel20JournalBlock[];
+  sourcePayload: Record<string, unknown>;
+};
+
+export type Nivel20CampaignJournal = {
+  name: string;
+  description: string;
+  path: string;
+  logPath: string;
+  entries: Nivel20JournalEntry[];
+  importedAt: string;
+};
+
 type Nivel20Spell = {
   id: number;
   name: string;
@@ -105,6 +127,36 @@ function stripTags(value: string): string {
   );
 }
 
+function htmlToText(value: string): string {
+  return decodeHtmlEntities(
+    value
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+      .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/[ \t\u00a0]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim(),
+  );
+}
+
+function firstHtmlMatch(html: string, pattern: RegExp): string {
+  return decodeHtmlEntities(html.match(pattern)?.[1]?.trim() ?? "");
+}
+
+function normalizeDate(value: string): string | null {
+  const cleaned = value.trim();
+  const iso = cleaned.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso) return iso[1];
+  const slash = cleaned.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\b/);
+  if (!slash) return null;
+  const day = slash[1].padStart(2, "0");
+  const month = slash[2].padStart(2, "0");
+  const year = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
+  return `${year}-${month}-${day}`;
+}
+
 function normalizeSearch(value: string): string {
   return value
     .normalize("NFD")
@@ -161,6 +213,65 @@ export async function fetchNivel20CharacterJson(characterPath: string): Promise<
   const normalized = characterPath.endsWith(".json") ? characterPath : `${characterPath}.json`;
   const body = await nivel20FetchText(normalized);
   return JSON.parse(body) as Nivel20CharacterJson;
+}
+
+function parseCampaignJournalEntries(html: string, logPath: string): Nivel20JournalEntry[] {
+  const timelineMatch = html.match(/<ul[^>]*class=["'][^"']*timeline[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i);
+  const timelineHtml = timelineMatch?.[1] ?? "";
+  const items = Array.from(timelineHtml.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi));
+
+  return items.flatMap((match, index) => {
+    const itemHtml = match[1];
+    const rawTitle = firstHtmlMatch(itemHtml, /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i)
+      || firstHtmlMatch(itemHtml, /class=["'][^"']*(?:card-title|timeline-title)[^"']*["'][^>]*>([\s\S]*?)<\//i)
+      || `Sesión ${index + 1}`;
+    const title = stripTags(rawTitle) || `Sesión ${index + 1}`;
+    const timeDate = firstHtmlMatch(itemHtml, /<time[^>]*datetime=["']([^"']+)["'][^>]*>/i);
+    const visibleDate = firstHtmlMatch(itemHtml, /<time[^>]*>([\s\S]*?)<\/time>/i) || htmlToText(itemHtml).slice(0, 120);
+    const sessionDate = normalizeDate(timeDate || visibleDate);
+    const withoutTitle = itemHtml
+      .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i, " ")
+      .replace(/<time[^>]*>[\s\S]*?<\/time>/i, " ");
+    const content = htmlToText(withoutTitle).replace(title, "").trim();
+    if (!content && /^Sesión \d+$/i.test(title)) return [];
+
+    return [{
+      externalId: firstHtmlMatch(itemHtml, /data-(?:id|log-id|entry-id)=["']([^"']+)["']/i) || `${logPath}#${index + 1}`,
+      title,
+      sessionDate,
+      blocks: [{ title: "Resumen", content: content || "Entrada importada desde Nivel20." }],
+      sourcePayload: { nivel20: { path: logPath, index: index + 1 } },
+    }];
+  });
+}
+
+export async function fetchNivel20CampaignJournal(campaignPath: string): Promise<Nivel20CampaignJournal> {
+  const normalizedCampaignPath = campaignPath.replace(/\/characters$|\/details$|\/log$|\/tracking_log$/i, "").replace(/\/$/, "");
+  if (!normalizedCampaignPath.startsWith("/games/dnd-5/campaigns/")) {
+    throw new Error("Ruta de campaña no valida");
+  }
+
+  const logPath = `${normalizedCampaignPath}/log`;
+  const html = await nivel20FetchText(logPath);
+  const name = stripTags(
+    firstHtmlMatch(html, /<meta\s+content=["']([^"']+?)\s+-\s+Campaña/iu)
+      || firstHtmlMatch(html, /<title>([\s\S]*?)\s+-\s+D&amp;D/i)
+      || firstHtmlMatch(html, /<h1[^>]*>([\s\S]*?)<\/h1>/i)
+      || "Campaña importada",
+  );
+  const description = stripTags(
+    firstHtmlMatch(html, /<meta\s+content=["']([\s\S]*?)["']\s+name=["']description["']/i)
+      || firstHtmlMatch(html, /<meta\s+content=["']([\s\S]*?)["']\s+property=["']og:description["']/i),
+  );
+
+  return {
+    name,
+    description,
+    path: normalizedCampaignPath,
+    logPath,
+    entries: parseCampaignJournalEntries(html, logPath),
+    importedAt: new Date().toISOString(),
+  };
 }
 
 export function normalizeNivel20Character(payload: Nivel20CharacterJson, sourcePath: string): Record<string, unknown> {

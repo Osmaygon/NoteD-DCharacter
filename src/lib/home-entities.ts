@@ -5,6 +5,38 @@ export type HomeEntity = {
   name: string;
   join_code: string;
   created_at?: string;
+  role?: string;
+  can_edit?: boolean;
+  description?: string;
+  source_payload?: Record<string, unknown>;
+};
+
+export type CampaignMember = {
+  user_id: string;
+  email: string;
+  nickname: string | null;
+  role: "owner" | "admin" | "editor" | "player";
+  can_edit: boolean;
+  created_at?: string;
+};
+
+export type JournalBlock = {
+  id?: string;
+  title: string;
+  content: string;
+};
+
+export type CampaignJournalEntry = {
+  id: string;
+  campaign_id: string;
+  title: string;
+  session_date: string | null;
+  blocks: JournalBlock[];
+  source_payload: Record<string, unknown>;
+  created_by?: string | null;
+  updated_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type StatusEffect = {
@@ -84,6 +116,98 @@ export async function joinCampaign(userId: string, code: string): Promise<void> 
   const { error } = await supabase.rpc("join_campaign_by_code", {
     p_user_id: userId,
     p_code: code,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function getCampaignDetail(userId: string, campaignId: string): Promise<HomeEntity | null> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("get_campaign_detail_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as HomeEntity[])[0] ?? null;
+}
+
+export async function updateCampaignStory(
+  userId: string,
+  campaignId: string,
+  description: string,
+  sourcePayload: Record<string, unknown> = {},
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("update_campaign_story_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+    p_description: description,
+    p_source_payload: sourcePayload,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function listCampaignMembers(userId: string, campaignId: string): Promise<CampaignMember[]> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("list_campaign_members_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CampaignMember[];
+}
+
+export async function setCampaignMemberRole(userId: string, campaignId: string, targetUserId: string, role: CampaignMember["role"]): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("set_campaign_member_role_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+    p_target_user_id: targetUserId,
+    p_role: role,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function listCampaignJournalEntries(userId: string, campaignId: string): Promise<CampaignJournalEntry[]> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("list_campaign_journal_entries_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CampaignJournalEntry[];
+}
+
+export async function upsertCampaignJournalEntry(
+  userId: string,
+  campaignId: string,
+  input: {
+    id?: string | null;
+    title: string;
+    session_date: string | null;
+    blocks: JournalBlock[];
+    source_payload?: Record<string, unknown>;
+  },
+): Promise<string | null> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { data, error } = await supabase.rpc("upsert_campaign_journal_entry_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+    p_entry_id: input.id ?? null,
+    p_title: input.title,
+    p_session_date: input.session_date || null,
+    p_blocks: input.blocks,
+    p_source_payload: input.source_payload ?? {},
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Array<{ id: string }>)[0]?.id ?? null;
+}
+
+export async function deleteCampaignJournalEntry(userId: string, campaignId: string, entryId: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("delete_campaign_journal_entry_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+    p_entry_id: entryId,
   });
   if (error) throw new Error(error.message);
 }

@@ -1,3 +1,5 @@
+alter table public.app_users add column if not exists nickname text;
+
 create table if not exists public.app_campaigns (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -71,6 +73,21 @@ alter table public.app_character_user_state add column if not exists ammunition 
 alter table public.app_character_user_state add column if not exists inventory jsonb not null default '{"entries": []}'::jsonb;
 alter table public.app_character_user_state add column if not exists profile_overrides jsonb not null default '{}'::jsonb;
 alter table public.app_character_user_state add column if not exists source_payload_overrides jsonb not null default '{}'::jsonb;
+alter table public.app_campaigns add column if not exists description text not null default '';
+alter table public.app_campaigns add column if not exists source_payload jsonb not null default '{}'::jsonb;
+
+create table if not exists public.app_campaign_journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  campaign_id uuid not null references public.app_campaigns(id) on delete cascade,
+  title text not null,
+  session_date date,
+  blocks jsonb not null default '[]'::jsonb,
+  source_payload jsonb not null default '{}'::jsonb,
+  created_by uuid references public.app_users(id) on delete set null,
+  updated_by uuid references public.app_users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 alter table public.app_campaigns enable row level security;
 alter table public.app_campaign_members enable row level security;
@@ -78,6 +95,7 @@ alter table public.app_characters enable row level security;
 alter table public.app_character_members enable row level security;
 alter table public.app_character_profiles enable row level security;
 alter table public.app_character_user_state enable row level security;
+alter table public.app_campaign_journal_entries enable row level security;
 
 drop policy if exists "no direct app_campaigns" on public.app_campaigns;
 drop policy if exists "no direct app_campaign_members" on public.app_campaign_members;
@@ -85,6 +103,7 @@ drop policy if exists "no direct app_characters" on public.app_characters;
 drop policy if exists "no direct app_character_members" on public.app_character_members;
 drop policy if exists "no direct app_character_profiles" on public.app_character_profiles;
 drop policy if exists "no direct app_character_user_state" on public.app_character_user_state;
+drop policy if exists "no direct app_campaign_journal_entries" on public.app_campaign_journal_entries;
 
 create policy "no direct app_campaigns" on public.app_campaigns for all using (false) with check (false);
 create policy "no direct app_campaign_members" on public.app_campaign_members for all using (false) with check (false);
@@ -92,6 +111,7 @@ create policy "no direct app_characters" on public.app_characters for all using 
 create policy "no direct app_character_members" on public.app_character_members for all using (false) with check (false);
 create policy "no direct app_character_profiles" on public.app_character_profiles for all using (false) with check (false);
 create policy "no direct app_character_user_state" on public.app_character_user_state for all using (false) with check (false);
+create policy "no direct app_campaign_journal_entries" on public.app_campaign_journal_entries for all using (false) with check (false);
 
 create or replace function public.create_campaign_for_user(p_user_id uuid, p_name text)
 returns table(id uuid, name text, join_code text)
@@ -143,17 +163,267 @@ begin
 end;
 $$;
 
+drop function if exists public.list_campaigns_for_user(uuid);
+
 create or replace function public.list_campaigns_for_user(p_user_id uuid)
-returns table(id uuid, name text, join_code text, created_at timestamptz)
+returns table(
+  id uuid,
+  name text,
+  join_code text,
+  created_at timestamptz,
+  role text,
+  can_edit boolean,
+  description text,
+  source_payload jsonb
+)
 language sql
 security definer
 set search_path = public
 as $$
-  select c.id, c.name, c.join_code, c.created_at
+  select
+    c.id,
+    c.name,
+    c.join_code,
+    c.created_at,
+    m.role,
+    m.role in ('owner', 'admin', 'editor'),
+    coalesce(c.description, ''),
+    coalesce(c.source_payload, '{}'::jsonb)
   from public.app_campaign_members m
   join public.app_campaigns c on c.id = m.campaign_id
   where m.user_id = p_user_id
   order by c.created_at desc;
+$$;
+
+create or replace function public.get_campaign_detail_for_user(p_user_id uuid, p_campaign_id uuid)
+returns table(
+  id uuid,
+  name text,
+  join_code text,
+  created_at timestamptz,
+  role text,
+  can_edit boolean,
+  description text,
+  source_payload jsonb
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    c.id,
+    c.name,
+    c.join_code,
+    c.created_at,
+    m.role,
+    m.role in ('owner', 'admin', 'editor'),
+    coalesce(c.description, ''),
+    coalesce(c.source_payload, '{}'::jsonb)
+  from public.app_campaign_members m
+  join public.app_campaigns c on c.id = m.campaign_id
+  where m.user_id = p_user_id
+    and c.id = p_campaign_id
+  limit 1;
+$$;
+
+create or replace function public.update_campaign_story_for_user(
+  p_user_id uuid,
+  p_campaign_id uuid,
+  p_description text,
+  p_source_payload jsonb default '{}'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_campaign_members m
+    where m.campaign_id = p_campaign_id
+      and m.user_id = p_user_id
+      and m.role in ('owner', 'admin', 'editor')
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  update public.app_campaigns
+  set description = coalesce(p_description, ''),
+      source_payload = coalesce(p_source_payload, '{}'::jsonb)
+  where id = p_campaign_id;
+end;
+$$;
+
+create or replace function public.list_campaign_members_for_user(p_user_id uuid, p_campaign_id uuid)
+returns table(user_id uuid, email text, nickname text, role text, can_edit boolean, created_at timestamptz)
+language sql
+security definer
+set search_path = public
+as $$
+  select u.id, u.email, u.nickname, m.role, m.role in ('owner', 'admin', 'editor'), m.created_at
+  from public.app_campaign_members requester
+  join public.app_campaign_members m on m.campaign_id = requester.campaign_id
+  join public.app_users u on u.id = m.user_id
+  where requester.user_id = p_user_id
+    and requester.campaign_id = p_campaign_id
+  order by case m.role when 'owner' then 0 when 'admin' then 1 when 'editor' then 2 else 3 end, coalesce(u.nickname, u.email);
+$$;
+
+create or replace function public.set_campaign_member_role_for_user(
+  p_user_id uuid,
+  p_campaign_id uuid,
+  p_target_user_id uuid,
+  p_role text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  requester_role text;
+  target_role text;
+  normalized_role text;
+begin
+  normalized_role := lower(trim(coalesce(p_role, 'player')));
+  if normalized_role not in ('admin', 'editor', 'player') then
+    raise exception 'Rol invalido';
+  end if;
+
+  select role into requester_role
+  from public.app_campaign_members
+  where campaign_id = p_campaign_id and user_id = p_user_id;
+
+  if requester_role not in ('owner', 'admin') then
+    raise exception 'No autorizado';
+  end if;
+
+  select role into target_role
+  from public.app_campaign_members
+  where campaign_id = p_campaign_id and user_id = p_target_user_id;
+
+  if target_role is null then
+    raise exception 'Miembro no encontrado';
+  end if;
+  if target_role = 'owner' then
+    raise exception 'No se puede cambiar el propietario';
+  end if;
+
+  update public.app_campaign_members
+  set role = normalized_role
+  where campaign_id = p_campaign_id and user_id = p_target_user_id;
+end;
+$$;
+
+create or replace function public.list_campaign_journal_entries_for_user(p_user_id uuid, p_campaign_id uuid)
+returns table(
+  id uuid,
+  campaign_id uuid,
+  title text,
+  session_date date,
+  blocks jsonb,
+  source_payload jsonb,
+  created_by uuid,
+  updated_by uuid,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select e.id, e.campaign_id, e.title, e.session_date, e.blocks, e.source_payload, e.created_by, e.updated_by, e.created_at, e.updated_at
+  from public.app_campaign_journal_entries e
+  join public.app_campaign_members m on m.campaign_id = e.campaign_id and m.user_id = p_user_id
+  where e.campaign_id = p_campaign_id
+  order by e.session_date desc nulls last, e.created_at desc;
+$$;
+
+create or replace function public.upsert_campaign_journal_entry_for_user(
+  p_user_id uuid,
+  p_campaign_id uuid,
+  p_entry_id uuid,
+  p_title text,
+  p_session_date date,
+  p_blocks jsonb,
+  p_source_payload jsonb default '{}'::jsonb
+)
+returns table(id uuid)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+  next_id uuid;
+begin
+  select exists(
+    select 1 from public.app_campaign_members m
+    where m.campaign_id = p_campaign_id
+      and m.user_id = p_user_id
+      and m.role in ('owner', 'admin', 'editor')
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  if trim(coalesce(p_title, '')) = '' then
+    raise exception 'Pon un titulo a la bitacora';
+  end if;
+
+  if p_entry_id is null then
+    insert into public.app_campaign_journal_entries(campaign_id, title, session_date, blocks, source_payload, created_by, updated_by)
+    values (p_campaign_id, trim(p_title), p_session_date, coalesce(p_blocks, '[]'::jsonb), coalesce(p_source_payload, '{}'::jsonb), p_user_id, p_user_id)
+    returning app_campaign_journal_entries.id into next_id;
+  else
+    update public.app_campaign_journal_entries
+    set title = trim(p_title),
+        session_date = p_session_date,
+        blocks = coalesce(p_blocks, '[]'::jsonb),
+        source_payload = coalesce(p_source_payload, '{}'::jsonb),
+        updated_by = p_user_id,
+        updated_at = now()
+    where app_campaign_journal_entries.id = p_entry_id
+      and app_campaign_journal_entries.campaign_id = p_campaign_id
+    returning app_campaign_journal_entries.id into next_id;
+
+    if next_id is null then
+      raise exception 'Bitacora no encontrada';
+    end if;
+  end if;
+
+  return query select next_id;
+end;
+$$;
+
+create or replace function public.delete_campaign_journal_entry_for_user(p_user_id uuid, p_campaign_id uuid, p_entry_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_campaign_members m
+    where m.campaign_id = p_campaign_id
+      and m.user_id = p_user_id
+      and m.role in ('owner', 'admin', 'editor')
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  delete from public.app_campaign_journal_entries
+  where id = p_entry_id and campaign_id = p_campaign_id;
+end;
 $$;
 
 create or replace function public.create_character_for_user(p_user_id uuid, p_name text)
@@ -617,6 +887,13 @@ $$;
 grant execute on function public.create_campaign_for_user(uuid, text) to anon, authenticated;
 grant execute on function public.join_campaign_by_code(uuid, text) to anon, authenticated;
 grant execute on function public.list_campaigns_for_user(uuid) to anon, authenticated;
+grant execute on function public.get_campaign_detail_for_user(uuid, uuid) to anon, authenticated;
+grant execute on function public.update_campaign_story_for_user(uuid, uuid, text, jsonb) to anon, authenticated;
+grant execute on function public.list_campaign_members_for_user(uuid, uuid) to anon, authenticated;
+grant execute on function public.set_campaign_member_role_for_user(uuid, uuid, uuid, text) to anon, authenticated;
+grant execute on function public.list_campaign_journal_entries_for_user(uuid, uuid) to anon, authenticated;
+grant execute on function public.upsert_campaign_journal_entry_for_user(uuid, uuid, uuid, text, date, jsonb, jsonb) to anon, authenticated;
+grant execute on function public.delete_campaign_journal_entry_for_user(uuid, uuid, uuid) to anon, authenticated;
 grant execute on function public.create_character_for_user(uuid, text) to anon, authenticated;
 grant execute on function public.join_character_by_code(uuid, text) to anon, authenticated;
 grant execute on function public.list_characters_for_user(uuid) to anon, authenticated;
