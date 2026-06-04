@@ -150,11 +150,32 @@ function normalizeDate(value: string): string | null {
   const iso = cleaned.match(/\b(\d{4}-\d{2}-\d{2})\b/);
   if (iso) return iso[1];
   const slash = cleaned.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\b/);
-  if (!slash) return null;
-  const day = slash[1].padStart(2, "0");
-  const month = slash[2].padStart(2, "0");
-  const year = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
-  return `${year}-${month}-${day}`;
+  if (slash) {
+    const day = slash[1].padStart(2, "0");
+    const month = slash[2].padStart(2, "0");
+    const year = slash[3].length === 2 ? `20${slash[3]}` : slash[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  const spanish = cleaned.match(/\b(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})\b/i);
+  if (!spanish) return null;
+  const monthMap: Record<string, string> = {
+    enero: "01",
+    febrero: "02",
+    marzo: "03",
+    abril: "04",
+    mayo: "05",
+    junio: "06",
+    julio: "07",
+    agosto: "08",
+    septiembre: "09",
+    setiembre: "09",
+    octubre: "10",
+    noviembre: "11",
+    diciembre: "12",
+  };
+  const month = monthMap[normalizeSearch(spanish[2])];
+  return month ? `${spanish[3]}-${month}-${spanish[1].padStart(2, "0")}` : null;
 }
 
 function normalizeSearch(value: string): string {
@@ -216,23 +237,26 @@ export async function fetchNivel20CharacterJson(characterPath: string): Promise<
 }
 
 function parseCampaignJournalEntries(html: string, logPath: string): Nivel20JournalEntry[] {
-  const timelineMatch = html.match(/<ul[^>]*class=["'][^"']*timeline[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i);
-  const timelineHtml = timelineMatch?.[1] ?? "";
-  const items = Array.from(timelineHtml.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi));
+  const items = Array.from(html.matchAll(/<li\b[^>]*class=["'][^"']*timeline-item[^"']*["'][^>]*>([\s\S]*?)(?=<li\b[^>]*class=["'][^"']*timeline-item|<\/ul>)/gi));
 
   return items.flatMap((match, index) => {
     const itemHtml = match[1];
     const rawTitle = firstHtmlMatch(itemHtml, /<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i)
-      || firstHtmlMatch(itemHtml, /class=["'][^"']*(?:card-title|timeline-title)[^"']*["'][^>]*>([\s\S]*?)<\//i)
+      || firstHtmlMatch(itemHtml, /<div[^>]*class=["'][^"']*(?:card-title|timeline-title)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
       || `Sesión ${index + 1}`;
     const title = stripTags(rawTitle) || `Sesión ${index + 1}`;
     const timeDate = firstHtmlMatch(itemHtml, /<time[^>]*datetime=["']([^"']+)["'][^>]*>/i);
-    const visibleDate = firstHtmlMatch(itemHtml, /<time[^>]*>([\s\S]*?)<\/time>/i) || htmlToText(itemHtml).slice(0, 120);
+    const visibleDate = firstHtmlMatch(itemHtml, /<time[^>]*>([\s\S]*?)<\/time>/i)
+      || firstHtmlMatch(itemHtml, /<p[^>]*class=["'][^"']*timeline-date[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)
+      || htmlToText(itemHtml).slice(0, 160);
     const sessionDate = normalizeDate(timeDate || visibleDate);
+    const cardText = firstHtmlMatch(itemHtml, /<div[^>]*class=["'][^"']*card-text[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/i);
     const withoutTitle = itemHtml
       .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/i, " ")
-      .replace(/<time[^>]*>[\s\S]*?<\/time>/i, " ");
-    const content = htmlToText(withoutTitle).replace(title, "").trim();
+      .replace(/<div[^>]*class=["'][^"']*(?:card-title|timeline-title)[^"']*["'][^>]*>[\s\S]*?<\/div>/i, " ")
+      .replace(/<time[^>]*>[\s\S]*?<\/time>/i, " ")
+      .replace(/<p[^>]*class=["'][^"']*timeline-date[^"']*["'][^>]*>[\s\S]*?<\/p>/i, " ");
+    const content = htmlToText(cardText || withoutTitle).replace(title, "").trim();
     if (!content && /^Sesión \d+$/i.test(title)) return [];
 
     return [{
