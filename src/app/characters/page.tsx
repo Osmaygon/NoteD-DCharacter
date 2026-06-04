@@ -9,6 +9,7 @@ import { extractTextFromPdf } from "@/lib/pdf-import";
 import {
   HomeEntity,
   importCharacterFromPayload,
+  joinCharacter,
   listCharacters,
   listHiddenCharacters,
   setCharacterVisibility,
@@ -21,6 +22,7 @@ export default function CharactersPage() {
   const [importing, setImporting] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [importInfo, setImportInfo] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [nivel20Loading, setNivel20Loading] = useState(false);
   const [nivel20Characters, setNivel20Characters] = useState<Array<{ id: string; name: string; path: string }>>([]);
   const [selectedNivel20Path, setSelectedNivel20Path] = useState("");
@@ -82,6 +84,20 @@ export default function CharactersPage() {
       await refresh(userId);
     } catch (error) {
       setErrorText(error instanceof Error ? error.message : "No se pudo cambiar la visibilidad del personaje");
+    }
+  }
+
+  async function onJoinCharacter() {
+    if (!userId || !joinCode.trim()) return;
+    try {
+      setErrorText("");
+      setImportInfo("");
+      await joinCharacter(userId, joinCode.trim());
+      setJoinCode("");
+      await refresh(userId);
+      setImportInfo("Te has unido al personaje.");
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : "No te pudiste unir al personaje");
     }
   }
 
@@ -150,6 +166,11 @@ export default function CharactersPage() {
         <p className="mobile-detail mb-1 text-sm text-[#b9ae8d]">Primero ves tus personajes guardados en la BD. Despues se cargan los de Nivel20 para importar solo los que quieras.</p>
         <p className="mobile-detail mb-4 text-xs text-[#9f9578]">Nivel20 se usa en modo solo lectura. Nunca se modifican datos remotos.</p>
 
+        <div className="mb-4 grid gap-2 md:grid-cols-[1fr_auto]">
+          <input className="field" placeholder="Código para unirte a un personaje" value={joinCode} onChange={(event) => setJoinCode(event.target.value)} />
+          <button className="btn-secondary" type="button" onClick={() => void onJoinCharacter()}>Unirme</button>
+        </div>
+
         <div className="mb-4 grid gap-2 md:grid-cols-[auto_1fr_auto]">
           <button className="btn-secondary" type="button" disabled={nivel20Loading} onClick={() => void loadNivel20Characters()}>
             {nivel20Loading ? "Cargando..." : "Cargar personajes"}
@@ -210,7 +231,7 @@ export default function CharactersPage() {
               <div className="flex items-start justify-between gap-3">
                 <Link href={`/characters/${c.id}`} className="block min-w-0 flex-1 hover:text-[#f5db95]">
                   <p className="font-semibold">{c.name}</p>
-                  <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+                  <p className="text-xs text-[#b9ae8d]">Código para unirse: <span className="font-semibold text-[#f3dfac]">{c.join_code}</span></p>
                 </Link>
                 <button
                   type="button"
@@ -234,7 +255,7 @@ export default function CharactersPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{c.name}</p>
-                      <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
+                      <p className="text-xs text-[#b9ae8d]">Código para unirse: <span className="font-semibold text-[#f3dfac]">{c.join_code}</span></p>
                     </div>
                     <button
                       type="button"
