@@ -149,7 +149,7 @@ as $$
 declare
   campaign_row public.app_campaigns%rowtype;
 begin
-  select * into campaign_row from public.app_campaigns where join_code = upper(trim(p_code));
+  select * into campaign_row from public.app_campaigns c where c.join_code = upper(trim(p_code));
   if campaign_row.id is null then
     raise exception 'Campana no encontrada';
   end if;
@@ -764,7 +764,7 @@ as $$
 declare
   character_row public.app_characters%rowtype;
 begin
-  select * into character_row from public.app_characters where join_code = upper(trim(p_code));
+  select * into character_row from public.app_characters c where c.join_code = upper(trim(p_code));
   if character_row.id is null then
     raise exception 'Personaje no encontrado';
   end if;
