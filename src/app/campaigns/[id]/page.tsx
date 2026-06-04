@@ -163,7 +163,7 @@ export default function CampaignDetailPage() {
     setEntryDraft({
       id: entry.id,
       title: entry.title,
-      session_date: entry.session_date ?? new Date().toISOString().slice(0, 10),
+      session_date: entry.session_date ?? "",
       blocks: normalizeBlocks(entry.blocks).map((block) => ({ ...block, id: block.id ?? blockId() })),
       source_payload: entry.source_payload ?? {},
     });
@@ -332,9 +332,15 @@ export default function CampaignDetailPage() {
 
               {entryDraft ? (
                 <div className="mt-4 rounded-xl border border-[#ffd86f66] bg-[#110d06]/80 p-3">
-                  <div className="grid gap-2 md:grid-cols-[1fr_180px]">
-                    <input className="field" placeholder="Título de la sesión" value={entryDraft.title} onChange={(event) => setEntryDraft((current) => current ? { ...current, title: event.target.value } : current)} />
-                    <input className="field" type="date" value={entryDraft.session_date} onChange={(event) => setEntryDraft((current) => current ? { ...current, session_date: event.target.value } : current)} />
+                  <div className="grid gap-2 md:grid-cols-[1fr_220px]">
+                    <label className="text-xs uppercase tracking-wide text-[#b9ae8d]">
+                      Título de la sesión
+                      <input className="field mt-1" placeholder="Título de la sesión" value={entryDraft.title} onChange={(event) => setEntryDraft((current) => current ? { ...current, title: event.target.value } : current)} />
+                    </label>
+                    <label className="text-xs uppercase tracking-wide text-[#b9ae8d]">
+                      Fecha editable
+                      <input className="field mt-1" type="date" value={entryDraft.session_date} onChange={(event) => setEntryDraft((current) => current ? { ...current, session_date: event.target.value } : current)} />
+                    </label>
                   </div>
                   <div className="mt-3 grid gap-3">
                     {entryDraft.blocks.map((block, index) => (
