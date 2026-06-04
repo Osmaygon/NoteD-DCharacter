@@ -74,7 +74,7 @@ export default function CampaignsPage() {
         <div className="border-b border-[#d3a84a33] bg-[radial-gradient(circle_at_20%_0%,rgba(211,168,74,0.22),transparent_34%),linear-gradient(135deg,rgba(211,168,74,0.14),rgba(0,0,0,0.16))] p-5">
           <p className="text-xs uppercase tracking-[0.28em] text-[#b9ae8d]">Campañas</p>
           <h1 className="mt-1 text-3xl text-[#f3dfac]">Biblioteca de campañas</h1>
-          <p className="mt-2 max-w-3xl text-sm text-[#d9c89e]">Entra en una campaña para leer su diario, editar la historia y gestionar las bitácoras de cada sesión.</p>
+          <p className="mt-2 max-w-3xl text-sm text-[#d9c89e]">Entra en una campaña para leer y gestionar las bitácoras de cada sesión.</p>
         </div>
         <div className="grid gap-3 p-4 lg:grid-cols-2">
           <div className="grid gap-2 md:grid-cols-[1fr_auto]">
@@ -100,7 +100,6 @@ export default function CampaignsPage() {
                 </div>
                 <span className="rounded-full border border-[#d3a84a44] px-3 py-1 text-xs text-[#d9c89e]">Entrar</span>
               </div>
-              <p className="mobile-detail mt-3 line-clamp-2 text-sm text-[#d9c89e]">{campaign.description || "Sin historia todavía."}</p>
             </Link>
           ))}
           {!campaigns.length ? <p className="text-sm text-[#b9ae8d]">No tienes campañas aún.</p> : null}

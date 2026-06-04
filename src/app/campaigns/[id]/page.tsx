@@ -77,7 +77,6 @@ export default function CampaignDetailPage() {
   const [entries, setEntries] = useState<CampaignJournalEntry[]>([]);
   const [members, setMembers] = useState<CampaignMember[]>([]);
   const [nameDraft, setNameDraft] = useState("");
-  const [storyDraft, setStoryDraft] = useState("");
   const [editingCampaign, setEditingCampaign] = useState(false);
   const [entryDraft, setEntryDraft] = useState<EntryDraft | null>(null);
   const [message, setMessage] = useState("");
@@ -92,7 +91,6 @@ export default function CampaignDetailPage() {
     const detail = await getCampaignDetail(uid, params.id);
     setCampaign(detail);
     setNameDraft(detail?.name ?? "");
-    setStoryDraft(detail?.description ?? "");
     if (!detail) {
       setEntries([]);
       setMembers([]);
@@ -130,7 +128,7 @@ export default function CampaignDetailPage() {
       setLoading(true);
       await updateCampaign(userId, campaign.id, {
         name: nameDraft.trim(),
-        description: storyDraft,
+        description: campaign.description ?? "",
         source_payload: campaign.source_payload ?? {},
       });
       await refresh(userId);
@@ -281,6 +279,15 @@ export default function CampaignDetailPage() {
             <p className="mt-1 text-xs text-[#b9ae8d]">{roleLabel(campaign.role)} · Código {campaign.join_code}</p>
             <div className="mt-4 grid gap-2">
               {canEdit ? <button className="btn-primary" type="button" onClick={() => setEditingCampaign((current) => !current)}>{editingCampaign ? "Cerrar edición" : "Editar campaña"}</button> : null}
+              {editingCampaign ? (
+                <div className="rounded-lg border border-[#d3a84a33] bg-black/20 p-3">
+                  <label className="text-xs uppercase tracking-wide text-[#b9ae8d]">
+                    Nombre
+                    <input className="field mt-1" value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder="Nombre de la campaña" />
+                  </label>
+                  <button className="btn-primary mt-2 w-full" type="button" disabled={loading} onClick={() => void saveCampaign()}>Guardar campaña</button>
+                </div>
+              ) : null}
               {canEdit ? <button className="btn-secondary" type="button" disabled={importingNivel20} onClick={() => void importNivel20Journal()}>{importingNivel20 ? "Importando..." : "Importar Chatelenz"}</button> : null}
               {canDeleteCampaign ? <button className="rounded border border-red-400/60 px-3 py-2 text-sm text-red-300 hover:bg-red-900/30" type="button" onClick={() => void removeCampaign()}>Borrar campaña</button> : null}
             </div>
@@ -308,19 +315,6 @@ export default function CampaignDetailPage() {
           </aside>
 
           <section className="grid gap-4">
-            <div className="panel p-4">
-              <p className="text-xs uppercase tracking-[0.22em] text-[#b9ae8d]">Historia</p>
-              {editingCampaign ? (
-                <div className="mt-3 grid gap-2">
-                  <input className="field text-lg font-semibold" value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder="Nombre de la campaña" />
-                  <textarea className="field min-h-40" value={storyDraft} onChange={(event) => setStoryDraft(event.target.value)} placeholder="Historia general de la campaña" />
-                  <button className="btn-primary w-fit" type="button" disabled={loading} onClick={() => void saveCampaign()}>Guardar campaña</button>
-                </div>
-              ) : (
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[#d9c89e]">{campaign.description || "Sin historia de campaña todavía."}</p>
-              )}
-            </div>
-
             <div className="panel p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
