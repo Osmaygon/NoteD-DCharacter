@@ -74,9 +74,14 @@ type InventoryItem = {
   notes?: string;
 };
 
+type CoinKey = "cp" | "sp" | "gp" | "pp";
+
+type WalletState = Record<CoinKey, number>;
+
 type InventoryState = {
   initialized?: boolean;
   entries: InventoryItem[];
+  wallet: WalletState;
 };
 
 type TraitEntry = {
@@ -223,6 +228,42 @@ function numberFromUnknown(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+const defaultWallet: WalletState = { cp: 0, sp: 0, gp: 0, pp: 0 };
+
+function coinAmount(value: unknown): number {
+  return Math.max(0, Math.floor(numberFromUnknown(value) ?? 0));
+}
+
+function normalizeWallet(value: unknown): WalletState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ...defaultWallet };
+  const record = value as Record<string, unknown>;
+  return {
+    cp: coinAmount(record.cp ?? record.copper ?? record.cobre),
+    sp: coinAmount(record.sp ?? record.silver ?? record.plata),
+    gp: coinAmount(record.gp ?? record.gold ?? record.oro),
+    pp: coinAmount(record.pp ?? record.platinum ?? record.platino),
+  };
+}
+
+function convertWalletCoins(wallet: WalletState): WalletState {
+  let cp = coinAmount(wallet.cp);
+  let sp = coinAmount(wallet.sp);
+  let gp = coinAmount(wallet.gp);
+  const pp = coinAmount(wallet.pp);
+
+  sp += Math.floor(cp / 10);
+  cp %= 10;
+  gp += Math.floor(sp / 10);
+  sp %= 10;
+
+  return {
+    cp,
+    sp,
+    gp: gp % 10,
+    pp: pp + Math.floor(gp / 10),
+  };
 }
 
 function slotCount(value: string): number {
@@ -472,7 +513,7 @@ function autoEquipInventory(entries: InventoryItem[], targetAc: number, dexMod: 
   for (const armor of armorOptions) {
     for (const shield of shieldOptions) {
       const candidate = baseEntries.map((item) => ({ ...item, equipped: item.id === armor?.id || item.id === shield?.id }));
-      const ac = calculateInventoryAc({ inventory: { entries: candidate }, dexMod, wisMod: 0, conMod: 0, className, raw, traits }).total;
+      const ac = calculateInventoryAc({ inventory: { entries: candidate, wallet: defaultWallet }, dexMod, wisMod: 0, conMod: 0, className, raw, traits }).total;
       const diff = Math.abs(ac - targetAc);
       if (diff < bestDiff) {
         best = candidate;
@@ -487,9 +528,10 @@ function autoEquipInventory(entries: InventoryItem[], targetAc: number, dexMod: 
 function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[], targetAc: number, dexMod: number, className: string, raw: Record<string, unknown>, traits: TraitEntry[]): InventoryState {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;
-    if (Array.isArray(record.entries) && (record.initialized || record.entries.length > 0)) {
+    if (Array.isArray(record.entries) && (record.initialized || record.entries.length > 0 || record.wallet)) {
       return {
         initialized: Boolean(record.initialized),
+        wallet: normalizeWallet(record.wallet),
         entries: record.entries.flatMap((entry, index) => {
           if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
           const item = entry as Record<string, unknown>;
@@ -528,7 +570,7 @@ function normalizeInventory(value: unknown, importedEquipment: EquipmentEntry[],
   }
 
   const inferred = importedEquipment.map((entry, index) => inferInventoryItem(entry, index));
-  return { initialized: false, entries: autoEquipInventory(inferred, targetAc, dexMod, className, raw, traits) };
+  return { initialized: false, entries: autoEquipInventory(inferred, targetAc, dexMod, className, raw, traits), wallet: { ...defaultWallet } };
 }
 
 function pushUnique(list: string[], value: string) {
@@ -661,6 +703,13 @@ const abilityOrder = [
   { key: "carisma", label: "CAR" },
 ] as const;
 
+const coinTypes: Array<{ key: CoinKey; label: string; short: string; accent: string }> = [
+  { key: "cp", label: "Cobre", short: "PC", accent: "from-orange-500/25" },
+  { key: "sp", label: "Plata", short: "PP", accent: "from-slate-200/20" },
+  { key: "gp", label: "Oro", short: "PO", accent: "from-yellow-300/25" },
+  { key: "pp", label: "Platino", short: "PPT", accent: "from-cyan-100/20" },
+];
+
 export default function CharacterDetailPage() {
   const params = useParams<{ id: string }>();
   const [userId, setUserId] = useState("");
@@ -768,6 +817,7 @@ export default function CharacterDetailPage() {
     damage: "",
     notes: "",
   });
+  const [walletAdjustments, setWalletAdjustments] = useState<Record<CoinKey, string>>({ cp: "", sp: "", gp: "", pp: "" });
   const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
@@ -1082,11 +1132,50 @@ export default function CharacterDetailPage() {
     );
   }
 
-  async function persistInventory(next: InventoryState) {
+  async function persistInventory(next: Partial<InventoryState>) {
     if (!userId) return;
-    const normalizedNext = { ...next, initialized: true };
+    const normalizedNext: InventoryState = {
+      initialized: true,
+      entries: next.entries ?? inventory.entries,
+      wallet: normalizeWallet(next.wallet ?? inventory.wallet),
+    };
     setRawPayload((current) => ({ ...current, inventory: normalizedNext }));
     await updateCharacterInventory(userId, params.id, normalizedNext);
+  }
+
+  function visibleInventoryDetail(item: InventoryItem): string {
+    const detail = item.detail.trim();
+    if (!detail) return "";
+    const normalized = normalizeTraitKey(detail);
+    if (normalized.includes("objeto disponible en inventario") || normalized.includes("anade notas manuales")) return "";
+    return detail;
+  }
+
+  async function setWalletAmount(coin: CoinKey, value: string) {
+    const nextWallet = { ...inventory.wallet, [coin]: coinAmount(value) };
+    await persistInventory({ wallet: nextWallet });
+    setMessage("Cartera actualizada.");
+  }
+
+  async function adjustWalletAmount(coin: CoinKey, sign: 1 | -1) {
+    const amount = coinAmount(walletAdjustments[coin]);
+    if (!amount) {
+      setMessage("Indica un número para sumar o restar monedas.");
+      return;
+    }
+    const nextWallet = {
+      ...inventory.wallet,
+      [coin]: Math.max(0, coinAmount(inventory.wallet[coin]) + (sign * amount)),
+    };
+    await persistInventory({ wallet: nextWallet });
+    setWalletAdjustments((current) => ({ ...current, [coin]: "" }));
+    setMessage(sign > 0 ? "Monedas añadidas a la cartera." : "Monedas restadas de la cartera.");
+  }
+
+  async function convertWallet() {
+    const converted = convertWalletCoins(inventory.wallet);
+    await persistInventory({ wallet: converted });
+    setMessage("Conversión aplicada: 10 cobre = 1 plata, 10 plata = 1 oro, 10 oro = 1 platino. Sin electrum.");
   }
 
   async function updateInventoryItem(itemId: string, patch: Partial<InventoryItem>) {
@@ -1207,9 +1296,59 @@ export default function CharacterDetailPage() {
     );
   }
 
+  function renderWalletBlock() {
+    return (
+      <div className="rounded-xl border border-[#d3a84a66] bg-gradient-to-br from-[#2a1f11]/90 via-black/35 to-[#0b0d14]/90 p-3 shadow-[0_18px_45px_rgba(0,0,0,0.28)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-[#b9ae8d]">Cartera</p>
+            <p className="mt-1 text-sm text-[#d9c89e]">Edita cantidades directas o suma/resta un número concreto.</p>
+          </div>
+          <button className="btn-primary px-3 py-2 text-xs" type="button" onClick={() => void convertWallet()}>
+            Convertir 10:1
+          </button>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {coinTypes.map((coin) => (
+            <div key={coin.key} className={`rounded-lg border border-[#d3a84a33] bg-gradient-to-br ${coin.accent} to-black/20 p-3`}>
+              <div className="flex items-center justify-between gap-2">
+                <label className="min-w-0 flex-1 text-xs uppercase tracking-wide text-[#b9ae8d]" htmlFor={`wallet-${coin.key}`}>{coin.label}</label>
+                <span className="rounded-full border border-[#d3a84a44] px-2 py-0.5 text-[10px] font-semibold text-[#f3dfac]">{coin.short}</span>
+              </div>
+              <input
+                id={`wallet-${coin.key}`}
+                className="field mt-2 text-lg font-semibold"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={inventory.wallet[coin.key]}
+                onChange={(event) => void setWalletAmount(coin.key, event.target.value)}
+              />
+              <div className="mt-2 grid grid-cols-[1fr_auto_auto] gap-1">
+                <input
+                  aria-label={`Ajuste de ${coin.label}`}
+                  className="field px-2 py-2 text-xs"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="nº"
+                  value={walletAdjustments[coin.key]}
+                  onChange={(event) => setWalletAdjustments((current) => ({ ...current, [coin.key]: event.target.value }))}
+                />
+                <button className="btn-secondary px-2 py-2 text-xs" type="button" onClick={() => void adjustWalletAmount(coin.key, 1)}>Sumar</button>
+                <button className="btn-secondary px-2 py-2 text-xs" type="button" onClick={() => void adjustWalletAmount(coin.key, -1)}>Restar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-[#b9ae8d]">La conversión no usa electrum.</p>
+      </div>
+    );
+  }
+
   function renderInventoryBlock() {
     return (
       <div>
+        {renderWalletBlock()}
+
         <div className="mt-3 rounded-xl border border-[#d3a84a66] bg-black/30 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -1256,7 +1395,7 @@ export default function CharacterDetailPage() {
           {inventory.entries.map((item) => {
             const isOpen = openEquipment[item.id] ?? false;
             const isEditing = editingInventory[item.id] ?? false;
-            const preview = item.detail ? shortText(item.detail, 90) : item.damage ? shortText(item.damage, 90) : "";
+            const detail = visibleInventoryDetail(item);
             const equippedClass = item.equipped ? "border-[#d3a84aaa] bg-[#d3a84a18]" : "border-[#d3a84a44] bg-black/25";
             return (
               <div key={item.id} className={`rounded-lg border ${equippedClass}`}>
@@ -1266,7 +1405,6 @@ export default function CharacterDetailPage() {
                       <span className="block truncate text-sm font-semibold text-[#f3dfac]">{item.name}</span>
                       <span className="text-xs text-[#b9ae8d]">{item.category} · x{item.quantity}{item.equipped ? " · equipado" : ""}</span>
                       {inventoryItemStatsLabel(item) ? <span className="block text-xs text-[#d9c89e]">{inventoryItemStatsLabel(item)}</span> : null}
-                      {preview ? <span className="mobile-detail block text-xs text-[#b9ae8d]">{preview}</span> : null}
                     </span>
                     <span className="shrink-0 text-[#b9ae8d]">{isOpen ? "-" : "+"}</span>
                   </button>
@@ -1283,7 +1421,7 @@ export default function CharacterDetailPage() {
                       {item.damage ? <p><span className="text-[#b9ae8d]">Daño/uso:</span> {item.damage}</p> : null}
                       {item.category === "armadura" ? <p><span className="text-[#b9ae8d]">Armadura:</span> {armorFormulaLabel(item)}</p> : null}
                       {item.acBonus ? <p><span className="text-[#b9ae8d]">Bonus CA:</span> +{item.acBonus}</p> : null}
-                      <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Detalle:</span> {item.detail || "Sin detalle"}</p>
+                      {detail ? <p className="mt-2 whitespace-pre-wrap"><span className="text-[#b9ae8d]">Detalle:</span> {detail}</p> : null}
                     </div>
                   ) : null}
                   {isEditing ? renderInventoryItemEditor(item) : null}
