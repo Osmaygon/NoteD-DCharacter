@@ -1099,7 +1099,7 @@ export default function CharacterDetailPage() {
           return (
           <div
             key={entry.name}
-            className={`rounded-lg border p-2 ${entry.proficient ? "border-[#d3a84a66] bg-[#d3a84a12]" : "border-[#d3a84a44] bg-black/25"} ${shouldCenterPair ? "xl:col-start-2" : ""}`}
+            className={`rounded-lg border p-2 ${entry.proficient ? "border-[#ffd86faa] bg-[#ffd86f24] shadow-[0_0_18px_rgba(255,216,111,0.14)]" : "border-[#d3a84a44] bg-black/25"} ${shouldCenterPair ? "xl:col-start-2" : ""}`}
           >
             <div className="flex items-center justify-between gap-2">
               <p className="min-w-0 text-sm text-[#d9c89e]">{entry.name}</p>
