@@ -130,6 +130,22 @@ export async function getCampaignDetail(userId: string, campaignId: string): Pro
   return ((data ?? []) as HomeEntity[])[0] ?? null;
 }
 
+export async function updateCampaign(
+  userId: string,
+  campaignId: string,
+  input: { name: string; description: string; source_payload?: Record<string, unknown> },
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("update_campaign_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
+    p_name: input.name,
+    p_description: input.description,
+    p_source_payload: input.source_payload ?? {},
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function updateCampaignStory(
   userId: string,
   campaignId: string,
@@ -142,6 +158,15 @@ export async function updateCampaignStory(
     p_campaign_id: campaignId,
     p_description: description,
     p_source_payload: sourcePayload,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteCampaign(userId: string, campaignId: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase no configurado");
+  const { error } = await supabase.rpc("delete_campaign_for_user", {
+    p_user_id: userId,
+    p_campaign_id: campaignId,
   });
   if (error) throw new Error(error.message);
 }

@@ -43,7 +43,7 @@ export default function DashboardPage() {
         </div>
         <div className="grid gap-2">
           {campaigns.map((c) => (
-            <Link key={c.id} href="/campaigns" className="rounded border border-[#d3a84a44] p-3 hover:bg-[#ffffff08]">
+            <Link key={c.id} href={`/campaigns/${c.id}`} className="rounded border border-[#d3a84a44] p-3 hover:bg-[#ffffff08]">
               <p className="font-semibold">{c.name}</p>
               <p className="mobile-detail text-xs text-[#b9ae8d]">Codigo: {c.join_code}</p>
             </Link>

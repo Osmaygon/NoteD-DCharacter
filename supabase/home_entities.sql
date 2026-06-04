@@ -226,9 +226,10 @@ as $$
   limit 1;
 $$;
 
-create or replace function public.update_campaign_story_for_user(
+create or replace function public.update_campaign_for_user(
   p_user_id uuid,
   p_campaign_id uuid,
+  p_name text,
   p_description text,
   p_source_payload jsonb default '{}'::jsonb
 )
@@ -250,11 +251,59 @@ begin
   if not allowed then
     raise exception 'No autorizado';
   end if;
+  if trim(coalesce(p_name, '')) = '' then
+    raise exception 'Nombre invalido';
+  end if;
 
   update public.app_campaigns
-  set description = coalesce(p_description, ''),
+  set name = trim(p_name),
+      description = coalesce(p_description, ''),
       source_payload = coalesce(p_source_payload, '{}'::jsonb)
   where id = p_campaign_id;
+end;
+$$;
+
+create or replace function public.update_campaign_story_for_user(
+  p_user_id uuid,
+  p_campaign_id uuid,
+  p_description text,
+  p_source_payload jsonb default '{}'::jsonb
+)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  select public.update_campaign_for_user(
+    p_user_id,
+    p_campaign_id,
+    (select c.name from public.app_campaigns c where c.id = p_campaign_id),
+    p_description,
+    p_source_payload
+  );
+$$;
+
+create or replace function public.delete_campaign_for_user(p_user_id uuid, p_campaign_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.app_campaign_members m
+    where m.campaign_id = p_campaign_id
+      and m.user_id = p_user_id
+      and m.role = 'owner'
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'Solo el propietario puede borrar esta campaña';
+  end if;
+
+  delete from public.app_campaigns where id = p_campaign_id;
 end;
 $$;
 
@@ -888,7 +937,9 @@ grant execute on function public.create_campaign_for_user(uuid, text) to anon, a
 grant execute on function public.join_campaign_by_code(uuid, text) to anon, authenticated;
 grant execute on function public.list_campaigns_for_user(uuid) to anon, authenticated;
 grant execute on function public.get_campaign_detail_for_user(uuid, uuid) to anon, authenticated;
+grant execute on function public.update_campaign_for_user(uuid, uuid, text, text, jsonb) to anon, authenticated;
 grant execute on function public.update_campaign_story_for_user(uuid, uuid, text, jsonb) to anon, authenticated;
+grant execute on function public.delete_campaign_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.list_campaign_members_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.set_campaign_member_role_for_user(uuid, uuid, uuid, text) to anon, authenticated;
 grant execute on function public.list_campaign_journal_entries_for_user(uuid, uuid) to anon, authenticated;

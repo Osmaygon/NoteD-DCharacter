@@ -311,7 +311,8 @@ No se guardan todavia manualmente:
 - `/dashboard`: pantalla principal tras iniciar sesion; los personajes visibles mostrados enlazan directamente a su ficha.
 - `/characters`: lista de personajes visibles, personajes ocultos e importacion desde Nivel20/PDF.
 - `/characters/[id]`: ficha del personaje.
-- `/campaigns`: campanas y diario compartido por sesión.
+- `/campaigns`: biblioteca/listado de campanas.
+- `/campaigns/[id]`: interior de una campaña, con historia, bitácoras por sesión, edición/borrado y permisos.
 - `/user`: usuario.
 - `/reset-password`: pantalla placeholder.
 
@@ -394,9 +395,10 @@ RPCs relevantes:
 
 ## Diario De Campaña
 
-La ruta `/campaigns` funciona como diario compartido estilo Nivel20:
+La ruta `/campaigns` es el listado de campañas y `/campaigns/[id]` funciona como diario compartido estilo Nivel20:
 
-- Cada campaña tiene una historia general (`app_campaigns.description`).
+- Desde el listado se entra a una campaña concreta; las bitácoras viven dentro de esa campaña, no en el listado general.
+- Cada campaña tiene nombre editable e historia general (`app_campaigns.description`).
 - Cada partida/sesión se guarda como bitácora en `app_campaign_journal_entries`.
 - Cada bitácora tiene `title`, `session_date` y `blocks` en JSONB.
 - Cada bloque tiene `title` y `content`, para poder separar escenas, resumen, botín, NPCs, pistas, etc.
@@ -404,6 +406,7 @@ La ruta `/campaigns` funciona como diario compartido estilo Nivel20:
 - Solo pueden editar `owner`, `admin` y `editor`.
 - El creador de la campaña queda como `owner`; para el caso actual, la cuenta de Osmaygon debe crear/importar Reino de Chatelenz y queda como admin/propietario.
 - `owner` y `admin` pueden cambiar permisos de otros miembros entre `Lector`, `Editor` y `Admin`. El propietario no se puede degradar desde la UI/RPC.
+- El propietario puede borrar la campaña completa; editores/admins pueden crear, editar y borrar bitácoras.
 - La importación desde Nivel20 usa `/games/dnd-5/campaigns/110040-reino-de-chatelenz/log` por defecto y guarda el resultado en la campaña seleccionada o crea/localiza una campaña por nombre/ruta.
 - Nivel20 se mantiene como solo lectura: se importa hacia Supabase, no se escribe de vuelta en Nivel20.
 
