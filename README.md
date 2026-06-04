@@ -312,7 +312,7 @@ No se guardan todavia manualmente:
 - `/characters`: lista de personajes visibles, personajes ocultos e importacion desde Nivel20/PDF.
 - `/characters/[id]`: ficha del personaje.
 - `/campaigns`: biblioteca/listado de campanas.
-- `/campaigns/[id]`: interior de una campaña, con bitácoras por sesión, edición/borrado y permisos.
+- `/campaigns/[id]`: interior de una campaña, con historia, bitácoras por sesión, edición/borrado y permisos.
 - `/user`: usuario.
 - `/reset-password`: pantalla placeholder.
 
@@ -398,7 +398,7 @@ RPCs relevantes:
 La ruta `/campaigns` es el listado de campañas y `/campaigns/[id]` funciona como diario compartido estilo Nivel20:
 
 - Desde el listado se entra a una campaña concreta; las bitácoras viven dentro de esa campaña, no en el listado general.
-- Cada campaña tiene nombre editable; no se muestra bloque de historia general porque el contenido útil vive en las bitácoras.
+- Cada campaña tiene nombre editable e historia general (`app_campaigns.description`).
 - Cada partida/sesión se guarda como bitácora en `app_campaign_journal_entries`.
 - Cada bitácora tiene `title`, `session_date` y `blocks` en JSONB.
 - Cada bloque tiene `title` y `content`, para poder separar escenas, resumen, botín, NPCs, pistas, etc.
