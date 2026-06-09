@@ -381,6 +381,7 @@ RPCs relevantes:
 - `update_character_spell_slots_for_user`
 - `update_character_ammunition_for_user`
 - `update_character_inventory_for_user`
+- `sync_character_base_from_payload`
 - `get_campaign_detail_for_user`
 - `update_campaign_story_for_user`
 - `list_campaign_members_for_user`
@@ -417,12 +418,14 @@ El flujo actual de campaña es:
 1. El script `npm run import:nivel20 -- --user <app_user_id>` lee la campaña configurada de Nivel20.
 2. Nivel20 se trata como fuente de solo lectura.
 3. El parser clasifica datos, rasgos, equipo, historia y conjuros.
-4. Los personajes se guardan/actualizan en Supabase y se asocian al usuario indicado.
-5. La visibilidad posterior se gestiona por usuario desde `app_character_members.is_visible`.
+4. Si el personaje no existe, se crea con esos datos como base/default.
+5. Si el personaje ya existe, se actualiza solo la base importada con `sync_character_base_from_payload`; no se pisan overrides ni estado guardado desde la web.
+6. La visibilidad posterior se gestiona por usuario desde `app_character_members.is_visible`.
 
 Reglas actuales:
 
 - No se escriben cambios en Nivel20.
+- Reimportar desde Nivel20 no borra ni sobrescribe estado de la web por usuario: HP actual, vida temporal, espacios gastados, munición/flechas, inventario equipado, equipo añadido, estados activos, notas manuales y futuros campos como dinero.
 - Los bloques `Conjuros de juramento`, `Conjuros de dominio` y `Conjuros de artillero` se importan como conjuros siempre preparados.
 - La historia de Nivel20 se conserva en secciones desplegables dentro de `Informacion`.
 
@@ -533,7 +536,7 @@ Contiene informacion util para usar durante pelea o roleo activo:
   - `Descanso corto`: aplica recuperaciones automáticas cuando no hay elección pendiente, como espacios de brujo por Magia del pacto; muestra recordatorios para dados de golpe, Recuperación arcana, Ki, Canalizar Divinidad, Forma salvaje, Inspiración bárdica, etc.
   - `Descanso largo`: deja HP al máximo, vida temporal a 0 y recupera espacios de conjuro gastados; además recuerda recursos por personaje como Imponer las manos, conjuros raciales, Destello de Genio o Cañón Sobrenatural.
 - Estados:
-  - Catálogo en BD con condiciones oficiales 5e 2014 y efectos comunes usados en Nivel20/libros compatibles (`Tasha`, `Eberron`).
+  - Catálogo en BD con condiciones oficiales 5e 2014 y efectos comunes usados en Nivel20/libros compatibles (`Tasha`, `Eberron`), ampliado con conjuros que aplican estados como `Dormir`, `Inmovilizar`, `Telaraña`, `Miedo`, `Patrón hipnótico`, `Destierro`, castigos de paladín y estados genéricos.
   - Buscador en combate para aplicar/quitar estados; no muestra sugerencias iniciales, solo coincidencias cuando se escribe una búsqueda.
   - Reglas JSON aplican modificadores visibles: CA, velocidad, dados a ataques/salvaciones y recordatorios de ventaja/desventaja/resistencias.
 - Referencia rapida:

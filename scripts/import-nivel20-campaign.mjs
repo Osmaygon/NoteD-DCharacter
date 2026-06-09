@@ -233,12 +233,9 @@ function normalizeNivel20Character(payload, sourcePath) {
   };
 }
 
-function mergeSourcePayload(existingPayload, importedPayload, characterPath, externalId) {
+function mergeSourcePayload(_existingPayload, importedPayload, characterPath, externalId) {
   return {
     ...importedPayload,
-    manual_trait_descriptions: existingPayload.manual_trait_descriptions ?? existingPayload.source_payload?.manual_trait_descriptions ?? {},
-    prepared_spell_ids: existingPayload.prepared_spell_ids ?? existingPayload.source_payload?.prepared_spell_ids ?? [],
-    combat_favorites: existingPayload.combat_favorites ?? existingPayload.source_payload?.combat_favorites ?? [],
     nivel20: {
       id: externalId,
       path: characterPath,
@@ -283,38 +280,17 @@ async function upsertCharacter(supabase, userId, normalized, characterPath) {
     normalized.source_payload = mergedPayload;
     const imported = await rpc(supabase, "import_character_from_payload", { p_user_id: userId, p_payload: normalized });
     const createdId = imported?.[0]?.id;
-    if (createdId) {
-      await rpc(supabase, "update_character_source_payload_for_user", {
-        p_user_id: userId,
-        p_character_id: createdId,
-        p_source_payload: mergedPayload,
-      });
-    }
     return { action: "created", id: createdId, name: normalized.name };
   }
 
-  await rpc(supabase, "update_character_detail_for_user", {
-    p_user_id: userId,
-    p_character_id: target.id,
-    p_name: String(normalized.name ?? target.name ?? ""),
-    p_class_name: String(normalized.class_name ?? ""),
-    p_level: normalized.level ?? null,
-    p_race: String(normalized.race ?? ""),
-    p_background: String(normalized.background ?? ""),
-    p_hp: normalized.hp ?? null,
-    p_current_hp: target.current_hp ?? normalized.hp ?? 0,
-    p_temp_hp: target.temp_hp ?? 0,
-    p_shields: target.shields ?? 0,
-    p_ac: normalized.ac ?? null,
-    p_speed: normalized.speed ?? null,
-    p_notes: String(normalized.notes ?? ""),
-  });
-
   const mergedPayload = mergeSourcePayload(target.source_payload ?? {}, sourcePayload, characterPath, externalId);
-  await rpc(supabase, "update_character_source_payload_for_user", {
+  await rpc(supabase, "sync_character_base_from_payload", {
     p_user_id: userId,
     p_character_id: target.id,
-    p_source_payload: mergedPayload,
+    p_payload: {
+      ...normalized,
+      source_payload: mergedPayload,
+    },
   });
   return { action: "updated", id: target.id, name: normalized.name };
 }

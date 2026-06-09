@@ -843,6 +843,88 @@ begin
 end;
 $$;
 
+create or replace function public.sync_character_base_from_payload(
+  p_user_id uuid,
+  p_character_id uuid,
+  p_payload jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed boolean;
+  parsed_name text;
+  parsed_source jsonb;
+begin
+  select exists(
+    select 1 from public.app_character_members m
+    where m.character_id = p_character_id and m.user_id = p_user_id
+  ) into allowed;
+
+  if not allowed then
+    raise exception 'No autorizado';
+  end if;
+
+  parsed_name := coalesce(
+    nullif(trim(p_payload->>'name'), ''),
+    nullif(trim(p_payload->>'character_name'), ''),
+    nullif(trim(p_payload->>'nombre'), '')
+  );
+  parsed_source := coalesce(p_payload->'source_payload', p_payload, '{}'::jsonb);
+
+  update public.app_characters
+  set name = coalesce(parsed_name, name)
+  where id = p_character_id;
+
+  insert into public.app_character_profiles(
+    character_id,
+    class_name,
+    level,
+    race,
+    background,
+    hp,
+    current_hp,
+    temp_hp,
+    shields,
+    ac,
+    speed,
+    notes,
+    source_payload
+  )
+  values (
+    p_character_id,
+    nullif(trim(coalesce(p_payload->>'class_name', p_payload->>'class', p_payload->>'clase')), ''),
+    nullif(p_payload->>'level', '')::int,
+    nullif(trim(coalesce(p_payload->>'race', p_payload->>'species', p_payload->>'raza')), ''),
+    nullif(trim(coalesce(p_payload->>'background', p_payload->>'trasfondo')), ''),
+    nullif(p_payload->>'hp', '')::int,
+    coalesce(nullif(p_payload->>'current_hp', '')::int, nullif(p_payload->>'hp', '')::int, 0),
+    coalesce(nullif(p_payload->>'temp_hp', '')::int, 0),
+    coalesce(nullif(p_payload->>'shields', '')::int, 0),
+    nullif(p_payload->>'ac', '')::int,
+    nullif(p_payload->>'speed', '')::int,
+    nullif(trim(coalesce(p_payload->>'notes', p_payload->>'notas')), ''),
+    parsed_source
+  )
+  on conflict (character_id) do update set
+    class_name = excluded.class_name,
+    level = excluded.level,
+    race = excluded.race,
+    background = excluded.background,
+    hp = excluded.hp,
+    current_hp = excluded.current_hp,
+    temp_hp = excluded.temp_hp,
+    shields = excluded.shields,
+    ac = excluded.ac,
+    speed = excluded.speed,
+    notes = excluded.notes,
+    source_payload = excluded.source_payload,
+    updated_at = now();
+end;
+$$;
+
 create or replace function public.update_character_inventory_for_user(
   p_user_id uuid,
   p_character_id uuid,
@@ -954,6 +1036,7 @@ grant execute on function public.set_character_visibility_for_user(uuid, uuid, b
 grant execute on function public.update_character_spell_slots_for_user(uuid, uuid, jsonb) to anon, authenticated;
 grant execute on function public.update_character_ammunition_for_user(uuid, uuid, jsonb) to anon, authenticated;
 grant execute on function public.update_character_inventory_for_user(uuid, uuid, jsonb) to anon, authenticated;
+grant execute on function public.sync_character_base_from_payload(uuid, uuid, jsonb) to anon, authenticated;
 grant execute on function public.import_character_from_payload(uuid, jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_user(uuid, uuid) to anon, authenticated;
 grant execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) to anon, authenticated;
@@ -1105,3 +1188,69 @@ $$;
 grant execute on function public.search_status_effects(text) to anon, authenticated;
 grant execute on function public.list_active_status_effects_for_character(uuid, uuid) to anon, authenticated;
 grant execute on function public.set_character_status_effect_active(uuid, uuid, text, boolean, text) to anon, authenticated;
+
+-- Estados y efectos adicionales de conjuros/rasgos que aplican condiciones o modificadores frecuentes.
+insert into public.app_status_effects(id, name, category, source, description, rules) values
+('dormido','Dormido','Conjuro/Efecto','5e 2014 / Nivel20','Estado típico de Dormir u otros efectos: la criatura queda inconsciente hasta que recibe daño, alguien la despierta o termina el efecto.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('ceguera-sordera-cegado','Ceguera/Sordera: cegado','Conjuro/Efecto','5e 2014 / Nivel20','Efecto del conjuro Ceguera/Sordera eligiendo cegar: no puedes ver, tus ataques tienen desventaja y los ataques contra ti tienen ventaja.','{"attack_disadvantage":true,"incoming_attack_advantage":true}'::jsonb),
+('ceguera-sordera-ensordecido','Ceguera/Sordera: ensordecido','Conjuro/Efecto','5e 2014 / Nivel20','Efecto del conjuro Ceguera/Sordera eligiendo ensordecer: no puedes oír y fallas pruebas que dependan del oído.','{}'::jsonb),
+('inmovilizar-persona','Inmovilizar persona','Conjuro/Efecto','5e 2014 / Nivel20','Humanoide paralizado por el conjuro. Incapacitado, velocidad 0, ataques contra él con ventaja y críticos cuerpo a cuerpo cercanos.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('inmovilizar-monstruo','Inmovilizar monstruo','Conjuro/Efecto','5e 2014 / Nivel20','Criatura paralizada por el conjuro. Incapacitada, velocidad 0, ataques contra ella con ventaja y críticos cuerpo a cuerpo cercanos.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('risa-horrible-tasha','Risa horrible de Tasha','Conjuro/Efecto','5e 2014 / Tasha / Nivel20','La criatura cae derribada, queda incapacitada y no puede levantarse mientras dure el efecto.','{"speed_set":0,"incoming_melee_advantage":true,"incoming_ranged_disadvantage":true}'::jsonb),
+('grasa-derribado','Grasa: derribado','Conjuro/Efecto','5e 2014 / Nivel20','Criatura derribada por Grasa u otro terreno resbaladizo.','{"attack_disadvantage":true,"incoming_melee_advantage":true,"incoming_ranged_disadvantage":true}'::jsonb),
+('telarana-apresado','Telaraña: apresado','Conjuro/Efecto','5e 2014 / Nivel20','Criatura apresada/restringida por Telaraña hasta liberarse o destruir las telarañas.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('enmarañar-apresado','Enmarañar: apresado','Conjuro/Efecto','5e 2014 / Nivel20','Criatura apresada por plantas hasta superar la prueba o terminar el efecto.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('tentaculos-negros-apresado','Tentáculos negros: apresado','Conjuro/Efecto','5e 2014 / Nivel20','Criatura apresada por Tentáculos negros de Evard.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('agarre-terroso-apresado','Agarre terroso: apresado','Conjuro/Efecto','Xanathar / Nivel20 compatible','Criatura apresada por una mano de tierra o efecto similar.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('miedo-conjuro','Miedo','Conjuro/Efecto','5e 2014 / Nivel20','Criatura asustada por el conjuro Miedo; suele soltar objetos y alejarse mientras vea la fuente.','{"attack_disadvantage_note":"Mientras la fuente sea visible"}'::jsonb),
+('causar-miedo','Causar miedo','Conjuro/Efecto','Xanathar / Nivel20 compatible','Criatura asustada por Causar miedo.','{"attack_disadvantage_note":"Mientras la fuente sea visible"}'::jsonb),
+('patron-hipnotico','Patrón hipnótico','Conjuro/Efecto','5e 2014 / Nivel20','Criatura hechizada, incapacitada y con velocidad 0 hasta que reciba daño o alguien la despierte con una acción.','{"speed_set":0}'::jsonb),
+('confusion','Confusión','Conjuro/Efecto','5e 2014 / Nivel20','La criatura actúa de forma aleatoria según la tabla del conjuro Confusión.','{}'::jsonb),
+('desterrado','Desterrado','Conjuro/Efecto','5e 2014 / Nivel20','Criatura enviada a otro plano o semiplano; normalmente queda fuera del combate hasta terminar el efecto.','{"speed_set":0}'::jsonb),
+('polimorfado','Polimorfado','Conjuro/Efecto','5e 2014 / Nivel20','La criatura usa las estadísticas de la nueva forma mientras dure Polimorfar. Ajusta HP/CA/velocidad manualmente si hace falta.','{}'::jsonb),
+('forma-gaseosa','Forma gaseosa','Conjuro/Efecto','5e 2014 / Nivel20','Forma nebulosa: resistencia a daño no mágico, ventaja en salvaciones de Fuerza/Destreza/Constitución y movimiento especial.','{"resistance_note":"Daño no mágico mientras dure Forma gaseosa"}'::jsonb),
+('dominado','Dominado','Conjuro/Efecto','5e 2014 / Nivel20','Dominado por Dominar persona/bestia/monstruo; quedas hechizado y puedes recibir órdenes telepáticas.','{}'::jsonb),
+('hechizar-persona','Hechizar persona','Conjuro/Efecto','5e 2014 / Nivel20','Hechizado por el lanzador; no puedes atacarlo y el lanzador tiene ventaja social contra ti.','{}'::jsonb),
+('sugestion','Sugestión','Conjuro/Efecto','5e 2014 / Nivel20','Bajo una sugestión mágica razonable. No modifica números por defecto, pero es importante en combate/rol.','{}'::jsonb),
+('corona-de-locura','Corona de locura','Conjuro/Efecto','5e 2014 / Nivel20','Hechizado por Corona de locura; puede obligarte a usar tu acción para atacar a una criatura cercana.','{}'::jsonb),
+('compulsion','Compulsión','Conjuro/Efecto','5e 2014 / Nivel20','Movimiento forzado por Compulsión en la dirección elegida por el lanzador.','{}'::jsonb),
+('asesino-fantasmagorico','Asesino fantasmal','Conjuro/Efecto','5e 2014 / Nivel20','Criatura asustada por una ilusión aterradora y sufre daño psíquico según el conjuro.','{"attack_disadvantage_note":"Mientras la fuente sea visible"}'::jsonb),
+('mal-de-ojo-dormido','Mal de ojo: dormido','Conjuro/Efecto','5e 2014 / Nivel20','Opción de Mal de ojo que deja inconsciente/dormido hasta que despierte según el conjuro.','{"speed_set":0,"incoming_attack_advantage":true}'::jsonb),
+('mal-de-ojo-asustado','Mal de ojo: asustado','Conjuro/Efecto','5e 2014 / Nivel20','Opción de Mal de ojo que deja asustado.','{"attack_disadvantage_note":"Mientras la fuente sea visible"}'::jsonb),
+('mal-de-ojo-enfermo','Mal de ojo: enfermo','Conjuro/Efecto','5e 2014 / Nivel20','Opción de Mal de ojo que causa desventaja en ataques y pruebas de característica.','{"attack_disadvantage":true,"ability_check_disadvantage":true}'::jsonb),
+('contagio','Contagio','Conjuro/Efecto','5e 2014 / Nivel20','Afectado por Contagio o enfermedad mágica. Ajusta la enfermedad concreta en notas.','{}'::jsonb),
+('rayo-enfermedad-envenenado','Rayo de enfermedad: envenenado','Conjuro/Efecto','5e 2014 / Nivel20','Envenenado hasta el final del siguiente turno por Rayo de enfermedad.','{"attack_disadvantage":true,"ability_check_disadvantage":true}'::jsonb),
+('nube-apestosa','Nube apestosa','Conjuro/Efecto','5e 2014 / Nivel20','Puede hacer perder la acción por náuseas si falla la salvación.','{}'::jsonb),
+('carne-a-piedra-restringido','Carne a piedra: restringido','Conjuro/Efecto','5e 2014 / Nivel20','Durante el proceso de petrificación, la criatura queda apresada/restringida.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('carne-a-piedra-petrificado','Carne a piedra: petrificado','Conjuro/Efecto','5e 2014 / Nivel20','La criatura queda petrificada si falla las salvaciones suficientes.','{"speed_set":0,"incoming_attack_advantage":true,"resistance_note":"Resistencia a todo daño"}'::jsonb),
+('prision-mental','Prisión mental','Conjuro/Efecto','Xanathar / Nivel20 compatible','Criatura apresada por una ilusión si falla la salvación; puede recibir daño al atravesarla.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('muro-fuerza-atrapado','Muro de fuerza: atrapado','Conjuro/Efecto','5e 2014 / Nivel20','Atrapado o separado por Muro de fuerza. No cambia stats numéricas pero afecta posicionamiento.','{}'::jsonb),
+('jaula-fuerza-atrapado','Jaula de fuerza: atrapado','Conjuro/Efecto','5e 2014 / Nivel20','Atrapado por Jaula de fuerza. No cambia stats numéricas pero afecta posicionamiento y opciones.','{}'::jsonb),
+('laberinto','Laberinto','Conjuro/Efecto','5e 2014 / Nivel20','Enviado a un semiplano laberíntico; fuera del campo hasta escapar.','{"speed_set":0}'::jsonb),
+('silenciado','Silenciado','Conjuro/Efecto','5e 2014 / Nivel20','Dentro de Silencio o bajo un efecto que impide sonido; no puedes lanzar conjuros con componente verbal.','{}'::jsonb),
+('oscuridad-magica','Oscuridad mágica','Conjuro/Efecto','5e 2014 / Nivel20','Zona de oscuridad mágica; criaturas sin visión adecuada tratan la zona como muy oscura/cegada para objetivos dentro.','{}'::jsonb),
+('nube-niebla','Nube de niebla','Conjuro/Efecto','5e 2014 / Nivel20','Zona muy oscurecida; afecta visión y ataques según línea de visión.','{}'::jsonb),
+('trepar-aracnido','Trepar cual arácnido','Conjuro/Efecto','5e 2014 / Nivel20','Puedes moverte por paredes y techos; recordatorio de movimiento especial.','{}'::jsonb),
+('caida-pluma','Caída de pluma','Conjuro/Efecto','5e 2014 / Nivel20','Caes lentamente y no recibes daño de caída mientras dure.','{}'::jsonb),
+('paso-brumoso','Paso brumoso usado','Conjuro/Efecto','5e 2014 / Nivel20','Recordatorio de teletransporte breve ya usado/activo si necesitas marcarlo.','{}'::jsonb),
+('santuario','Santuario','Conjuro/Efecto','5e 2014 / Nivel20','Quien te ataque debe superar salvación de Sabiduría o elegir otro objetivo/perder el ataque.','{}'::jsonb),
+('proteccion-energia','Protección contra energía','Conjuro/Efecto','5e 2014 / Nivel20','Resistencia a un tipo de daño elegido: ácido, frío, fuego, relámpago o trueno.','{"resistance_note":"Tipo elegido por Protección contra energía"}'::jsonb),
+('absorber-elementos','Absorber elementos','Conjuro/Efecto','Xanathar / Nivel20 compatible','Resistencia temporal al tipo de daño desencadenante y daño extra en el siguiente ataque cuerpo a cuerpo.','{"resistance_note":"Tipo desencadenante hasta tu siguiente turno"}'::jsonb),
+('manto-del-cruzado','Manto del cruzado','Conjuro/Efecto','5e 2014 / Nivel20','Aliados cercanos infligen 1d4 radiante extra con ataques de arma.','{"damage_bonus_die":"1d4 radiante"}'::jsonb),
+('arma-magica','Arma mágica','Conjuro/Efecto','5e 2014 / Nivel20','Arma obtiene bonus mágico a ataque y daño según nivel de lanzamiento.','{}'::jsonb),
+('favor-divino','Favor divino','Conjuro/Efecto','5e 2014 / Nivel20','Tus ataques de arma infligen 1d4 radiante extra.','{"damage_bonus_die":"1d4 radiante"}'::jsonb),
+('castigo-iracundo','Castigo iracundo','Conjuro/Efecto','5e 2014 / Nivel20','El objetivo puede quedar asustado tras el impacto.','{"attack_disadvantage_note":"Si está asustado y ve la fuente"}'::jsonb),
+('castigo-segador','Castigo cegador','Conjuro/Efecto','5e 2014 / Nivel20','El objetivo puede quedar cegado tras el impacto.','{"attack_disadvantage":true,"incoming_attack_advantage":true}'::jsonb),
+('castigo-estremecedor','Castigo estremecedor','Conjuro/Efecto','5e 2014 / Nivel20','El objetivo puede quedar derribado tras el impacto.','{"attack_disadvantage":true,"incoming_melee_advantage":true,"incoming_ranged_disadvantage":true}'::jsonb),
+('castigo-desterrador','Castigo desterrador','Conjuro/Efecto','5e 2014 / Nivel20','El objetivo puede quedar desterrado si baja de cierto umbral de PG.','{"speed_set":0}'::jsonb),
+('restriccion-generica','Restringido por efecto','Genérico','Nivel20 / extensiones','Estado genérico para cualquier rasgo, trampa o conjuro que deje a una criatura restringida/apresada.','{"speed_set":0,"attack_disadvantage":true,"incoming_attack_advantage":true,"dex_save_disadvantage":true}'::jsonb),
+('marcado-generico','Marcado','Genérico','Nivel20 / extensiones','Objetivo marcado por un rasgo, conjuro o mecánica de campaña. Ajusta el efecto en notas si aplica.','{}'::jsonb),
+('vulnerable-generico','Vulnerable','Genérico','Nivel20 / extensiones','Vulnerabilidad temporal a un tipo de daño. Indica el tipo en notas.','{}'::jsonb),
+('resistente-generico','Resistente','Genérico','Nivel20 / extensiones','Resistencia temporal a un tipo de daño. Indica el tipo en notas.','{"resistance_note":"Tipo indicado en notas"}'::jsonb),
+('inmune-generico','Inmune','Genérico','Nivel20 / extensiones','Inmunidad temporal a un tipo de daño o condición. Indica el tipo en notas.','{}'::jsonb)
+on conflict (id) do update set
+  name = excluded.name,
+  category = excluded.category,
+  source = excluded.source,
+  description = excluded.description,
+  rules = excluded.rules;
