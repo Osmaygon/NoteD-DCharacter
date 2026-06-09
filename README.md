@@ -425,7 +425,7 @@ El flujo actual de campaña es:
 Reglas actuales:
 
 - No se escriben cambios en Nivel20.
-- Reimportar desde Nivel20 no borra ni sobrescribe estado de la web por usuario: HP actual, vida temporal, espacios gastados, munición/flechas, inventario equipado, equipo añadido, estados activos, notas manuales y futuros campos como dinero.
+- Reimportar desde Nivel20 no borra ni sobrescribe estado de la web por usuario: HP actual, vida temporal, espacios gastados, munición/flechas, inventario equipado, equipo añadido, estados activos, notas manuales y cartera/dinero.
 - Los bloques `Conjuros de juramento`, `Conjuros de dominio` y `Conjuros de artillero` se importan como conjuros siempre preparados.
 - La historia de Nivel20 se conserva en secciones desplegables dentro de `Informacion`.
 
@@ -700,7 +700,7 @@ Criterio de móvil:
 - Mejorar parser de ataques truncados por OCR (`contunden…`, nombres cortados, etc.).
 - Parsear conjuros y trucos como elementos separados.
 - Diferenciar `Rasgo`, `Rasgo personalizado`, `Conjuro`, `Truco`, `Accion`, `Accion adicional` y `Reaccion`.
-- Mejorar más el inventario con categorías especiales, peso, monedas y consumibles si hace falta.
+- Mejorar más el inventario con categorías especiales, peso y consumibles si hace falta.
 - Cachear respuestas de API en Supabase si se usa API de forma estable.
 - Investigar D&D Beyond como posible API/fuente.
 - Investigar Nivel20 como API/fuente, no solo como referencia visual.
