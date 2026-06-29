@@ -770,3 +770,9 @@ npm run dev
 - Cada cambio se commitea y se pushea inmediatamente para verlo en Vercel.
 - No tocar cambios no relacionados del worktree.
 - Mantener conversacion en espanol.
+
+## Enlaces del proyecto
+
+- GitHub: https://github.com/Osmaygon/NoteD-DCharacter
+- Vercel: https://note-d-d-character.vercel.app
+- Deploy automático: Vercel está conectado al repositorio de GitHub.
