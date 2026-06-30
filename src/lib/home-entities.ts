@@ -1,3 +1,4 @@
+import { getStoredSessionToken } from "@/lib/custom-auth";
 import { supabase } from "@/lib/supabase";
 
 export type HomeEntity = {
@@ -71,31 +72,40 @@ export type CharacterDetail = {
   inventory: Record<string, unknown> | null;
 };
 
+function requireSessionToken(): string {
+  const token = getStoredSessionToken();
+  if (!token) throw new Error("Sesion no encontrada");
+  return token;
+}
+
 export async function listCampaigns(userId: string): Promise<HomeEntity[]> {
+  void userId;
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("list_campaigns_for_user", { p_user_id: userId });
+  const { data, error } = await supabase.rpc("list_campaigns_for_session", { p_token: requireSessionToken() });
   if (error) throw new Error(error.message);
   return (data ?? []) as HomeEntity[];
 }
 
 export async function listCharacters(userId: string): Promise<HomeEntity[]> {
+  void userId;
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("list_characters_for_user", { p_user_id: userId });
+  const { data, error } = await supabase.rpc("list_characters_for_session", { p_token: requireSessionToken() });
   if (error) throw new Error(error.message);
   return (data ?? []) as HomeEntity[];
 }
 
 export async function listHiddenCharacters(userId: string): Promise<HomeEntity[]> {
+  void userId;
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("list_hidden_characters_for_user", { p_user_id: userId });
+  const { data, error } = await supabase.rpc("list_hidden_characters_for_session", { p_token: requireSessionToken() });
   if (error) throw new Error(error.message);
   return (data ?? []) as HomeEntity[];
 }
 
 export async function setCharacterVisibility(userId: string, characterId: string, isVisible: boolean): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("set_character_visibility_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("set_character_visibility_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_is_visible: isVisible,
   });
@@ -104,8 +114,8 @@ export async function setCharacterVisibility(userId: string, characterId: string
 
 export async function createCampaign(userId: string, name: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("create_campaign_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("create_campaign_for_session", {
+    p_token: requireSessionToken(),
     p_name: name,
   });
   if (error) throw new Error(error.message);
@@ -113,8 +123,8 @@ export async function createCampaign(userId: string, name: string): Promise<void
 
 export async function joinCampaign(userId: string, code: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("join_campaign_by_code", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("join_campaign_by_code_for_session", {
+    p_token: requireSessionToken(),
     p_code: code,
   });
   if (error) throw new Error(error.message);
@@ -122,8 +132,8 @@ export async function joinCampaign(userId: string, code: string): Promise<void> 
 
 export async function getCampaignDetail(userId: string, campaignId: string): Promise<HomeEntity | null> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("get_campaign_detail_for_user", {
-    p_user_id: userId,
+  const { data, error } = await supabase.rpc("get_campaign_detail_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
   });
   if (error) throw new Error(error.message);
@@ -136,8 +146,8 @@ export async function updateCampaign(
   input: { name: string; description: string; source_payload?: Record<string, unknown> },
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_campaign_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_campaign_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
     p_name: input.name,
     p_description: input.description,
@@ -153,8 +163,8 @@ export async function updateCampaignStory(
   sourcePayload: Record<string, unknown> = {},
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_campaign_story_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_campaign_story_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
     p_description: description,
     p_source_payload: sourcePayload,
@@ -164,8 +174,8 @@ export async function updateCampaignStory(
 
 export async function deleteCampaign(userId: string, campaignId: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("delete_campaign_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("delete_campaign_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
   });
   if (error) throw new Error(error.message);
@@ -173,8 +183,8 @@ export async function deleteCampaign(userId: string, campaignId: string): Promis
 
 export async function listCampaignMembers(userId: string, campaignId: string): Promise<CampaignMember[]> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("list_campaign_members_for_user", {
-    p_user_id: userId,
+  const { data, error } = await supabase.rpc("list_campaign_members_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
   });
   if (error) throw new Error(error.message);
@@ -183,8 +193,8 @@ export async function listCampaignMembers(userId: string, campaignId: string): P
 
 export async function setCampaignMemberRole(userId: string, campaignId: string, targetUserId: string, role: CampaignMember["role"]): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("set_campaign_member_role_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("set_campaign_member_role_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
     p_target_user_id: targetUserId,
     p_role: role,
@@ -194,8 +204,8 @@ export async function setCampaignMemberRole(userId: string, campaignId: string, 
 
 export async function listCampaignJournalEntries(userId: string, campaignId: string): Promise<CampaignJournalEntry[]> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("list_campaign_journal_entries_for_user", {
-    p_user_id: userId,
+  const { data, error } = await supabase.rpc("list_campaign_journal_entries_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
   });
   if (error) throw new Error(error.message);
@@ -214,8 +224,8 @@ export async function upsertCampaignJournalEntry(
   },
 ): Promise<string | null> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("upsert_campaign_journal_entry_for_user", {
-    p_user_id: userId,
+  const { data, error } = await supabase.rpc("upsert_campaign_journal_entry_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
     p_entry_id: input.id ?? null,
     p_title: input.title,
@@ -229,8 +239,8 @@ export async function upsertCampaignJournalEntry(
 
 export async function deleteCampaignJournalEntry(userId: string, campaignId: string, entryId: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("delete_campaign_journal_entry_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("delete_campaign_journal_entry_for_session", {
+    p_token: requireSessionToken(),
     p_campaign_id: campaignId,
     p_entry_id: entryId,
   });
@@ -239,8 +249,8 @@ export async function deleteCampaignJournalEntry(userId: string, campaignId: str
 
 export async function createCharacter(userId: string, name: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("create_character_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("create_character_for_session", {
+    p_token: requireSessionToken(),
     p_name: name,
   });
   if (error) throw new Error(error.message);
@@ -248,8 +258,8 @@ export async function createCharacter(userId: string, name: string): Promise<voi
 
 export async function joinCharacter(userId: string, code: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("join_character_by_code", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("join_character_by_code_for_session", {
+    p_token: requireSessionToken(),
     p_code: code,
   });
   if (error) throw new Error(error.message);
@@ -257,8 +267,8 @@ export async function joinCharacter(userId: string, code: string): Promise<void>
 
 export async function importCharacterFromPayload(userId: string, payload: Record<string, unknown>): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("import_character_from_payload", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("import_character_from_payload_for_session", {
+    p_token: requireSessionToken(),
     p_payload: payload,
   });
   if (error) throw new Error(error.message);
@@ -266,8 +276,8 @@ export async function importCharacterFromPayload(userId: string, payload: Record
 
 export async function getCharacterDetail(userId: string, characterId: string): Promise<CharacterDetail | null> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("get_character_detail_for_user", {
-    p_user_id: userId,
+  const { data, error } = await supabase.rpc("get_character_detail_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
   });
   if (error) throw new Error(error.message);
@@ -293,8 +303,8 @@ export async function updateCharacterDetail(
   },
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_character_detail_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_character_detail_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_name: input.name,
     p_class_name: input.class_name,
@@ -318,8 +328,8 @@ export async function updateCharacterAmmunition(
   ammunition: Record<string, unknown>,
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_character_ammunition_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_character_ammunition_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_ammunition: ammunition,
   });
@@ -335,8 +345,8 @@ export async function searchStatusEffects(query: string): Promise<StatusEffect[]
 
 export async function listActiveStatusEffects(userId: string, characterId: string): Promise<StatusEffect[]> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { data, error } = await supabase.rpc("list_active_status_effects_for_character", {
-    p_user_id: userId,
+  const { data, error } = await supabase.rpc("list_active_status_effects_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
   });
   if (error) throw new Error(error.message);
@@ -351,8 +361,8 @@ export async function setCharacterStatusEffectActive(
   note = "",
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("set_character_status_effect_active", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("set_character_status_effect_active_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_status_id: statusId,
     p_active: active,
@@ -367,8 +377,8 @@ export async function updateCharacterInventory(
   inventory: Record<string, unknown>,
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_character_inventory_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_character_inventory_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_inventory: inventory,
   });
@@ -381,8 +391,8 @@ export async function updateCharacterSpellSlots(
   spellSlotsSpent: Record<string, number>,
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_character_spell_slots_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_character_spell_slots_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_spell_slots_spent: spellSlotsSpent,
   });
@@ -395,8 +405,8 @@ export async function updateCharacterSourcePayload(
   sourcePayload: Record<string, unknown>,
 ): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("update_character_source_payload_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("update_character_source_payload_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
     p_source_payload: sourcePayload,
   });
@@ -405,8 +415,8 @@ export async function updateCharacterSourcePayload(
 
 export async function deleteCharacter(userId: string, characterId: string): Promise<void> {
   if (!supabase) throw new Error("Supabase no configurado");
-  const { error } = await supabase.rpc("delete_character_for_user", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("delete_character_for_session", {
+    p_token: requireSessionToken(),
     p_character_id: characterId,
   });
   if (error) throw new Error(error.message);

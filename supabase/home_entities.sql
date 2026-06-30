@@ -1254,3 +1254,114 @@ on conflict (id) do update set
   source = excluded.source,
   description = excluded.description,
   rules = excluded.rules;
+
+-- Session-authorized RPC wrappers. Apply after existing functions.
+create or replace function public.require_app_user_id(p_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user_id uuid;
+begin
+  select s.user_id into v_user_id
+  from public.app_sessions s
+  where s.token_hash = md5(p_token)
+    and s.revoked_at is null
+    and s.expires_at > now()
+  limit 1;
+  if v_user_id is null then raise exception 'Sesion invalida'; end if;
+  return v_user_id;
+end;
+$$;
+
+create or replace function public.list_campaigns_for_session(p_token text) returns table(id uuid,name text,join_code text,created_at timestamptz,role text,can_edit boolean,description text,source_payload jsonb) language sql security definer set search_path=public as $$ select * from public.list_campaigns_for_user(public.require_app_user_id(p_token)); $$;
+create or replace function public.create_campaign_for_session(p_token text,p_name text) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.create_campaign_for_user(public.require_app_user_id(p_token),p_name); $$;
+create or replace function public.join_campaign_by_code_for_session(p_token text,p_code text) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.join_campaign_by_code(public.require_app_user_id(p_token),p_code); $$;
+create or replace function public.get_campaign_detail_for_session(p_token text,p_campaign_id uuid) returns table(id uuid,name text,join_code text,created_at timestamptz,role text,can_edit boolean,description text,source_payload jsonb) language sql security definer set search_path=public as $$ select * from public.get_campaign_detail_for_user(public.require_app_user_id(p_token),p_campaign_id); $$;
+create or replace function public.update_campaign_for_session(p_token text,p_campaign_id uuid,p_name text,p_description text,p_source_payload jsonb default '{}'::jsonb) returns void language sql security definer set search_path=public as $$ select public.update_campaign_for_user(public.require_app_user_id(p_token),p_campaign_id,p_name,p_description,p_source_payload); $$;
+create or replace function public.update_campaign_story_for_session(p_token text,p_campaign_id uuid,p_description text,p_source_payload jsonb default '{}'::jsonb) returns void language sql security definer set search_path=public as $$ select public.update_campaign_story_for_user(public.require_app_user_id(p_token),p_campaign_id,p_description,p_source_payload); $$;
+create or replace function public.delete_campaign_for_session(p_token text,p_campaign_id uuid) returns void language sql security definer set search_path=public as $$ select public.delete_campaign_for_user(public.require_app_user_id(p_token),p_campaign_id); $$;
+create or replace function public.list_campaign_members_for_session(p_token text,p_campaign_id uuid) returns table(user_id uuid,email text,nickname text,role text,can_edit boolean,created_at timestamptz) language sql security definer set search_path=public as $$ select * from public.list_campaign_members_for_user(public.require_app_user_id(p_token),p_campaign_id); $$;
+create or replace function public.set_campaign_member_role_for_session(p_token text,p_campaign_id uuid,p_target_user_id uuid,p_role text) returns void language sql security definer set search_path=public as $$ select public.set_campaign_member_role_for_user(public.require_app_user_id(p_token),p_campaign_id,p_target_user_id,p_role); $$;
+create or replace function public.list_campaign_journal_entries_for_session(p_token text,p_campaign_id uuid) returns table(id uuid,campaign_id uuid,title text,session_date date,blocks jsonb,source_payload jsonb,created_by uuid,updated_by uuid,created_at timestamptz,updated_at timestamptz) language sql security definer set search_path=public as $$ select * from public.list_campaign_journal_entries_for_user(public.require_app_user_id(p_token),p_campaign_id); $$;
+create or replace function public.upsert_campaign_journal_entry_for_session(p_token text,p_campaign_id uuid,p_entry_id uuid,p_title text,p_session_date date,p_blocks jsonb,p_source_payload jsonb default '{}'::jsonb) returns table(id uuid) language sql security definer set search_path=public as $$ select * from public.upsert_campaign_journal_entry_for_user(public.require_app_user_id(p_token),p_campaign_id,p_entry_id,p_title,p_session_date,p_blocks,p_source_payload); $$;
+create or replace function public.delete_campaign_journal_entry_for_session(p_token text,p_campaign_id uuid,p_entry_id uuid) returns void language sql security definer set search_path=public as $$ select public.delete_campaign_journal_entry_for_user(public.require_app_user_id(p_token),p_campaign_id,p_entry_id); $$;
+
+create or replace function public.list_characters_for_session(p_token text) returns table(id uuid,name text,join_code text,created_at timestamptz) language sql security definer set search_path=public as $$ select * from public.list_characters_for_user(public.require_app_user_id(p_token)); $$;
+create or replace function public.list_all_characters_for_session(p_token text) returns table(id uuid,name text,join_code text,created_at timestamptz) language sql security definer set search_path=public as $$ select * from public.list_all_characters_for_user(public.require_app_user_id(p_token)); $$;
+create or replace function public.list_hidden_characters_for_session(p_token text) returns table(id uuid,name text,join_code text,created_at timestamptz) language sql security definer set search_path=public as $$ select * from public.list_hidden_characters_for_user(public.require_app_user_id(p_token)); $$;
+create or replace function public.create_character_for_session(p_token text,p_name text) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.create_character_for_user(public.require_app_user_id(p_token),p_name); $$;
+create or replace function public.join_character_by_code_for_session(p_token text,p_code text) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.join_character_by_code(public.require_app_user_id(p_token),p_code); $$;
+create or replace function public.import_character_from_payload_for_session(p_token text,p_payload jsonb) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.import_character_from_payload(public.require_app_user_id(p_token),p_payload); $$;
+create or replace function public.get_character_detail_for_session(p_token text,p_character_id uuid) returns table(id uuid,name text,join_code text,class_name text,level int,race text,background text,hp int,current_hp int,temp_hp int,shields int,ac int,speed int,notes text,source_payload jsonb,spell_slots_spent jsonb,ammunition jsonb,inventory jsonb) language sql security definer set search_path=public as $$ select * from public.get_character_detail_for_user(public.require_app_user_id(p_token),p_character_id); $$;
+create or replace function public.update_character_detail_for_session(p_token text,p_character_id uuid,p_name text,p_class_name text,p_level int,p_race text,p_background text,p_hp int,p_current_hp int,p_temp_hp int,p_shields int,p_ac int,p_speed int,p_notes text) returns void language sql security definer set search_path=public as $$ select public.update_character_detail_for_user(public.require_app_user_id(p_token),p_character_id,p_name,p_class_name,p_level,p_race,p_background,p_hp,p_current_hp,p_temp_hp,p_shields,p_ac,p_speed,p_notes); $$;
+create or replace function public.delete_character_for_session(p_token text,p_character_id uuid) returns void language sql security definer set search_path=public as $$ select public.delete_character_for_user(public.require_app_user_id(p_token),p_character_id); $$;
+create or replace function public.update_character_source_payload_for_session(p_token text,p_character_id uuid,p_source_payload jsonb) returns void language sql security definer set search_path=public as $$ select public.update_character_source_payload_for_user(public.require_app_user_id(p_token),p_character_id,p_source_payload); $$;
+create or replace function public.set_character_visibility_for_session(p_token text,p_character_id uuid,p_is_visible boolean) returns void language sql security definer set search_path=public as $$ select public.set_character_visibility_for_user(public.require_app_user_id(p_token),p_character_id,p_is_visible); $$;
+create or replace function public.update_character_inventory_for_session(p_token text,p_character_id uuid,p_inventory jsonb) returns void language sql security definer set search_path=public as $$ select public.update_character_inventory_for_user(public.require_app_user_id(p_token),p_character_id,p_inventory); $$;
+create or replace function public.update_character_spell_slots_for_session(p_token text,p_character_id uuid,p_spell_slots_spent jsonb) returns void language sql security definer set search_path=public as $$ select public.update_character_spell_slots_for_user(public.require_app_user_id(p_token),p_character_id,p_spell_slots_spent); $$;
+create or replace function public.update_character_ammunition_for_session(p_token text,p_character_id uuid,p_ammunition jsonb) returns void language sql security definer set search_path=public as $$ select public.update_character_ammunition_for_user(public.require_app_user_id(p_token),p_character_id,p_ammunition); $$;
+create or replace function public.list_active_status_effects_for_session(p_token text,p_character_id uuid) returns table(id text,name text,category text,source text,description text,rules jsonb,note text,created_at timestamptz) language sql security definer set search_path=public as $$ select * from public.list_active_status_effects_for_character(public.require_app_user_id(p_token),p_character_id); $$;
+create or replace function public.set_character_status_effect_active_for_session(p_token text,p_character_id uuid,p_status_id text,p_active boolean,p_note text default '') returns void language sql security definer set search_path=public as $$ select public.set_character_status_effect_active(public.require_app_user_id(p_token),p_character_id,p_status_id,p_active,p_note); $$;
+
+-- Do not expose user_id-based RPCs to browser clients. Use *_for_session wrappers instead.
+revoke execute on function public.create_campaign_for_user(uuid, text) from anon, authenticated, public;
+revoke execute on function public.join_campaign_by_code(uuid, text) from anon, authenticated, public;
+revoke execute on function public.list_campaigns_for_user(uuid) from anon, authenticated, public;
+revoke execute on function public.get_campaign_detail_for_user(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.update_campaign_for_user(uuid, uuid, text, text, jsonb) from anon, authenticated, public;
+revoke execute on function public.update_campaign_story_for_user(uuid, uuid, text, jsonb) from anon, authenticated, public;
+revoke execute on function public.delete_campaign_for_user(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.list_campaign_members_for_user(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.set_campaign_member_role_for_user(uuid, uuid, uuid, text) from anon, authenticated, public;
+revoke execute on function public.list_campaign_journal_entries_for_user(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.upsert_campaign_journal_entry_for_user(uuid, uuid, uuid, text, date, jsonb, jsonb) from anon, authenticated, public;
+revoke execute on function public.delete_campaign_journal_entry_for_user(uuid, uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.create_character_for_user(uuid, text) from anon, authenticated, public;
+revoke execute on function public.join_character_by_code(uuid, text) from anon, authenticated, public;
+revoke execute on function public.list_characters_for_user(uuid) from anon, authenticated, public;
+revoke execute on function public.list_all_characters_for_user(uuid) from anon, authenticated, public;
+revoke execute on function public.list_hidden_characters_for_user(uuid) from anon, authenticated, public;
+revoke execute on function public.set_character_visibility_for_user(uuid, uuid, boolean) from anon, authenticated, public;
+revoke execute on function public.update_character_spell_slots_for_user(uuid, uuid, jsonb) from anon, authenticated, public;
+revoke execute on function public.update_character_ammunition_for_user(uuid, uuid, jsonb) from anon, authenticated, public;
+revoke execute on function public.update_character_inventory_for_user(uuid, uuid, jsonb) from anon, authenticated, public;
+revoke execute on function public.sync_character_base_from_payload(uuid, uuid, jsonb) from anon, authenticated, public;
+revoke execute on function public.import_character_from_payload(uuid, jsonb) from anon, authenticated, public;
+revoke execute on function public.get_character_detail_for_user(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.update_character_detail_for_user(uuid, uuid, text, text, int, text, text, int, int, int, int, int, int, text) from anon, authenticated, public;
+revoke execute on function public.update_character_source_payload_for_user(uuid, uuid, jsonb) from anon, authenticated, public;
+revoke execute on function public.delete_character_for_user(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.list_active_status_effects_for_character(uuid, uuid) from anon, authenticated, public;
+revoke execute on function public.set_character_status_effect_active(uuid, uuid, text, boolean, text) from anon, authenticated, public;
+
+grant execute on function public.require_app_user_id(text) to anon, authenticated;
+grant execute on function public.list_campaigns_for_session(text) to anon, authenticated;
+grant execute on function public.create_campaign_for_session(text,text) to anon, authenticated;
+grant execute on function public.join_campaign_by_code_for_session(text,text) to anon, authenticated;
+grant execute on function public.get_campaign_detail_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.update_campaign_for_session(text,uuid,text,text,jsonb) to anon, authenticated;
+grant execute on function public.update_campaign_story_for_session(text,uuid,text,jsonb) to anon, authenticated;
+grant execute on function public.delete_campaign_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.list_campaign_members_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.set_campaign_member_role_for_session(text,uuid,uuid,text) to anon, authenticated;
+grant execute on function public.list_campaign_journal_entries_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.upsert_campaign_journal_entry_for_session(text,uuid,uuid,text,date,jsonb,jsonb) to anon, authenticated;
+grant execute on function public.delete_campaign_journal_entry_for_session(text,uuid,uuid) to anon, authenticated;
+grant execute on function public.list_characters_for_session(text) to anon, authenticated;
+grant execute on function public.list_all_characters_for_session(text) to anon, authenticated;
+grant execute on function public.list_hidden_characters_for_session(text) to anon, authenticated;
+grant execute on function public.create_character_for_session(text,text) to anon, authenticated;
+grant execute on function public.join_character_by_code_for_session(text,text) to anon, authenticated;
+grant execute on function public.import_character_from_payload_for_session(text,jsonb) to anon, authenticated;
+grant execute on function public.get_character_detail_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.update_character_detail_for_session(text,uuid,text,text,int,text,text,int,int,int,int,int,int,text) to anon, authenticated;
+grant execute on function public.delete_character_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.update_character_source_payload_for_session(text,uuid,jsonb) to anon, authenticated;
+grant execute on function public.set_character_visibility_for_session(text,uuid,boolean) to anon, authenticated;
+grant execute on function public.update_character_inventory_for_session(text,uuid,jsonb) to anon, authenticated;
+grant execute on function public.update_character_spell_slots_for_session(text,uuid,jsonb) to anon, authenticated;
+grant execute on function public.update_character_ammunition_for_session(text,uuid,jsonb) to anon, authenticated;
+grant execute on function public.list_active_status_effects_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.set_character_status_effect_active_for_session(text,uuid,text,boolean,text) to anon, authenticated;

@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se pudo leer id/nombre del personaje de Nivel20" }, { status: 500 });
     }
 
-    const listResp = await supabase.rpc("list_all_characters_for_user", { p_user_id: user.user_id });
+    const listResp = await supabase.rpc("list_all_characters_for_session", { p_token: appSessionToken });
     if (listResp.error) {
       return NextResponse.json({ error: listResp.error.message }, { status: 500 });
     }
@@ -130,8 +130,8 @@ export async function POST(request: Request) {
     const importSummaryHash = stableStringify(sourcePayload.summary);
 
     for (const row of listRows) {
-      const detailResp = await supabase.rpc("get_character_detail_for_user", {
-        p_user_id: user.user_id,
+      const detailResp = await supabase.rpc("get_character_detail_for_session", {
+        p_token: appSessionToken,
         p_character_id: row.id,
       });
       if (detailResp.error) continue;
@@ -155,8 +155,8 @@ export async function POST(request: Request) {
     const target = matchByExternal ?? matchByName;
     if (!target) {
       normalized.source_payload = mergeSourcePayload({}, sourcePayload, characterPath, externalId);
-      const importResp = await supabase.rpc("import_character_from_payload", {
-        p_user_id: user.user_id,
+      const importResp = await supabase.rpc("import_character_from_payload_for_session", {
+        p_token: appSessionToken,
         p_payload: normalized,
       });
       if (importResp.error) {
@@ -165,8 +165,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, action: "created", imported: importResp.data });
     }
 
-    const visibilityResp = await supabase.rpc("set_character_visibility_for_user", {
-      p_user_id: user.user_id,
+    const visibilityResp = await supabase.rpc("set_character_visibility_for_session", {
+      p_token: appSessionToken,
       p_character_id: target.id,
       p_is_visible: true,
     });
@@ -180,8 +180,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, action: "unchanged", characterId: target.id });
     }
 
-    const updateResp = await supabase.rpc("update_character_detail_for_user", {
-      p_user_id: user.user_id,
+    const updateResp = await supabase.rpc("update_character_detail_for_session", {
+      p_token: appSessionToken,
       p_character_id: target.id,
       p_name: String(normalized.name ?? target.name ?? ""),
       p_class_name: String(normalized.class_name ?? ""),
@@ -201,8 +201,8 @@ export async function POST(request: Request) {
     }
 
     const mergedPayload = mergeSourcePayload(existingPayload, sourcePayload, characterPath, externalId);
-    const payloadResp = await supabase.rpc("update_character_source_payload_for_user", {
-      p_user_id: user.user_id,
+    const payloadResp = await supabase.rpc("update_character_source_payload_for_session", {
+      p_token: appSessionToken,
       p_character_id: target.id,
       p_source_payload: mergedPayload,
     });

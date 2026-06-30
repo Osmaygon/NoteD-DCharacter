@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     let campaignId = body.campaignId?.trim() || "";
     if (!campaignId) {
-      const listResp = await supabase.rpc("list_campaigns_for_user", { p_user_id: user.user_id });
+      const listResp = await supabase.rpc("list_campaigns_for_session", { p_token: appSessionToken });
       if (listResp.error) return NextResponse.json({ error: listResp.error.message }, { status: 500 });
       const campaigns = (listResp.data ?? []) as CampaignRow[];
       const importedName = normalizeName(imported.name);
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       if (match) {
         campaignId = match.id;
       } else {
-        const createResp = await supabase.rpc("create_campaign_for_user", { p_user_id: user.user_id, p_name: imported.name });
+        const createResp = await supabase.rpc("create_campaign_for_session", { p_token: appSessionToken, p_name: imported.name });
         if (createResp.error) return NextResponse.json({ error: createResp.error.message }, { status: 500 });
         campaignId = ((createResp.data ?? []) as Array<{ id: string }>)[0]?.id ?? "";
       }
@@ -87,16 +87,16 @@ export async function POST(request: Request) {
 
     if (!campaignId) return NextResponse.json({ error: "No se pudo crear o localizar la campaña" }, { status: 500 });
 
-    const storyResp = await supabase.rpc("update_campaign_story_for_user", {
-      p_user_id: user.user_id,
+    const storyResp = await supabase.rpc("update_campaign_story_for_session", {
+      p_token: appSessionToken,
       p_campaign_id: campaignId,
       p_description: imported.description,
       p_source_payload: campaignSourcePayload,
     });
     if (storyResp.error) return NextResponse.json({ error: storyResp.error.message }, { status: 500 });
 
-    const currentResp = await supabase.rpc("list_campaign_journal_entries_for_user", {
-      p_user_id: user.user_id,
+    const currentResp = await supabase.rpc("list_campaign_journal_entries_for_session", {
+      p_token: appSessionToken,
       p_campaign_id: campaignId,
     });
     if (currentResp.error) return NextResponse.json({ error: currentResp.error.message }, { status: 500 });
@@ -119,8 +119,8 @@ export async function POST(request: Request) {
           last_synced_at: imported.importedAt,
         },
       };
-      const upsertResp = await supabase.rpc("upsert_campaign_journal_entry_for_user", {
-        p_user_id: user.user_id,
+      const upsertResp = await supabase.rpc("upsert_campaign_journal_entry_for_session", {
+        p_token: appSessionToken,
         p_campaign_id: campaignId,
         p_entry_id: existing?.id ?? null,
         p_title: entry.title,

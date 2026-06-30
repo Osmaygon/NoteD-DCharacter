@@ -106,7 +106,9 @@ export default function CharactersPage() {
       setErrorText("");
       setImportInfo("");
       setNivel20Loading(true);
-      const response = await fetch("/api/nivel20/characters");
+      const appSessionToken = getStoredSessionToken();
+      if (!appSessionToken) throw new Error("Sesion local no encontrada");
+      const response = await fetch(`/api/nivel20/characters?appSessionToken=${encodeURIComponent(appSessionToken)}`);
       const body = (await response.json()) as {
         error?: string;
         characters?: Array<{ id: string; name: string; path: string }>;
