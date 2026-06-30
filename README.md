@@ -301,7 +301,7 @@ No se guardan todavia manualmente:
 
 ## URLs
 
-- Supabase: `https://tu-proyecto.supabase.co`
+- Supabase: configurar con `NEXT_PUBLIC_SUPABASE_URL` en `.env.local` / Vercel
 - Produccion: `https://note-d-d-character.vercel.app`
 - Repositorio: `https://github.com/Osmaygon/NoteD-DCharacter`
 
@@ -749,6 +749,9 @@ supabase db query --linked --file "supabase/home_entities.sql"
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anon_publica_de_supabase
+NIVEL20_BASE_URL=https://nivel20.com
+NIVEL20_CAMPAIGN_PATH=/games/dnd-5/campaigns/ID-slug-de-tu-campana
+NIVEL20_SESSION_COOKIE=pega_aqui_tu_cookie_de_nivel20
 ```
 
 3. Ejecuta en Supabase SQL Editor el archivo `supabase/custom_auth.sql`.
