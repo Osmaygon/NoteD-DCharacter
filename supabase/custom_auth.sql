@@ -52,7 +52,7 @@ begin
   insert into public.app_sessions(user_id, token_hash, expires_at)
   values (
     user_uuid,
-    md5(plain_token),
+    encode(extensions.digest(plain_token, 'sha256'), 'hex'),
     now() + interval '30 days'
   );
 
@@ -92,13 +92,15 @@ begin
   insert into public.app_sessions(user_id, token_hash, expires_at)
   values (
     user_row.id,
-    md5(plain_token),
+    encode(extensions.digest(plain_token, 'sha256'), 'hex'),
     now() + interval '30 days'
   );
 
   return plain_token;
 end;
 $$;
+
+drop function if exists public.get_user_by_session(text);
 
 create or replace function public.get_user_by_session(p_token text)
 returns table(user_id uuid, email text, nickname text)
@@ -109,11 +111,13 @@ as $$
   select u.id, u.email, u.nickname
   from public.app_sessions s
   join public.app_users u on u.id = s.user_id
-  where s.token_hash = md5(p_token)
+  where s.token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
     and s.revoked_at is null
     and s.expires_at > now()
   limit 1;
 $$;
+
+drop function if exists public.update_app_user_nickname(text, text);
 
 create or replace function public.update_app_user_nickname(p_token text, p_nickname text)
 returns table(user_id uuid, email text, nickname text)
@@ -129,7 +133,7 @@ begin
 
   select s.user_id into v_user_id
   from public.app_sessions s
-  where s.token_hash = md5(p_token)
+  where s.token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
     and s.revoked_at is null
     and s.expires_at > now()
   limit 1;
@@ -165,7 +169,7 @@ begin
   select u.* into v_user
   from public.app_sessions s
   join public.app_users u on u.id = s.user_id
-  where s.token_hash = md5(p_token)
+  where s.token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
     and s.revoked_at is null
     and s.expires_at > now()
   limit 1;
@@ -185,7 +189,7 @@ begin
   update public.app_sessions
   set revoked_at = now()
   where user_id = v_user.id
-    and token_hash <> md5(p_token)
+    and token_hash <> encode(extensions.digest(p_token, 'sha256'), 'hex')
     and revoked_at is null;
 end;
 $$;
@@ -198,7 +202,7 @@ set search_path = public
 as $$
   update public.app_sessions
   set revoked_at = now()
-  where token_hash = md5(p_token)
+  where token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
     and revoked_at is null;
 $$;
 

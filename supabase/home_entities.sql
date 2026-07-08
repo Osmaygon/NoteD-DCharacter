@@ -1266,7 +1266,7 @@ declare v_user_id uuid;
 begin
   select s.user_id into v_user_id
   from public.app_sessions s
-  where s.token_hash = md5(p_token)
+  where s.token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
     and s.revoked_at is null
     and s.expires_at > now()
   limit 1;
@@ -1294,6 +1294,7 @@ create or replace function public.list_hidden_characters_for_session(p_token tex
 create or replace function public.create_character_for_session(p_token text,p_name text) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.create_character_for_user(public.require_app_user_id(p_token),p_name); $$;
 create or replace function public.join_character_by_code_for_session(p_token text,p_code text) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.join_character_by_code(public.require_app_user_id(p_token),p_code); $$;
 create or replace function public.import_character_from_payload_for_session(p_token text,p_payload jsonb) returns table(id uuid,name text,join_code text) language sql security definer set search_path=public as $$ select * from public.import_character_from_payload(public.require_app_user_id(p_token),p_payload); $$;
+create or replace function public.sync_character_base_from_payload_for_session(p_token text,p_character_id uuid,p_payload jsonb) returns void language sql security definer set search_path=public as $$ select public.sync_character_base_from_payload(public.require_app_user_id(p_token),p_character_id,p_payload); $$;
 create or replace function public.get_character_detail_for_session(p_token text,p_character_id uuid) returns table(id uuid,name text,join_code text,class_name text,level int,race text,background text,hp int,current_hp int,temp_hp int,shields int,ac int,speed int,notes text,source_payload jsonb,spell_slots_spent jsonb,ammunition jsonb,inventory jsonb) language sql security definer set search_path=public as $$ select * from public.get_character_detail_for_user(public.require_app_user_id(p_token),p_character_id); $$;
 create or replace function public.update_character_detail_for_session(p_token text,p_character_id uuid,p_name text,p_class_name text,p_level int,p_race text,p_background text,p_hp int,p_current_hp int,p_temp_hp int,p_shields int,p_ac int,p_speed int,p_notes text) returns void language sql security definer set search_path=public as $$ select public.update_character_detail_for_user(public.require_app_user_id(p_token),p_character_id,p_name,p_class_name,p_level,p_race,p_background,p_hp,p_current_hp,p_temp_hp,p_shields,p_ac,p_speed,p_notes); $$;
 create or replace function public.delete_character_for_session(p_token text,p_character_id uuid) returns void language sql security definer set search_path=public as $$ select public.delete_character_for_user(public.require_app_user_id(p_token),p_character_id); $$;
@@ -1355,6 +1356,7 @@ grant execute on function public.list_hidden_characters_for_session(text) to ano
 grant execute on function public.create_character_for_session(text,text) to anon, authenticated;
 grant execute on function public.join_character_by_code_for_session(text,text) to anon, authenticated;
 grant execute on function public.import_character_from_payload_for_session(text,jsonb) to anon, authenticated;
+grant execute on function public.sync_character_base_from_payload_for_session(text,uuid,jsonb) to anon, authenticated;
 grant execute on function public.get_character_detail_for_session(text,uuid) to anon, authenticated;
 grant execute on function public.update_character_detail_for_session(text,uuid,text,text,int,text,text,int,int,int,int,int,int,text) to anon, authenticated;
 grant execute on function public.delete_character_for_session(text,uuid) to anon, authenticated;

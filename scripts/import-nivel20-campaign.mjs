@@ -252,11 +252,11 @@ async function rpc(supabase, name, args) {
   return data;
 }
 
-async function findTargetCharacter(supabase, userId, externalId, importedName) {
-  const rows = await rpc(supabase, "list_all_characters_for_user", { p_user_id: userId });
+async function findTargetCharacter(supabase, sessionToken, externalId, importedName) {
+  const rows = await rpc(supabase, "list_all_characters_for_session", { p_token: sessionToken });
   let matchByName = null;
   for (const row of rows ?? []) {
-    const details = await rpc(supabase, "get_character_detail_for_user", { p_user_id: userId, p_character_id: row.id });
+    const details = await rpc(supabase, "get_character_detail_for_session", { p_token: sessionToken, p_character_id: row.id });
     const detail = details?.[0];
     if (!detail) continue;
     const payload = detail.source_payload ?? {};
@@ -269,23 +269,23 @@ async function findTargetCharacter(supabase, userId, externalId, importedName) {
   return matchByName;
 }
 
-async function upsertCharacter(supabase, userId, normalized, characterPath) {
+async function upsertCharacter(supabase, sessionToken, normalized, characterPath) {
   const sourcePayload = normalized.source_payload ?? {};
   const externalId = String(sourcePayload.external_id ?? "");
   if (!externalId || !normalized.name) throw new Error(`No se pudo leer id/nombre para ${characterPath}`);
 
-  const target = await findTargetCharacter(supabase, userId, externalId, normalized.name);
+  const target = await findTargetCharacter(supabase, sessionToken, externalId, normalized.name);
   if (!target) {
     const mergedPayload = mergeSourcePayload({}, sourcePayload, characterPath, externalId);
     normalized.source_payload = mergedPayload;
-    const imported = await rpc(supabase, "import_character_from_payload", { p_user_id: userId, p_payload: normalized });
+    const imported = await rpc(supabase, "import_character_from_payload_for_session", { p_token: sessionToken, p_payload: normalized });
     const createdId = imported?.[0]?.id;
     return { action: "created", id: createdId, name: normalized.name };
   }
 
   const mergedPayload = mergeSourcePayload(target.source_payload ?? {}, sourcePayload, characterPath, externalId);
-  await rpc(supabase, "sync_character_base_from_payload", {
-    p_user_id: userId,
+  await rpc(supabase, "sync_character_base_from_payload_for_session", {
+    p_token: sessionToken,
     p_character_id: target.id,
     p_payload: {
       ...normalized,
@@ -297,11 +297,11 @@ async function upsertCharacter(supabase, userId, normalized, characterPath) {
 
 async function main() {
   loadEnvFile();
-  const userId = argValue("--user") || process.env.NIVEL20_IMPORT_USER_ID || process.env.APP_USER_ID;
+  const sessionToken = argValue("--session-token") || process.env.APP_SESSION_TOKEN || process.env.NIVEL20_IMPORT_SESSION_TOKEN;
   const campaignPath = argValue("--campaign") || process.env.NIVEL20_CAMPAIGN_PATH || "/games/dnd-5/campaigns/110040-reino-de-chatelenz";
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!userId) throw new Error("Falta --user <uuid> o NIVEL20_IMPORT_USER_ID");
+  if (!sessionToken) throw new Error("Falta --session-token <token> o APP_SESSION_TOKEN");
   if (!supabaseUrl || !supabaseKey) throw new Error("Faltan NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
   const supabase = createClient(supabaseUrl, supabaseKey);
@@ -312,7 +312,7 @@ async function main() {
   for (const path of paths) {
     const json = await fetchCharacterJson(path);
     const normalized = normalizeNivel20Character(json, path);
-    const result = await upsertCharacter(supabase, userId, normalized, path);
+    const result = await upsertCharacter(supabase, sessionToken, normalized, path);
     results.push(result);
     console.log(`${result.action}: ${result.name} (${result.id || "sin id"})`);
   }
