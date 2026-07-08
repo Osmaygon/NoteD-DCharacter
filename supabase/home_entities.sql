@@ -1367,3 +1367,180 @@ grant execute on function public.update_character_spell_slots_for_session(text,u
 grant execute on function public.update_character_ammunition_for_session(text,uuid,jsonb) to anon, authenticated;
 grant execute on function public.list_active_status_effects_for_session(text,uuid) to anon, authenticated;
 grant execute on function public.set_character_status_effect_active_for_session(text,uuid,text,boolean,text) to anon, authenticated;
+
+-- Nivel20 server settings and level snapshots.
+create table if not exists public.app_user_settings (
+  user_id uuid primary key references public.app_users(id) on delete cascade,
+  nivel20_session_cookie text,
+  nivel20_cookie_updated_at timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.app_character_level_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  character_id uuid not null references public.app_characters(id) on delete cascade,
+  level int not null,
+  name text not null,
+  class_name text,
+  race text,
+  background text,
+  hp int,
+  ac int,
+  speed int,
+  notes text,
+  source_payload jsonb not null default '{}'::jsonb,
+  captured_by uuid references public.app_users(id) on delete set null,
+  captured_at timestamptz not null default now(),
+  unique(character_id, level)
+);
+
+alter table public.app_user_settings enable row level security;
+alter table public.app_character_level_snapshots enable row level security;
+drop policy if exists "no direct app_user_settings" on public.app_user_settings;
+drop policy if exists "no direct app_character_level_snapshots" on public.app_character_level_snapshots;
+create policy "no direct app_user_settings" on public.app_user_settings for all using (false) with check (false);
+create policy "no direct app_character_level_snapshots" on public.app_character_level_snapshots for all using (false) with check (false);
+
+create or replace function public.set_nivel20_session_cookie_for_session(p_token text, p_cookie text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user_id uuid;
+begin
+  v_user_id := public.require_app_user_id(p_token);
+  if length(trim(coalesce(p_cookie, ''))) < 10 then
+    raise exception 'Cookie invalida';
+  end if;
+  insert into public.app_user_settings(user_id, nivel20_session_cookie, nivel20_cookie_updated_at, updated_at)
+  values (v_user_id, trim(p_cookie), now(), now())
+  on conflict (user_id) do update set
+    nivel20_session_cookie = excluded.nivel20_session_cookie,
+    nivel20_cookie_updated_at = excluded.nivel20_cookie_updated_at,
+    updated_at = now();
+end;
+$$;
+
+create or replace function public.get_nivel20_session_cookie_for_session(p_token text)
+returns table(has_cookie boolean, updated_at timestamptz, cookie text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user_id uuid;
+begin
+  v_user_id := public.require_app_user_id(p_token);
+  return query
+  select (coalesce(s.nivel20_session_cookie, '') <> '') as has_cookie,
+         s.nivel20_cookie_updated_at as updated_at,
+         s.nivel20_session_cookie as cookie
+  from public.app_user_settings s
+  where s.user_id = v_user_id;
+end;
+$$;
+
+create or replace function public.upsert_character_level_snapshot_for_session(
+  p_token text,
+  p_character_id uuid,
+  p_name text,
+  p_class_name text,
+  p_level int,
+  p_race text,
+  p_background text,
+  p_hp int,
+  p_ac int,
+  p_speed int,
+  p_notes text,
+  p_source_payload jsonb
+)
+returns table(id uuid, level int)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user_id uuid; v_snapshot_id uuid;
+begin
+  v_user_id := public.require_app_user_id(p_token);
+  if not exists (select 1 from public.app_character_members where character_id = p_character_id and user_id = v_user_id) then
+    raise exception 'No autorizado';
+  end if;
+  if p_level is null then raise exception 'Nivel no detectado'; end if;
+
+  insert into public.app_character_level_snapshots(character_id, level, name, class_name, race, background, hp, ac, speed, notes, source_payload, captured_by, captured_at)
+  values (p_character_id, p_level, trim(p_name), p_class_name, p_race, p_background, p_hp, p_ac, p_speed, p_notes, coalesce(p_source_payload, '{}'::jsonb), v_user_id, now())
+  on conflict (character_id, level) do update set
+    name = excluded.name,
+    class_name = excluded.class_name,
+    race = excluded.race,
+    background = excluded.background,
+    hp = excluded.hp,
+    ac = excluded.ac,
+    speed = excluded.speed,
+    notes = excluded.notes,
+    source_payload = excluded.source_payload,
+    captured_by = excluded.captured_by,
+    captured_at = now()
+  returning app_character_level_snapshots.id into v_snapshot_id;
+
+  return query select v_snapshot_id, p_level;
+end;
+$$;
+
+create or replace function public.list_character_level_snapshots_for_session(p_token text, p_character_id uuid)
+returns table(id uuid, level int, name text, class_name text, hp int, ac int, captured_at timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user_id uuid;
+begin
+  v_user_id := public.require_app_user_id(p_token);
+  if not exists (select 1 from public.app_character_members where character_id = p_character_id and user_id = v_user_id) then
+    raise exception 'No autorizado';
+  end if;
+  return query
+  select s.id, s.level, s.name, s.class_name, s.hp, s.ac, s.captured_at
+  from public.app_character_level_snapshots s
+  where s.character_id = p_character_id
+  order by s.level;
+end;
+$$;
+
+create or replace function public.activate_character_level_snapshot_for_session(p_token text, p_character_id uuid, p_level int)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_user_id uuid; v_snapshot public.app_character_level_snapshots%rowtype;
+begin
+  v_user_id := public.require_app_user_id(p_token);
+  if not exists (select 1 from public.app_character_members where character_id = p_character_id and user_id = v_user_id) then
+    raise exception 'No autorizado';
+  end if;
+  select * into v_snapshot from public.app_character_level_snapshots where character_id = p_character_id and level = p_level;
+  if v_snapshot.id is null then raise exception 'Nivel no guardado'; end if;
+
+  update public.app_characters set name = v_snapshot.name where id = p_character_id;
+  insert into public.app_character_profiles(character_id, class_name, level, race, background, hp, ac, speed, notes, source_payload, updated_at)
+  values (p_character_id, v_snapshot.class_name, v_snapshot.level, v_snapshot.race, v_snapshot.background, v_snapshot.hp, v_snapshot.ac, v_snapshot.speed, v_snapshot.notes, v_snapshot.source_payload, now())
+  on conflict (character_id) do update set
+    class_name = excluded.class_name,
+    level = excluded.level,
+    race = excluded.race,
+    background = excluded.background,
+    hp = excluded.hp,
+    ac = excluded.ac,
+    speed = excluded.speed,
+    notes = excluded.notes,
+    source_payload = excluded.source_payload,
+    updated_at = now();
+end;
+$$;
+
+grant execute on function public.set_nivel20_session_cookie_for_session(text,text) to anon, authenticated;
+grant execute on function public.get_nivel20_session_cookie_for_session(text) to anon, authenticated;
+grant execute on function public.upsert_character_level_snapshot_for_session(text,uuid,text,text,int,text,text,int,int,int,text,jsonb) to anon, authenticated;
+grant execute on function public.list_character_level_snapshots_for_session(text,uuid) to anon, authenticated;
+grant execute on function public.activate_character_level_snapshot_for_session(text,uuid,int) to anon, authenticated;

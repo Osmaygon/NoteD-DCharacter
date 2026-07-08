@@ -195,10 +195,10 @@ function isAlwaysPreparedSpellLabel(labels: string[] = []): boolean {
   return labels.some((label) => /conjuros? de (juramento|dominio|artillero)/i.test(normalizeSearch(label)));
 }
 
-export async function nivel20FetchText(path: string): Promise<string> {
+export async function nivel20FetchText(path: string, cookieOverride?: string): Promise<string> {
   const baseUrl = (process.env.NIVEL20_BASE_URL || "https://nivel20.com").replace(/\/$/, "");
-  const sessionCookie = process.env.NIVEL20_SESSION_COOKIE;
-  if (!sessionCookie) throw new Error("NIVEL20_SESSION_COOKIE no configurada");
+  const sessionCookie = cookieOverride || process.env.NIVEL20_SESSION_COOKIE;
+  if (!sessionCookie) throw new Error("Cookie de Nivel20 no configurada");
 
   const response = await fetch(`${baseUrl}${path}`, {
     headers: {
@@ -215,9 +215,9 @@ export async function nivel20FetchText(path: string): Promise<string> {
   return response.text();
 }
 
-export async function listNivel20CampaignCharacters(campaignPath: string): Promise<Nivel20CharacterListEntry[]> {
+export async function listNivel20CampaignCharacters(campaignPath: string, cookieOverride?: string): Promise<Nivel20CharacterListEntry[]> {
   const charactersPath = `${campaignPath.replace(/\/$/, "")}/characters`;
-  const html = await nivel20FetchText(charactersPath);
+  const html = await nivel20FetchText(charactersPath, cookieOverride);
   const re = /href="(\/games\/dnd-5\/campaigns\/[^"]+\/characters\/(\d+)(?:-[^"]*)?)"[^>]*>([\s\S]*?)<\/a>/gi;
   const map = new Map<string, Nivel20CharacterListEntry>();
   for (const match of html.matchAll(re)) {
@@ -230,9 +230,9 @@ export async function listNivel20CampaignCharacters(campaignPath: string): Promi
   return Array.from(map.values());
 }
 
-export async function fetchNivel20CharacterJson(characterPath: string): Promise<Nivel20CharacterJson> {
+export async function fetchNivel20CharacterJson(characterPath: string, cookieOverride?: string): Promise<Nivel20CharacterJson> {
   const normalized = characterPath.endsWith(".json") ? characterPath : `${characterPath}.json`;
-  const body = await nivel20FetchText(normalized);
+  const body = await nivel20FetchText(normalized, cookieOverride);
   return JSON.parse(body) as Nivel20CharacterJson;
 }
 

@@ -144,6 +144,16 @@ type RestTraitSource = {
   description: string;
 };
 
+type LevelSnapshot = {
+  id: string;
+  level: number;
+  name: string;
+  class_name: string | null;
+  hp: number | null;
+  ac: number | null;
+  captured_at: string;
+};
+
 type DndApiEntry = {
   desc?: string[];
 };
@@ -821,6 +831,7 @@ export default function CharacterDetailPage() {
   const [editingAmmunition, setEditingAmmunition] = useState<Record<string, boolean>>({});
   const [traitDetails, setTraitDetails] = useState<Record<string, TraitDetail>>({});
   const [traitDrafts, setTraitDrafts] = useState<Record<string, string>>({});
+  const [levelSnapshots, setLevelSnapshots] = useState<LevelSnapshot[]>([]);
 
   const calculatedAc = calculateInventoryAc({ inventory, dexMod: dexModifier, wisMod: wisModifier, conMod: conModifier, className: form.class_name, raw, traits });
   const statusAc = statusAcDelta(activeStatuses);
@@ -952,6 +963,34 @@ export default function CharacterDetailPage() {
     setRawPayload(rebuilt);
   }, []);
 
+  const loadLevelSnapshots = useCallback(async () => {
+    const token = localStorage.getItem("ndc_session_token");
+    if (!token) return;
+    const response = await fetch(`/api/characters/${params.id}/levels?appSessionToken=${encodeURIComponent(token)}`);
+    const body = (await response.json()) as { levels?: LevelSnapshot[]; error?: string };
+    if (!response.ok) throw new Error(body.error ?? "No se pudieron cargar niveles");
+    setLevelSnapshots(body.levels ?? []);
+  }, [params.id]);
+
+  async function activateLevel(level: number) {
+    const token = localStorage.getItem("ndc_session_token");
+    if (!token || !userId) return;
+    try {
+      setMessage("");
+      const response = await fetch(`/api/characters/${params.id}/levels`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ appSessionToken: token, level }),
+      });
+      const body = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "No se pudo activar el nivel");
+      await loadData(userId, params.id);
+      setMessage(`Nivel ${level} activado. Inventario, cartera, vida actual y estados se mantienen.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo activar el nivel");
+    }
+  }
+
   useEffect(() => {
     void (async () => {
       const user = await getCurrentAppUser();
@@ -961,9 +1000,10 @@ export default function CharacterDetailPage() {
       }
       setUserId(user.user_id);
       await loadData(user.user_id, params.id);
+      await loadLevelSnapshots();
       setActiveStatuses(await listActiveStatusEffects(user.user_id, params.id));
     })();
-  }, [loadData, params.id]);
+  }, [loadData, loadLevelSnapshots, params.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2018,6 +2058,26 @@ export default function CharacterDetailPage() {
         </div>
 
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
+
+        {levelSnapshots.length > 0 ? (
+          <div className="mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
+            <p className="text-xs uppercase tracking-[0.25em] text-[#d7b46a]">Versiones de nivel guardadas</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {levelSnapshots.map((snapshot) => (
+                <button
+                  className={Number(form.level) === snapshot.level ? "btn-primary" : "btn-secondary"}
+                  key={snapshot.id}
+                  onClick={() => void activateLevel(snapshot.level)}
+                  type="button"
+                  title={`Capturado ${new Date(snapshot.captured_at).toLocaleString()}`}
+                >
+                  Nivel {snapshot.level} · {snapshot.hp ?? "-"} PV · CA {snapshot.ac ?? "-"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-[#b9ae8d]">Cambiar de nivel solo aplica la ficha base capturada desde Nivel20. No toca inventario, cartera, vida actual, munición ni estados.</p>
+          </div>
+        ) : null}
 
         <div className="mt-5 flex flex-wrap gap-2">
           <button
