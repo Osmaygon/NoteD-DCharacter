@@ -76,6 +76,8 @@ export default function Home() {
       <section className="panel grid w-full gap-8 p-6 md:grid-cols-2 md:p-10">
         <div className="space-y-4">
           <p className="text-sm uppercase tracking-[0.2em] text-[#d3a84a]">NoteD&DCharacter</p>
+          <h1 className="text-4xl font-semibold leading-tight text-[#f8f4e8]">Fichas de D&D listas para mesa.</h1>
+          <p className="text-sm text-[#b9ae8d]">Gestiona personajes, inventario, conjuros y niveles. Si solo quieres curiosear, entra en la demo pública: puedes tocar botones sin guardar nada.</p>
           {loggedInEmail ? (
             <div className="rounded-xl border border-[#d3a84a66] bg-black/20 p-4 text-sm text-[#f8f4e8]">
               <p>Sesion activa con: {loggedInEmail}</p>
@@ -127,6 +129,10 @@ export default function Home() {
           <button className="btn-secondary mt-3 w-full" onClick={() => void sendRecovery()} type="button">
             Olvide mi password
           </button>
+
+          <a className="btn-secondary mt-3 block w-full text-center" href="/demo">
+            Ver demo sin cuenta
+          </a>
 
           <p className="mt-4 text-sm text-[#b9ae8d]">{status}</p>
         </div>
