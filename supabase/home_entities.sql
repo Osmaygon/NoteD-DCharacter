@@ -1544,3 +1544,63 @@ grant execute on function public.get_nivel20_session_cookie_for_session(text) to
 grant execute on function public.upsert_character_level_snapshot_for_session(text,uuid,text,text,int,text,text,int,int,int,text,jsonb) to anon, authenticated;
 grant execute on function public.list_character_level_snapshots_for_session(text,uuid) to anon, authenticated;
 grant execute on function public.activate_character_level_snapshot_for_session(text,uuid,int) to anon, authenticated;
+
+-- Public read-only demo character. It exposes one selected character without requiring a session.
+create or replace function public.get_public_demo_character()
+returns table(
+  id uuid,
+  name text,
+  join_code text,
+  class_name text,
+  level int,
+  race text,
+  background text,
+  hp int,
+  current_hp int,
+  temp_hp int,
+  shields int,
+  ac int,
+  speed int,
+  notes text,
+  source_payload jsonb,
+  spell_slots_spent jsonb,
+  ammunition jsonb,
+  inventory jsonb
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    c.id,
+    c.name,
+    'DEMO'::text as join_code,
+    p.class_name,
+    p.level,
+    p.race,
+    p.background,
+    p.hp,
+    coalesce(us.current_hp, p.current_hp, p.hp) as current_hp,
+    coalesce(us.temp_hp, p.temp_hp, 0) as temp_hp,
+    coalesce(us.shields, p.shields, 0) as shields,
+    p.ac,
+    p.speed,
+    p.notes,
+    coalesce(p.source_payload, '{}'::jsonb) || coalesce(us.source_payload_overrides, '{}'::jsonb) as source_payload,
+    coalesce(us.spell_slots_spent, '{}'::jsonb) as spell_slots_spent,
+    coalesce(us.ammunition, '{"visible": false, "entries": []}'::jsonb) as ammunition,
+    coalesce(us.inventory, '{"entries": []}'::jsonb) as inventory
+  from public.app_characters c
+  join public.app_character_profiles p on p.character_id = c.id
+  left join lateral (
+    select s.*
+    from public.app_character_user_state s
+    where s.character_id = c.id
+    order by s.updated_at desc
+    limit 1
+  ) us on true
+  where c.id = '5d575978-cf29-4736-8ea9-04c0e79ebfe8'::uuid
+  limit 1;
+$$;
+
+grant execute on function public.get_public_demo_character() to anon, authenticated;
