@@ -1768,15 +1768,15 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
                 <p className="text-sm font-semibold text-[#f3dfac]">Nivel {slot.level}</p>
                 <p className="text-xs text-[#b9ae8d]">Gastados {spent}/{slot.count}</p>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2.5">
                 {Array.from({ length: slot.count }, (_, index) => {
                   const isSpent = index < spent;
                   return (
                     <button
                       key={`combat-slot-${slot.level}-${index}`}
                       className={isSpent
-                        ? "h-8 w-8 rounded-md border border-red-300/70 bg-red-900/40"
-                        : "h-8 w-8 rounded-md border border-[#d3a84a88] bg-[#d3a84a22] hover:bg-[#d3a84a33]"}
+                        ? "h-11 w-11 touch-manipulation rounded-md border border-red-300/70 bg-red-900/40 active:scale-95"
+                        : "h-11 w-11 touch-manipulation rounded-md border border-[#d3a84a88] bg-[#d3a84a22] hover:bg-[#d3a84a33] active:scale-95"}
                       type="button"
                       aria-label={`Marcar espacio ${index + 1} de nivel ${slot.level}`}
                       title={isSpent ? "Gastado" : "Disponible"}
@@ -2059,7 +2059,7 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 md:px-8">
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 pb-28 pt-6 md:px-8 md:pb-6">
       <AppHeader />
 
       <section className="panel p-5">
@@ -2076,6 +2076,12 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
             <button className="rounded-md border border-red-400 px-3 py-2 text-sm text-red-300" type="button" onClick={() => void onDelete()}>Borrar</button>
           </div>
         </div>
+
+        {isDemo ? (
+          <p className="mt-3 rounded-xl border border-[#d3a84a66] bg-[#24170d] p-3 text-sm text-[#f2dfb3]">
+            Modo demo publico: puedes probar la ficha, pero nada se guarda.
+          </p>
+        ) : null}
 
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
 
@@ -2395,6 +2401,24 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
           </div>
         )}
       </section>
+
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-[#d3a84a66] bg-[#0b0d14]/95 p-1 shadow-[0_12px_50px_rgba(0,0,0,0.55)] backdrop-blur md:hidden">
+        {([
+          ["informacion", "Info"],
+          ["combate", "Combate"],
+          ["rasgos", "Rasgos"],
+          ["conjuros", "Conjuros"],
+        ] as const).map(([tab, label]) => (
+          <button
+            className={activeTab === tab ? "rounded-xl bg-[#d3a84a] px-2 py-3 text-xs font-bold text-[#111]" : "rounded-xl px-2 py-3 text-xs font-semibold text-[#f8f4e8]"}
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            type="button"
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }
