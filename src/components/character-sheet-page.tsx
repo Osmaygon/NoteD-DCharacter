@@ -2319,8 +2319,13 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
                           onClick={() => setOpenSpells((current) => ({ ...current, [spell.id]: !isOpen }))}
                         >
                           <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                            <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
-                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} · Nv {spell.level} {isOpen ? "-" : "+"}</p>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-[#d3a84a66] bg-[#d3a84a18] px-2 py-0.5 text-[11px] font-semibold text-[#f3dfac]">
+                                {spell.level === 0 ? "Truco" : `Nivel ${spell.level}`}
+                              </span>
+                              <p className="text-sm font-semibold text-[#f3dfac]">{spell.name}</p>
+                            </div>
+                            <p className="text-right text-xs text-[#b9ae8d]">{spellCastSummary(spell)} {isOpen ? "-" : "+"}</p>
                           </div>
                           <p className={isOpen ? "mt-2 whitespace-pre-wrap text-sm text-[#d9c89e]" : "mobile-detail mt-2 text-sm text-[#d9c89e]"}>
                             {isOpen ? spellDescription(spell) : shortSpellDescription(spell)}
