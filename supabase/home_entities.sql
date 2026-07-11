@@ -1525,6 +1525,17 @@ begin
   if v_snapshot.id is null then raise exception 'Nivel no guardado'; end if;
 
   update public.app_characters set name = v_snapshot.name where id = p_character_id;
+
+  update public.app_character_user_state s
+  set profile_overrides = '{}'::jsonb,
+      source_payload_overrides = jsonb_strip_nulls(jsonb_build_object(
+        'manual_trait_descriptions', s.source_payload_overrides->'manual_trait_descriptions',
+        'combat_favorites', s.source_payload_overrides->'combat_favorites',
+        'prepared_spell_ids', s.source_payload_overrides->'prepared_spell_ids'
+      )),
+      updated_at = now()
+  where s.character_id = p_character_id and s.user_id = v_user_id;
+
   insert into public.app_character_profiles(character_id, class_name, level, race, background, hp, ac, speed, notes, source_payload, updated_at)
   values (p_character_id, v_snapshot.class_name, v_snapshot.level, v_snapshot.race, v_snapshot.background, v_snapshot.hp, v_snapshot.ac, v_snapshot.speed, v_snapshot.notes, v_snapshot.source_payload, now())
   on conflict (character_id) do update set
