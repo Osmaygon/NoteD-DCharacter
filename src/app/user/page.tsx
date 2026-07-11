@@ -77,6 +77,27 @@ export default function UserPage() {
     }
   }
 
+  async function linkNivel20Characters() {
+    setBusy(true);
+    setCaptureStatus("Vinculando personajes con Nivel20...");
+    try {
+      const response = await fetch("/api/nivel20/link-characters", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ appSessionToken: token() }),
+      });
+      const body = (await response.json()) as { results?: Array<{ name: string; nivel20Name?: string; score?: number; status: string }>; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "No se pudo vincular");
+      const linked = body.results?.filter((row) => row.status === "vinculado").length ?? 0;
+      const details = body.results?.map((row) => `${row.name}: ${row.status}${row.nivel20Name ? ` → ${row.nivel20Name}` : ""}${row.score ? ` (${row.score}%)` : ""}`).join(" · ");
+      setCaptureStatus(`Vinculacion terminada: ${linked} vinculados. ${details ?? ""}`);
+    } catch (error) {
+      setCaptureStatus(error instanceof Error ? error.message : "Error vinculando personajes");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function captureLevels() {
     setBusy(true);
     setCaptureStatus("Capturando personajes desde Nivel20...");
@@ -137,6 +158,9 @@ export default function UserPage() {
             </button>
             <button className="btn-primary" disabled={busy || !cookie.trim()} onClick={() => void saveCookie()} type="button">
               Guardar cookie
+            </button>
+            <button className="btn-secondary" disabled={busy} onClick={() => void linkNivel20Characters()} type="button">
+              Vincular personajes con Nivel20
             </button>
             <button className="btn-primary" disabled={busy} onClick={() => void captureLevels()} type="button">
               Capturar niveles desde Nivel20

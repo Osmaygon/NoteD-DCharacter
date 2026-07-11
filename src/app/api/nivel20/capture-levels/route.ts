@@ -6,8 +6,8 @@ type CharacterRow = { id: string; name: string; source_payload?: Record<string, 
 type CookieRow = { cookie?: string | null };
 
 function externalIdFromPayload(payload: Record<string, unknown> | null | undefined): string {
-  const source = payload?.source_payload as Record<string, unknown> | undefined;
-  return String(source?.external_id ?? "");
+  const nested = payload?.source_payload as Record<string, unknown> | undefined;
+  return String(payload?.external_id ?? nested?.external_id ?? "");
 }
 
 export const dynamic = "force-dynamic";
