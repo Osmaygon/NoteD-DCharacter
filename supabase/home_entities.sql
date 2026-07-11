@@ -1440,6 +1440,8 @@ begin
 end;
 $$;
 
+drop function if exists public.upsert_character_level_snapshot_for_session(text,uuid,text,text,int,text,text,int,int,int,text,jsonb);
+
 create or replace function public.upsert_character_level_snapshot_for_session(
   p_token text,
   p_character_id uuid,
@@ -1454,7 +1456,7 @@ create or replace function public.upsert_character_level_snapshot_for_session(
   p_notes text,
   p_source_payload jsonb
 )
-returns table(id uuid, level int)
+returns table(snapshot_id uuid, snapshot_level int)
 language plpgsql
 security definer
 set search_path = public
