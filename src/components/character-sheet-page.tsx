@@ -2105,9 +2105,11 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
 
         {!isDemo ? (
-          <details className="mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
-            <summary className="cursor-pointer text-xs uppercase tracking-[0.25em] text-[#d7b46a]">
-              Versiones de nivel guardadas
+          <details className="group mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs uppercase tracking-[0.25em] text-[#d7b46a] [&::-webkit-details-marker]:hidden">
+              <span>Versiones de nivel guardadas</span>
+              <span className="text-lg leading-none text-[#f3dfac] group-open:hidden">+</span>
+              <span className="hidden text-lg leading-none text-[#f3dfac] group-open:inline">-</span>
             </summary>
 
             <div className="mt-4 border-t border-[#7b5a2d]/50 pt-4">
