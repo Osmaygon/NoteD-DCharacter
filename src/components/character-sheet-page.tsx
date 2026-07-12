@@ -2105,37 +2105,38 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
 
         {!isDemo ? (
-          <div className="mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs uppercase tracking-[0.25em] text-[#d7b46a]">Versiones de nivel guardadas</p>
+          <details className="mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
+            <summary className="cursor-pointer list-none">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-[#d7b46a]">Versiones de nivel guardadas</p>
+                  <p className="mt-1 text-xs text-[#b9ae8d]">Abrir para guardar, subir o bajar nivel.</p>
+                </div>
+                <span className="btn-secondary px-3 py-2 text-xs">Abrir / cerrar</span>
+              </div>
+            </summary>
+
+            <div className="mt-4 border-t border-[#7b5a2d]/50 pt-4">
               <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => void saveCurrentLevelSnapshot()}>
                 Guardar nivel actual {form.level ? `(${form.level})` : ""}
               </button>
-            </div>
-            <div className="mt-3">
-              {levelSnapshots.length ? (
-                <label className="block">
-                  <span className="mb-1 block text-xs uppercase tracking-wide text-[#b9ae8d]">Elegir versión</span>
-                  <select
-                    className="field"
-                    value={levelSnapshots.some((snapshot) => snapshot.level === Number(form.level)) ? String(form.level) : ""}
-                    onChange={(event) => {
-                      const level = Number(event.target.value);
-                      if (level) void activateLevel(level);
-                    }}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {levelSnapshots.length ? levelSnapshots.map((snapshot) => (
+                  <button
+                    className={Number(form.level) === snapshot.level ? "btn-primary" : "btn-secondary"}
+                    key={snapshot.id}
+                    onClick={() => void activateLevel(snapshot.level)}
+                    type="button"
+                    title={`Capturado ${new Date(snapshot.captured_at).toLocaleString()}`}
                   >
-                    <option value="">Selecciona un nivel guardado</option>
-                    {levelSnapshots.map((snapshot) => (
-                      <option key={snapshot.id} value={snapshot.level}>
-                        Nivel {snapshot.level} · {snapshot.hp ?? "-"} PV · CA {snapshot.ac ?? "-"}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : <p className="text-sm text-[#b9ae8d]">Aún no hay niveles guardados. Guarda el nivel actual antes de subir para poder volver atrás.</p>}
+                    Nivel {snapshot.level} · {snapshot.hp ?? "-"} PV · CA {snapshot.ac ?? "-"}
+                  </button>
+                )) : <p className="text-sm text-[#b9ae8d]">Aún no hay niveles guardados. Guarda el nivel actual antes de subir para poder volver atrás.</p>}
+              </div>
+              <p className="mt-2 text-xs text-[#b9ae8d]">Cambiar de nivel solo aplica la ficha base capturada desde Nivel20. No toca inventario, cartera, vida actual, munición ni estados.</p>
             </div>
-            <p className="mt-2 text-xs text-[#b9ae8d]">Cambiar de nivel solo aplica la ficha base capturada desde Nivel20. No toca inventario, cartera, vida actual, munición ni estados.</p>
-          </div>
+          </details>
         ) : null}
 
         <div className="mt-5 flex flex-wrap gap-2">
