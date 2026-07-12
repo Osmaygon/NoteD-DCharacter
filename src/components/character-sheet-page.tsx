@@ -976,6 +976,25 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
     setLevelSnapshots(body.levels ?? []);
   }, [characterId]);
 
+  async function saveCurrentLevelSnapshot() {
+    const token = localStorage.getItem("ndc_session_token");
+    if (!token || !userId) return;
+    try {
+      setMessage("");
+      const response = await fetch(`/api/characters/${characterId}/levels/save-current`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ appSessionToken: token }),
+      });
+      const body = (await response.json()) as { level?: number; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "No se pudo guardar el nivel actual");
+      await loadLevelSnapshots();
+      setMessage(`Nivel actual ${body.level ?? form.level} guardado. Ahora podrás volver a este nivel.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo guardar el nivel actual");
+    }
+  }
+
   async function activateLevel(level: number) {
     const token = localStorage.getItem("ndc_session_token");
     if (!token || !userId) return;
@@ -2085,11 +2104,16 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
 
         {message ? <p className="mt-3 text-sm text-[#b9ae8d]">{message}</p> : null}
 
-        {levelSnapshots.length > 0 ? (
+        {!isDemo ? (
           <div className="mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
-            <p className="text-xs uppercase tracking-[0.25em] text-[#d7b46a]">Versiones de nivel guardadas</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.25em] text-[#d7b46a]">Versiones de nivel guardadas</p>
+              <button className="btn-secondary px-3 py-2 text-xs" type="button" onClick={() => void saveCurrentLevelSnapshot()}>
+                Guardar nivel actual {form.level ? `(${form.level})` : ""}
+              </button>
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
-              {levelSnapshots.map((snapshot) => (
+              {levelSnapshots.length ? levelSnapshots.map((snapshot) => (
                 <button
                   className={Number(form.level) === snapshot.level ? "btn-primary" : "btn-secondary"}
                   key={snapshot.id}
@@ -2099,7 +2123,7 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
                 >
                   Nivel {snapshot.level} · {snapshot.hp ?? "-"} PV · CA {snapshot.ac ?? "-"}
                 </button>
-              ))}
+              )) : <p className="text-sm text-[#b9ae8d]">Aún no hay niveles guardados. Guarda el nivel actual antes de subir para poder volver atrás.</p>}
             </div>
             <p className="mt-2 text-xs text-[#b9ae8d]">Cambiar de nivel solo aplica la ficha base capturada desde Nivel20. No toca inventario, cartera, vida actual, munición ni estados.</p>
           </div>
