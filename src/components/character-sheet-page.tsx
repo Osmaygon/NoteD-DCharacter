@@ -2106,14 +2106,8 @@ export function CharacterSheetPage({ demoCharacterId }: { demoCharacterId?: stri
 
         {!isDemo ? (
           <details className="mt-4 rounded-2xl border border-[#7b5a2d]/60 bg-[#120c08] p-4">
-            <summary className="cursor-pointer list-none">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-[#d7b46a]">Versiones de nivel guardadas</p>
-                  <p className="mt-1 text-xs text-[#b9ae8d]">Abrir para guardar, subir o bajar nivel.</p>
-                </div>
-                <span className="btn-secondary px-3 py-2 text-xs">Abrir / cerrar</span>
-              </div>
+            <summary className="cursor-pointer text-xs uppercase tracking-[0.25em] text-[#d7b46a]">
+              Versiones de nivel guardadas
             </summary>
 
             <div className="mt-4 border-t border-[#7b5a2d]/50 pt-4">
