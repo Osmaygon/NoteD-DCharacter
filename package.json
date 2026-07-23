@@ -10,6 +10,7 @@
     "import:nivel20": "node scripts/import-nivel20-campaign.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@supabase/supabase-js": "^2.106.2",
     "next": "16.2.6",
     "pdfjs-dist": "^5.6.205",
